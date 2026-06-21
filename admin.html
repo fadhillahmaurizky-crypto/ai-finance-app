@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Saldoku Admin Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F0F2F5;--bg2:#fff;--bg3:#F7F8FA;
+  --border:#E4E8EE;--text:#0D1117;--text2:#3D4A5C;--text3:#8A96A8;
+  --green:#00B26A;--green-bg:#E6F7F0;--green-dk:#007A48;
+  --red:#F03E3E;--red-bg:#FFF0F0;
+  --blue:#2B7EF8;--blue-bg:#EBF3FF;
+  --amber:#F59E0B;--amber-bg:#FEF3C7;
+  --purple:#7C3AED;--purple-bg:#F3EEFF;
+  --sidebar-w:240px;--font:'Inter',sans-serif;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:10}
+.sidebar-brand{padding:20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.brand-ico{width:36px;height:36px;background:var(--green);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px}
+.brand-name{font-size:16px;font-weight:700}
+.brand-badge{font-size:10px;background:var(--purple-bg);color:var(--purple);padding:2px 7px;border-radius:5px;font-weight:600;margin-left:4px}
+.sidebar-nav{flex:1;padding:12px 10px;overflow-y:auto}
+.nav-group-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:8px 10px 4px}
+.nav-link{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left}
+.nav-link:hover{background:var(--bg3)}
+.nav-link.active{background:var(--green-bg);color:var(--green)}
+.nav-link i{font-size:18px;flex-shrink:0}
+.sidebar-footer{padding:14px;border-top:1px solid var(--border)}
+.admin-chip{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--bg3)}
+.admin-av{width:34px;height:34px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0}
+
+/* MAIN */
+.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:9}
+.topbar-title{font-size:16px;font-weight:700}
+.topbar-sub{font-size:12px;color:var(--text3);margin-top:1px}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.topbar-btn{padding:8px 14px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--text2);display:flex;align-items:center;gap:6px;transition:all .15s}
+.topbar-btn:hover{background:var(--bg3)}
+.topbar-btn.primary{background:var(--green);color:#fff;border-color:var(--green)}
+.online-badge{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--green);font-weight:500}
+.online-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.content{padding:24px;flex:1}
+.page{display:none}
+.page.active{display:block}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:var(--bg2);border-radius:14px;padding:18px 20px;border:1px solid var(--border);position:relative;overflow:hidden;transition:transform .15s}
+.stat-card:hover{transform:translateY(-2px)}
+.stat-ico-wrap{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px}
+.stat-lbl{font-size:12px;color:var(--text3);font-weight:500;margin-bottom:4px}
+.stat-val{font-size:26px;font-weight:700;color:var(--text);letter-spacing:-.5px}
+.stat-change{font-size:11px;margin-top:6px;display:flex;align-items:center;gap:4px;font-weight:500}
+.stat-change.up{color:var(--green)}
+.stat-change.dn{color:var(--red)}
+.stat-change.neutral{color:var(--text3)}
+
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.grid-3{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
+
+/* CARD */
+.card{background:var(--bg2);border-radius:14px;border:1px solid var(--border);overflow:hidden}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:14px;font-weight:700}
+.card-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.card-action{font-size:12px;color:var(--green);font-weight:600;cursor:pointer;background:none;border:none;display:flex;align-items:center;gap:4px}
+.card-body{padding:20px}
+
+/* CHART */
+.chart-wrap{height:160px;display:flex;align-items:flex-end;gap:8px;padding:0 4px}
+.chart-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+.chart-bar-wrap{flex:1;display:flex;align-items:flex-end;width:100%;gap:3px}
+.chart-bar{flex:1;border-radius:5px 5px 0 0;min-height:4px;transition:height .5s}
+.chart-lbl{font-size:10px;color:var(--text3);font-weight:500}
+
+/* TABLE */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;background:var(--bg3);border-bottom:1px solid var(--border)}
+tbody td{padding:12px 16px;font-size:13px;color:var(--text2);border-bottom:1px solid var(--bg3)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--bg3)}
+.user-cell{display:flex;align-items:center;gap:10px}
+.user-av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;font-weight:700;color:#fff}
+.user-name{font-size:13px;font-weight:600;color:var(--text)}
+.user-sub{font-size:11px;color:var(--text3)}
+.badge-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-pill.green{background:var(--green-bg);color:var(--green)}
+.badge-pill.red{background:var(--red-bg);color:var(--red)}
+.badge-pill.blue{background:var(--blue-bg);color:var(--blue)}
+.badge-pill.amber{background:var(--amber-bg);color:var(--amber)}
+.badge-pill.purple{background:var(--purple-bg);color:var(--purple)}
+.amount-cell{font-weight:600}
+.amount-cell.pos{color:var(--green)}
+.amount-cell.neg{color:var(--red)}
+.action-btn{padding:5px 10px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:all .15s;display:inline-flex;align-items:center;gap:4px}
+.action-btn:hover{background:var(--border)}
+.action-btn.danger{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.action-btn.warning{background:var(--amber-bg);color:var(--amber);border-color:var(--amber)}
+.action-btn.primary{background:var(--green-bg);color:var(--green);border-color:var(--green)}
+
+/* STATUS SELECT */
+.status-select{padding:4px 8px;border:1px solid var(--border);border-radius:7px;font-size:11px;font-weight:600;background:var(--bg3);color:var(--text);cursor:pointer;outline:none}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--bg2);border-radius:20px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg2);z-index:1}
+.modal-title{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.modal-close{width:32px;height:32px;border-radius:50%;background:var(--bg3);border:none;color:var(--text2);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.modal-body{padding:24px}
+.detail-section{margin-bottom:20px}
+.detail-section-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.detail-item{background:var(--bg3);border-radius:10px;padding:12px 14px}
+.detail-item.full{grid-column:1/-1}
+.detail-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.detail-value{font-size:13px;font-weight:600;color:var(--text);word-break:break-all}
+.detail-value.green{color:var(--green)}
+.detail-value.red{color:var(--red)}
+.detail-value.mono{font-family:monospace;font-size:11px;color:var(--text3)}
+
+/* RESET PASS FORM */
+.reset-form{background:var(--amber-bg);border:1px solid var(--amber);border-radius:12px;padding:16px;margin-top:16px}
+.reset-form-title{font-size:13px;font-weight:700;color:var(--amber);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.f-input{width:100%;background:var(--bg2);border:1.5px solid var(--border);border-radius:10px;padding:10px 13px;font-size:13px;color:var(--text);outline:none;font-family:var(--font);transition:border-color .2s;margin-bottom:8px}
+.f-input:focus{border-color:var(--amber)}
+.f-btn{width:100%;padding:10px;border-radius:10px;background:var(--amber);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:opacity .2s}
+.f-btn:active{opacity:.8}
+.f-btn.green{background:var(--green)}
+.f-btn.red{background:var(--red)}
+
+/* ACTIVITY */
+.activity-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bg3)}
+.activity-item:last-child{border-bottom:none}
+.activity-ico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+
+/* GROWTH CHART */
+.growth-bar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.growth-label{font-size:12px;color:var(--text2);width:40px;flex-shrink:0}
+.growth-track{flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden}
+.growth-fill{height:100%;border-radius:4px;transition:width .5s}
+.growth-val{font-size:12px;font-weight:600;color:var(--text2);width:30px;text-align:right;flex-shrink:0}
+
+/* LOGIN */
+.login-overlay{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;align-items:center;justify-content:center}
+.login-box{background:var(--bg2);border-radius:20px;padding:32px;width:100%;max-width:380px;border:1px solid var(--border);box-shadow:0 8px 40px rgba(0,0,0,.08)}
+.l-group{margin-bottom:14px}
+.l-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;display:block}
+.l-input{width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:11px;padding:11px 14px;font-size:14px;color:var(--text);outline:none;transition:border-color .2s;font-family:var(--font)}
+.l-input:focus{border-color:var(--green);background:#fff}
+.l-btn{width:100%;padding:13px;border-radius:12px;background:var(--green);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;font-family:var(--font)}
+.l-err{font-size:12px;color:var(--red);margin-top:8px;text-align:center;padding:8px;background:var(--red-bg);border-radius:8px;display:none}
+
+/* SKELETON */
+.skeleton{background:linear-gradient(90deg,var(--bg3) 25%,var(--border) 50%,var(--bg3) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;pointer-events:none;z-index:300;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.toast.show{opacity:1}
+.toast.ok{background:var(--green);color:#fff}
+.toast.err{background:var(--red);color:#fff}
+.toast.info{background:var(--text);color:var(--bg2)}
+
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.spinning{animation:spin 1s linear infinite}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="width:56px;height:56px;background:var(--green);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin:0 auto 14px"><i class="ti ti-chart-pie-2"></i></div>
+      <div style="font-size:20px;font-weight:700">Saldoku Admin</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">Saldoku · Dashboard Admin</div>
+    </div>
+    <div class="l-group">
+      <label class="l-label">Password Admin</label>
+      <input class="l-input" id="admin-pass" type="password" placeholder="Masukkan password..." onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="l-btn" onclick="doLogin()"><i class="ti ti-lock-open"></i> Masuk ke Dashboard</button>
+    <div class="l-err" id="login-err">Password salah!</div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-ico"><i class="ti ti-chart-pie-2"></i></div>
+    <div><span class="brand-name">Saldoku</span><span class="brand-badge">ADMIN</span></div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-group-title">Menu Utama</div>
+    <button class="nav-link active" onclick="showPage('overview')"><i class="ti ti-layout-dashboard"></i> Overview</button>
+    <button class="nav-link" onclick="showPage('users')"><i class="ti ti-users"></i> Manajemen User</button>
+    <button class="nav-link" onclick="showPage('transaksi')"><i class="ti ti-receipt"></i> Semua Transaksi</button>
+    <button class="nav-link" onclick="showPage('laporan')"><i class="ti ti-chart-bar"></i> Laporan</button>
+    <div class="nav-group-title" style="margin-top:8px">Lainnya</div>
+    <button class="nav-link" onclick="showPage('settings')"><i class="ti ti-settings"></i> Pengaturan</button>
+    <button class="nav-link" onclick="refreshAll()"><i class="ti ti-refresh" id="refresh-ico"></i> Refresh Data</button>
+    <button class="nav-link" style="color:var(--red)" onclick="doLogout()"><i class="ti ti-logout"></i> Keluar</button>
+  </div>
+  <div class="sidebar-footer">
+    <div class="admin-chip">
+      <div class="admin-av"><i class="ti ti-user"></i></div>
+      <div><div style="font-size:13px;font-weight:600">Maurizky Fadhillah</div><div style="font-size:10px;color:var(--green)">Super Admin</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title" id="page-title">Overview</div>
+      <div class="topbar-sub" id="page-sub">Ringkasan platform Saldoku</div>
+    </div>
+    <div class="topbar-right">
+      <div class="online-badge"><span class="online-dot"></span> Live</div>
+      <button class="topbar-btn" onclick="refreshAll()"><i class="ti ti-refresh" id="refresh-ico2"></i> Refresh</button>
+      <button class="topbar-btn primary" onclick="showPage('users')"><i class="ti ti-users"></i> Kelola User</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- OVERVIEW -->
+    <div class="page active" id="page-overview">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-ico-wrap" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-users"></i></div>
+          <div class="stat-lbl">Total User Terdaftar</div>
+          <div class="stat-val" id="s-total-user">—</div>
+          <div class="stat-change up" id="s-total-user-sub"><i class="ti ti-trending-up"></i> Semua user</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico-wrap" style="background:var(--blue-bg);color:var(--blue)"><i class="ti ti-user-check"></i></div>
+          <div class="stat-lbl">User Aktif</div>
+          <div class="stat-val" id="s-aktif-user">—</div>
+          <div class="stat-change up" id="s-aktif-sub"><i class="ti ti-trending-up"></i> Status aktif</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico-wrap" style="background:var(--amber-bg);color:var(--amber)"><i class="ti ti-receipt"></i></div>
+          <div class="stat-lbl">Total Transaksi Platform</div>
+          <div class="stat-val" id="s-total-trx">—</div>
+          <div class="stat-change neutral" id="s-trx-sub"><i class="ti ti-activity"></i> Semua transaksi</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico-wrap" style="background:var(--purple-bg);color:var(--purple)"><i class="ti ti-user-plus"></i></div>
+          <div class="stat-lbl">User Baru Bulan Ini</div>
+          <div class="stat-val" id="s-new-user">—</div>
+          <div class="stat-change up" id="s-new-sub"><i class="ti ti-trending-up"></i> Bulan ini</div>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Aktivitas User Terbaru</div><div class="card-sub">Berdasarkan last login</div></div>
+            <button class="card-action" onclick="showPage('users')">Semua user <i class="ti ti-chevron-right"></i></button>
+          </div>
+          <div class="card-body" id="recent-users" style="padding:0 20px">
+            <div class="skeleton" style="height:44px;margin:16px 0 8px"></div>
+            <div class="skeleton" style="height:44px;margin-bottom:8px"></div>
+            <div class="skeleton" style="height:44px;margin-bottom:16px"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Status User</div></div>
+          <div class="card-body" id="user-status-chart"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Pertumbuhan User per Bulan</div><div class="card-sub">6 bulan terakhir</div></div>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap" id="growth-chart"></div>
+          <div style="display:flex;justify-content:space-around;margin-top:8px" id="growth-labels"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="page" id="page-users">
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Semua User</div><div class="card-sub" id="user-count-sub">Memuat...</div></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="user-search" placeholder="Cari nama / username / nomor..." style="padding:7px 12px;border:1px solid var(--border);border-radius:9px;font-size:12px;outline:none;background:var(--bg3);color:var(--text);width:240px" oninput="filterUsers()"/>
+            <select id="filter-status" style="padding:7px 12px;border:1px solid var(--border);border-radius:9px;font-size:12px;outline:none;background:var(--bg3);color:var(--text)" onchange="filterUsers()">
+              <option value="">Semua Status</option>
+              <option value="active">Aktif</option>
+              <option value="inactive">Nonaktif</option>
+              <option value="banned">Banned</option>
+            </select>
+            <button class="topbar-btn" onclick="loadUsers()"><i class="ti ti-refresh"></i></button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Username</th>
+                <th>No. WA</th>
+                <th>Email</th>
+                <th>Saldo</th>
+                <th>Transaksi</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="users-table">
+              <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRANSAKSI -->
+    <div class="page" id="page-transaksi">
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Semua Transaksi</div><div class="card-sub" id="trx-count-sub">—</div></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="trx-filter-user" style="padding:7px 12px;border:1px solid var(--border);border-radius:9px;font-size:12px;outline:none;background:var(--bg3);color:var(--text)" onchange="loadAllTrx()">
+              <option value="">Semua User</option>
+            </select>
+            <select id="trx-filter-jenis" style="padding:7px 12px;border:1px solid var(--border);border-radius:9px;font-size:12px;outline:none;background:var(--bg3);color:var(--text)" onchange="loadAllTrx()">
+              <option value="semua">Semua Jenis</option>
+              <option value="pemasukan">Pemasukan</option>
+              <option value="pengeluaran">Pengeluaran</option>
+            </select>
+            <button class="topbar-btn" onclick="loadAllTrx()"><i class="ti ti-refresh"></i></button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>User</th><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Nominal</th><th>Keterangan</th><th>Saldo</th></tr></thead>
+            <tbody id="trx-table"><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">Memuat...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- LAPORAN -->
+    <div class="page" id="page-laporan">
+      <div class="grid-2" style="margin-bottom:24px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Pemasukan per Kategori</div></div>
+          <div class="card-body" id="chart-masuk"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Pengeluaran per Kategori</div></div>
+          <div class="card-body" id="chart-keluar"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Ringkasan per User</div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>User</th><th>Total Masuk</th><th>Total Keluar</th><th>Saldo</th><th>Transaksi</th></tr></thead>
+            <tbody id="laporan-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div style="max-width:480px;display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Ganti Password Admin</div></div>
+          <div class="card-body">
+            <input class="l-input" id="set-new-pass" type="password" placeholder="Password baru (min. 6 karakter)" style="margin-bottom:8px"/>
+            <input class="l-input" id="set-confirm-pass" type="password" placeholder="Konfirmasi password baru"/>
+            <button class="f-btn green" style="margin-top:10px" onclick="changeAdminPass()"><i class="ti ti-lock"></i> Ganti Password</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">🤖 API Key Pool (Claude AI)</div><div class="card-sub" style="font-size:11px;color:var(--text3);margin-top:2px">Dipakai semua user Pro — user tidak perlu isi sendiri</div></div>
+          <div class="card-body">
+            <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Dari <strong>console.anthropic.com</strong> → API Keys → Create Key</div>
+            <div style="display:flex;gap:8px;margin-bottom:10px">
+              <input id="pool-key-input" type="password" placeholder="sk-ant-api03-..." style="flex:1;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:10px 13px;font-size:12px;color:var(--text);outline:none;font-family:monospace;transition:border-color .2s"/>
+              <button onclick="togglePoolKey()" style="padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:14px" title="Show/Hide">👁️</button>
+            </div>
+            <button onclick="savePoolKey()" style="width:100%;padding:11px;border-radius:10px;background:var(--green);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer"><i class="ti ti-device-floppy"></i> Simpan API Key Pool</button>
+            <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12px;color:var(--text3)">Status AI:</span>
+              <span id="pool-status" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">—</span>
+            </div>
+            <div style="margin-top:10px;background:var(--amber-bg);border:1px solid var(--amber);border-radius:10px;padding:10px 12px;font-size:11px;color:var(--amber);line-height:1.6">
+              ⚡ Estimasi biaya AI: ~Rp 600/user Pro/bulan.<br>Harga Pro Rp 19.000 → margin kamu <strong>~97%</strong>!
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">Info Platform</div></div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+              <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg3)"><span style="color:var(--text3)">Versi Dashboard</span><span style="font-weight:600">2.0.0</span></div>
+              <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg3)"><span style="color:var(--text3)">Database</span><span style="font-weight:600;color:var(--green)">Supabase ✓</span></div>
+              <div style="display:flex;justify-content:space-between;padding:8px 0"><span style="color:var(--text3)">App URL</span><a href="index.html" style="font-weight:600;color:var(--blue);text-decoration:none">Buka App →</a></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL DETAIL USER -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title"><i class="ti ti-user-circle" style="color:var(--green)"></i> Detail User</div>
+      <button class="modal-close" onclick="closeDetailModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" id="detail-modal-body"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ========================
+// CONFIG
+// ========================
+const PASS_KEY     = 'saldoku_admin_pass';
+const DEFAULT_PASS = 'saldoku@admin2024';
+const SUPABASE_URL = 'https://brkeszbldaqglhdukjsr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJya2VzemJsZGFxZ2xoZHVranNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNTU5NDgsImV4cCI6MjA5NjYzMTk0OH0.WG_I5tT86YWQIFLEkFVFEUV7CzhrVhVDEjCyGQVkN_Y';
+const GAS_URL      = 'https://script.google.com/macros/s/AKfycbxO5RHZcHojCy-d65QiKDMnk4d-z_d_vCCqAETetTnr0kVqMoRXp6yrep8AuU3mmCtNuw/exec';
+
+let supaUsers = [], gasUsers = [], adminData = null, currentDetailUser = null;
+
+// ========================
+// SUPABASE
+// ========================
+async function sbFetch(path, method='GET', body=null) {
+  const opts = { method, headers: { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json', 'Prefer': method==='POST'?'return=representation':'' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(SUPABASE_URL+'/rest/v1/'+path, opts);
+  if (!res.ok) { const e=await res.json(); throw new Error(e.message||'Error'); }
+  return res.status===204?null:res.json();
+}
+
+async function hashPass(p) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p+'saldoku_salt_2024'));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// ========================
+// AUTH
+// ========================
+function checkAuth() {
+  if (sessionStorage.getItem('saldoku_admin')!=='ok') return;
+  document.getElementById('login-overlay').style.display='none';
+  init();
+}
+function doLogin() {
+  const p = document.getElementById('admin-pass').value;
+  const saved = localStorage.getItem(PASS_KEY)||DEFAULT_PASS;
+  if (p===saved) { sessionStorage.setItem('saldoku_admin','ok'); document.getElementById('login-overlay').style.display='none'; document.getElementById('login-err').style.display='none'; init(); }
+  else { document.getElementById('login-err').style.display='block'; document.getElementById('admin-pass').value=''; document.getElementById('admin-pass').focus(); }
+}
+function doLogout() { sessionStorage.removeItem('saldoku_admin'); location.reload(); }
+document.getElementById('admin-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// ========================
+// FORMAT
+// ========================
+function rp(n) {
+  if (!n&&n!==0) return '—';
+  const abs=Math.abs(n);
+  const s=abs>=1e9?(abs/1e9).toFixed(1)+'M':abs>=1e6?(abs/1e6).toFixed(1)+'jt':abs>=1e3?(abs/1e3).toFixed(0)+'rb':abs.toLocaleString('id-ID');
+  return (n<0?'-':'')+'Rp '+s;
+}
+function rpFull(n) { return 'Rp '+Number(n||0).toLocaleString('id-ID'); }
+function fmtDate(d) { if(!d) return '—'; try{return new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return d;} }
+function fmtDateShort(d) { if(!d) return '—'; try{return new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});}catch(e){return d;} }
+
+// ========================
+// TOAST
+// ========================
+let toastTimer;
+function showToast(msg,type='info') {
+  const t=document.getElementById('toast');
+  t.innerHTML=(type==='ok'?'<i class="ti ti-check"></i> ':type==='err'?'<i class="ti ti-x"></i> ':'')+msg;
+  t.className='toast show '+type;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.className='toast',2500);
+}
+
+// ========================
+// NAVIGATION
+// ========================
+const PAGE_META = {
+  overview: {title:'Overview',sub:'Ringkasan platform Saldoku'},
+  users:    {title:'Manajemen User',sub:'Kelola semua pengguna Saldoku'},
+  transaksi:{title:'Semua Transaksi',sub:'Riwayat transaksi seluruh user'},
+  laporan:  {title:'Laporan',sub:'Analisa keuangan platform'},
+  settings: {title:'Pengaturan',sub:'Konfigurasi dashboard'}
+};
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+  document.getElementById('page-'+name)?.classList.add('active');
+  const meta=PAGE_META[name]||{};
+  document.getElementById('page-title').textContent=meta.title||name;
+  document.getElementById('page-sub').textContent=meta.sub||'';
+  // Aktifkan nav link yang sesuai
+  document.querySelectorAll('.nav-link').forEach(l=>{
+    if(l.textContent.trim().toLowerCase().includes((meta.title||'').toLowerCase().split(' ')[0].toLowerCase())) l.classList.add('active');
+  });
+  if(name==='users') loadUsers();
+  if(name==='transaksi') loadAllTrx();
+  if(name==='laporan') renderLaporan();
+  if(name==='settings') loadPoolKey();
+}
+
+// ========================
+// INIT & LOAD DATA
+// ========================
+async function init() {
+  await loadAllData();
+  renderOverview();
+}
+
+async function loadAllData() {
+  const ico = document.getElementById('refresh-ico');
+  if(ico) ico.classList.add('spinning');
+  try {
+    // Load dari Supabase
+    supaUsers = await sbFetch('users?select=*&order=created_at.desc') || [];
+    // Load dari GAS
+    try {
+      const res = await fetch(GAS_URL+'?action=adminData');
+      const d = await res.json();
+      if(d.status==='ok') { adminData=d; gasUsers=d.users||[]; }
+    } catch(e) { console.log('GAS error:', e); }
+    showToast('Data berhasil dimuat','ok');
+  } catch(e) { showToast('Gagal: '+e.message,'err'); }
+  if(ico) ico.classList.remove('spinning');
+}
+
+async function refreshAll() {
+  await loadAllData();
+  const curr=document.querySelector('.page.active')?.id?.replace('page-','');
+  if(curr==='overview') renderOverview();
+  else if(curr) showPage(curr);
+}
+
+// ========================
+// OVERVIEW
+// ========================
+function renderOverview() {
+  const total = supaUsers.length;
+  const aktif = supaUsers.filter(u=>u.status==='active').length;
+  const bulanIni = new Date(); bulanIni.setDate(1); bulanIni.setHours(0,0,0,0);
+  const newUser = supaUsers.filter(u=>u.created_at && new Date(u.created_at)>=bulanIni).length;
+  const totalTrx = adminData?.stats?.totalTrx || 0;
+
+  document.getElementById('s-total-user').textContent = total;
+  document.getElementById('s-aktif-user').textContent = aktif;
+  document.getElementById('s-total-trx').textContent = totalTrx;
+  document.getElementById('s-new-user').textContent = newUser;
+  document.getElementById('s-aktif-sub').textContent = `${aktif} dari ${total} user`;
+  document.getElementById('s-new-sub').textContent = `Daftar bulan ${new Date().toLocaleString('id-ID',{month:'long'})}`;
+
+  // Recent users
+  const recent = [...supaUsers].sort((a,b)=>new Date(b.last_login||b.created_at||0)-new Date(a.last_login||a.created_at||0)).slice(0,5);
+  document.getElementById('recent-users').innerHTML = recent.length ? recent.map(u => {
+    const gasUser = gasUsers.find(g=>g.userId===u.wa_number)||{};
+    const colors = ['#00B26A','#2B7EF8','#F59E0B','#8B5CF6','#EC4899'];
+    const color = colors[supaUsers.indexOf(u)%colors.length];
+    return `<div class="activity-item">
+      <div class="activity-ico" style="background:${color}20;color:${color};font-weight:700;font-size:13px">${(u.full_name||'U').charAt(0)}</div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">${u.full_name||'—'}</div><div style="font-size:11px;color:var(--text3)">@${u.username} · ${u.status==='active'?'✅':'⏸️'} ${fmtDateShort(u.last_login||u.created_at)}</div></div>
+      <div style="font-size:12px;font-weight:600;color:${(gasUser.saldo||0)>=0?'var(--green)':'var(--red)'}">${rp(gasUser.saldo||0)}</div>
+    </div>`;
+  }).join('') : '<div style="text-align:center;padding:20px;color:var(--text3)">Belum ada user</div>';
+
+  // Status chart
+  const inactive = supaUsers.filter(u=>u.status==='inactive').length;
+  const banned   = supaUsers.filter(u=>u.status==='banned').length;
+  document.getElementById('user-status-chart').innerHTML = `
+    <div class="growth-bar"><span class="growth-label" style="color:var(--green)">Aktif</span><div class="growth-track"><div class="growth-fill" style="width:${total?((aktif/total)*100).toFixed(0):0}%;background:var(--green)"></div></div><span class="growth-val">${aktif}</span></div>
+    <div class="growth-bar"><span class="growth-label" style="color:var(--amber)">Inaktif</span><div class="growth-track"><div class="growth-fill" style="width:${total?((inactive/total)*100).toFixed(0):0}%;background:var(--amber)"></div></div><span class="growth-val">${inactive}</span></div>
+    <div class="growth-bar"><span class="growth-label" style="color:var(--red)">Banned</span><div class="growth-track"><div class="growth-fill" style="width:${total?((banned/total)*100).toFixed(0):0}%;background:var(--red)"></div></div><span class="growth-val">${banned}</span></div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--text3)">Total User</span><span style="font-weight:700;color:var(--text)">${total}</span></div>`;
+
+  // Growth chart (simulasi per bulan)
+  const months = ['Jan','Feb','Mar','Apr','Mei','Jun'];
+  const growthData = [2,5,8,12,18,total||supaUsers.length];
+  const maxG = Math.max(...growthData);
+  document.getElementById('growth-chart').innerHTML = growthData.map((v,i)=>`
+    <div class="chart-col">
+      <div style="font-size:10px;font-weight:600;color:var(--text2)">${v}</div>
+      <div class="chart-bar-wrap"><div class="chart-bar" style="height:${(v/maxG)*100}%;background:${i===growthData.length-1?'var(--green)':'var(--blue-bg)'};border:1px solid ${i===growthData.length-1?'var(--green)':'var(--blue)'}"></div></div>
+    </div>`).join('');
+  document.getElementById('growth-labels').innerHTML = months.map(m=>`<span style="font-size:10px;color:var(--text3)">${m}</span>`).join('');
+}
+
+// ========================
+// USERS TABLE
+// ========================
+async function loadUsers() {
+  document.getElementById('users-table').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Memuat...</td></tr>';
+  if(!supaUsers.length) await loadAllData();
+  renderUsersTable(supaUsers);
+  document.getElementById('user-count-sub').textContent=supaUsers.length+' user terdaftar';
+  // Populate filter transaksi
+  const sel=document.getElementById('trx-filter-user');
+  sel.innerHTML='<option value="">Semua User</option>'+supaUsers.map(u=>`<option value="${u.wa_number}">${u.full_name||u.username}</option>`).join('');
+}
+
+const AVATAR_COLORS=['#00B26A','#2B7EF8','#F59E0B','#8B5CF6','#EC4899','#EF4444','#06B6D4'];
+
+function renderUsersTable(users) {
+  if(!users.length){ document.getElementById('users-table').innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Tidak ada user</td></tr>'; return; }
+  document.getElementById('users-table').innerHTML = users.map((u,i)=>{
+    const gas=gasUsers.find(g=>g.userId===u.wa_number)||{};
+    const color=AVATAR_COLORS[i%AVATAR_COLORS.length];
+    return `<tr>
+      <td><div class="user-cell">
+        <div class="user-av" style="background:${color}">${(u.full_name||'U').charAt(0).toUpperCase()}</div>
+        <div><div class="user-name">${u.full_name||'—'}</div><div class="user-sub">${u.role==='admin'?'👑 Admin':'👤 User'} · Daftar ${fmtDateShort(u.created_at)}</div></div>
+      </div></td>
+      <td><code style="background:var(--bg3);padding:3px 8px;border-radius:6px;font-size:12px">@${u.username||'—'}</code></td>
+      <td style="font-size:12px">+${u.wa_number||'—'}</td>
+      <td style="font-size:12px;color:var(--text3)">${u.email||'—'}</td>
+      <td class="amount-cell ${(gas.saldo||0)>=0?'pos':'neg'}">${rp(gas.saldo||0)}</td>
+      <td><span class="badge-pill blue">${gas.totalTrx||0} trx</span></td>
+      <td>
+        <select class="status-select" onchange="updateStatus('${u.id}',this.value)">
+          <option value="active" ${u.status==='active'?'selected':''}>✅ Aktif</option>
+          <option value="inactive" ${u.status==='inactive'?'selected':''}>⏸️ Nonaktif</option>
+          <option value="banned" ${u.status==='banned'?'selected':''}>🚫 Banned</option>
+        </select>
+      </td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="action-btn primary" onclick="showDetailUser('${u.id}')"><i class="ti ti-eye"></i> Detail</button>
+        <button class="action-btn warning" onclick="showResetPass('${u.id}','${u.full_name||u.username}')"><i class="ti ti-key"></i> Reset</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterUsers() {
+  const q=(document.getElementById('user-search').value||'').toLowerCase();
+  const st=document.getElementById('filter-status').value;
+  const filtered=supaUsers.filter(u=>{
+    const matchQ=!q||(u.full_name||'').toLowerCase().includes(q)||(u.username||'').toLowerCase().includes(q)||(u.wa_number||'').includes(q)||(u.email||'').toLowerCase().includes(q);
+    const matchSt=!st||u.status===st;
+    return matchQ&&matchSt;
+  });
+  renderUsersTable(filtered);
+}
+
+async function updateStatus(userId, status) {
+  try {
+    await sbFetch(`users?id=eq.${userId}`,'PATCH',{status});
+    const u=supaUsers.find(u=>u.id===userId);
+    if(u) u.status=status;
+    showToast('Status diupdate ✓','ok');
+  } catch(e) { showToast('Gagal: '+e.message,'err'); }
+}
+
+// ========================
+// DETAIL USER MODAL
+// ========================
+function showDetailUser(userId) {
+  const u = supaUsers.find(u=>u.id===userId);
+  if(!u) return;
+  currentDetailUser = u;
+  const gas = gasUsers.find(g=>g.userId===u.wa_number)||{};
+  const color = AVATAR_COLORS[supaUsers.indexOf(u)%AVATAR_COLORS.length];
+
+  document.getElementById('detail-modal-body').innerHTML = `
+    <!-- Header User -->
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding:16px;background:var(--bg3);border-radius:12px">
+      <div style="width:52px;height:52px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700;flex-shrink:0">${(u.full_name||'U').charAt(0)}</div>
+      <div>
+        <div style="font-size:16px;font-weight:700;color:var(--text)">${u.full_name||'—'}</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">@${u.username} · ${u.role==='admin'?'👑 Admin':'👤 User'}</div>
+      </div>
+      <span class="badge-pill ${u.status==='active'?'green':u.status==='banned'?'red':'amber'}" style="margin-left:auto">${u.status==='active'?'✅ Aktif':u.status==='banned'?'🚫 Banned':'⏸️ Nonaktif'}</span>
+    </div>
+
+    <!-- Info Akun -->
+    <div class="detail-section">
+      <div class="detail-section-title">Informasi Akun</div>
+      <div class="detail-grid">
+        <div class="detail-item"><div class="detail-label">Username</div><div class="detail-value">@${u.username||'—'}</div></div>
+        <div class="detail-item"><div class="detail-label">Nomor WA</div><div class="detail-value">+${u.wa_number||'—'}</div></div>
+        <div class="detail-item full"><div class="detail-label">Email</div><div class="detail-value">${u.email||'Belum diisi'}</div></div>
+        <div class="detail-item"><div class="detail-label">Tanggal Daftar</div><div class="detail-value">${fmtDate(u.created_at)}</div></div>
+        <div class="detail-item"><div class="detail-label">Terakhir Login</div><div class="detail-value">${fmtDate(u.last_login)}</div></div>
+      </div>
+    </div>
+
+    <!-- Data Keuangan -->
+    <div class="detail-section">
+      <div class="detail-section-title">Data Keuangan (dari Google Sheets)</div>
+      <div class="detail-grid">
+        <div class="detail-item"><div class="detail-label">Saldo Sekarang</div><div class="detail-value ${(gas.saldo||0)>=0?'green':'red'}">${rpFull(gas.saldo||0)}</div></div>
+        <div class="detail-item"><div class="detail-label">Total Transaksi</div><div class="detail-value">${gas.totalTrx||0} transaksi</div></div>
+        <div class="detail-item"><div class="detail-label">Total Pemasukan</div><div class="detail-value green">${rpFull(gas.totalMasuk||0)}</div></div>
+        <div class="detail-item"><div class="detail-label">Total Pengeluaran</div><div class="detail-value red">${rpFull(gas.totalKeluar||0)}</div></div>
+      </div>
+    </div>
+
+    <!-- Password Hash -->
+    <div class="detail-section">
+      <div class="detail-section-title">Keamanan</div>
+      <div class="detail-grid">
+        <div class="detail-item full">
+          <div class="detail-label">Password Hash (SHA-256)</div>
+          <div class="detail-value mono">${u.password_hash ? u.password_hash.substring(0,32)+'...' : 'Belum diset'}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reset Password -->
+    <div class="reset-form">
+      <div class="reset-form-title"><i class="ti ti-key"></i> Reset Password User Ini</div>
+      <input class="f-input" id="modal-new-pass" type="password" placeholder="Password baru untuk ${u.full_name||u.username}..."/>
+      <input class="f-input" id="modal-confirm-pass" type="password" placeholder="Konfirmasi password baru..."/>
+      <div class="l-err" id="modal-pass-err"></div>
+      <button class="f-btn" onclick="modalResetPassword('${u.id}','${u.full_name||u.username}')"><i class="ti ti-device-floppy"></i> Simpan Password Baru</button>
+    </div>
+
+    <!-- Aksi -->
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="f-btn green" onclick="viewUserTrx('${u.wa_number}','${u.full_name||u.username}')"><i class="ti ti-receipt"></i> Lihat Transaksi</button>
+      <button class="f-btn red" onclick="confirmBanUser('${u.id}','${u.full_name||u.username}','${u.status}')">
+        ${u.status==='banned'?'<i class="ti ti-user-check"></i> Unban':'<i class="ti ti-ban"></i> Ban User'}
+      </button>
+    </div>
+  `;
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function closeDetailModal() { document.getElementById('detail-modal').classList.remove('open'); }
+
+async function modalResetPassword(userId, nama) {
+  const newPass  = document.getElementById('modal-new-pass').value;
+  const confPass = document.getElementById('modal-confirm-pass').value;
+  const errEl    = document.getElementById('modal-pass-err');
+  errEl.style.display='none';
+  if(!newPass||newPass.length<6){errEl.textContent='Password min. 6 karakter!';errEl.style.display='block';return;}
+  if(newPass!==confPass){errEl.textContent='Password tidak cocok!';errEl.style.display='block';return;}
+  try {
+    const hash=await hashPass(newPass);
+    await sbFetch(`users?id=eq.${userId}`,'PATCH',{password_hash:hash});
+    document.getElementById('modal-new-pass').value='';
+    document.getElementById('modal-confirm-pass').value='';
+    showToast(`Password ${nama} berhasil direset ✓`,'ok');
+  } catch(e){errEl.textContent='Gagal: '+e.message;errEl.style.display='block';}
+}
+
+async function showResetPass(userId, nama) {
+  const newPass = prompt(`Reset password untuk ${nama}\n\nMasukkan password baru:`);
+  if(!newPass) return;
+  if(newPass.length<6){showToast('Password min. 6 karakter!','err');return;}
+  try {
+    const hash=await hashPass(newPass);
+    await sbFetch(`users?id=eq.${userId}`,'PATCH',{password_hash:hash});
+    showToast(`Password ${nama} direset ✓`,'ok');
+  } catch(e){showToast('Gagal: '+e.message,'err');}
+}
+
+async function confirmBanUser(userId, nama, currentStatus) {
+  const isBanned = currentStatus==='banned';
+  const action = isBanned?'unban':'ban';
+  if(!confirm(`${isBanned?'Unban':'Ban'} user ${nama}?`)) return;
+  try {
+    const newStatus = isBanned?'active':'banned';
+    await sbFetch(`users?id=eq.${userId}`,'PATCH',{status:newStatus});
+    const u=supaUsers.find(u=>u.id===userId);
+    if(u) u.status=newStatus;
+    showToast(`${nama} berhasil di-${action} ✓`,'ok');
+    closeDetailModal();
+    renderUsersTable(supaUsers);
+  } catch(e){showToast('Gagal: '+e.message,'err');}
+}
+
+function viewUserTrx(waNumber, nama) {
+  closeDetailModal();
+  showPage('transaksi');
+  document.getElementById('trx-filter-user').value=waNumber;
+  loadAllTrx();
+}
+
+// ========================
+// TRANSAKSI
+// ========================
+async function loadAllTrx() {
+  const userId=document.getElementById('trx-filter-user')?.value||'';
+  const filter=document.getElementById('trx-filter-jenis')?.value||'semua';
+  document.getElementById('trx-table').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">Memuat...</td></tr>';
+  try {
+    let url=GAS_URL+'?action=transaksi&limit=100&filter='+filter;
+    if(userId) url+='&userId='+userId;
+    const res=await fetch(url);
+    const data=await res.json();
+    if(data.status!=='ok') throw new Error(data.error);
+    const trx=data.transaksi||[];
+    document.getElementById('trx-count-sub').textContent=trx.length+' transaksi'+(userId?' (filter user)':'');
+    if(!trx.length){document.getElementById('trx-table').innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">Tidak ada transaksi</td></tr>';return;}
+    document.getElementById('trx-table').innerHTML=trx.map(t=>{
+      const isInc=(t.jenis||'').toLowerCase()==='pemasukan';
+      const supaUser=supaUsers.find(u=>u.wa_number==t.userId)||{};
+      return `<tr>
+        <td><div class="user-cell"><div class="user-av" style="background:var(--blue);font-size:11px">${(supaUser.full_name||t.userId||'U').charAt(0)}</div><div class="user-name">${supaUser.full_name||t.userId}</div></div></td>
+        <td style="font-size:12px;color:var(--text3)">${t.tanggal||'—'}</td>
+        <td><span class="badge-pill ${isInc?'green':'red'}">${t.jenis||'—'}</span></td>
+        <td style="text-transform:capitalize">${t.kategori||'—'}</td>
+        <td class="amount-cell ${isInc?'pos':'neg'}">${isInc?'+':'−'}${rpFull(t.nominal)}</td>
+        <td style="color:var(--text3);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.keterangan||'—'}</td>
+        <td class="amount-cell ${t.saldo>=0?'pos':'neg'}">${rpFull(t.saldo)}</td>
+      </tr>`;
+    }).join('');
+  } catch(e){document.getElementById('trx-table').innerHTML=`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--red)">Gagal: ${e.message}</td></tr>`;}
+}
+
+// ========================
+// LAPORAN
+// ========================
+function renderLaporan() {
+  if(!adminData) return;
+  const users=adminData.users||[];
+  document.getElementById('laporan-table').innerHTML=users.map(u=>{
+    const su=supaUsers.find(s=>s.wa_number===u.userId)||{};
+    return `<tr>
+      <td><div class="user-cell"><div class="user-av" style="background:var(--green);font-size:12px">${(su.full_name||'U').charAt(0)}</div><div><div class="user-name">${su.full_name||u.userId}</div><div class="user-sub">@${su.username||'—'}</div></div></div></td>
+      <td class="amount-cell pos">${rpFull(u.totalMasuk)}</td>
+      <td class="amount-cell neg">${rpFull(u.totalKeluar)}</td>
+      <td class="amount-cell ${u.saldo>=0?'pos':'neg'}">${rpFull(u.saldo)}</td>
+      <td><span class="badge-pill blue">${u.totalTrx} trx</span></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Belum ada data</td></tr>';
+
+  renderKatChart('chart-masuk',adminData.stats?.kategoriMasuk||{},'var(--green)');
+  renderKatChart('chart-keluar',adminData.stats?.kategoriKeluar||{},'var(--red)');
+}
+
+function renderKatChart(id,data,color) {
+  const el=document.getElementById(id);
+  if(!el) return;
+  const entries=Object.entries(data).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  if(!entries.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3)">Belum ada data</div>';return;}
+  const max=Math.max(...entries.map(([,v])=>v));
+  el.innerHTML=entries.map(([k,v])=>`
+    <div class="growth-bar">
+      <span class="growth-label" style="width:80px;font-size:11px;text-transform:capitalize">${k}</span>
+      <div class="growth-track"><div class="growth-fill" style="width:${(v/max)*100}%;background:${color}"></div></div>
+      <span style="font-size:11px;font-weight:600;color:var(--text2);width:60px;text-align:right">${rp(v)}</span>
+    </div>`).join('');
+}
+
+function loadPoolKey(){
+  const key=localStorage.getItem('saldoku_pool_key')||'';
+  const inp=document.getElementById('pool-key-input');
+  const status=document.getElementById('pool-status');
+  if(inp&&key)inp.value=key;
+  if(status){
+    if(key){status.textContent='✓ Tersimpan';status.style.background='var(--green-bg)';status.style.color='var(--green)';}
+    else{status.textContent='Belum diisi';status.style.background='var(--red-bg)';status.style.color='var(--red)';}
+  }
+}
+function togglePoolKey(){
+  const inp=document.getElementById('pool-key-input');
+  if(inp)inp.type=inp.type==='password'?'text':'password';
+}
+function savePoolKey(){
+  const val=document.getElementById('pool-key-input')?.value.trim();
+  if(!val){showToast('Masukkan API key!','err');return;}
+  if(!val.startsWith('sk-')){showToast('API key tidak valid! Harus diawali sk-','err');return;}
+  localStorage.setItem('saldoku_pool_key',val);
+  loadPoolKey();
+  showToast('API Key Pool tersimpan ✓','ok');
+}
+
+// ========================
+// SETTINGS
+// ========================
+function changeAdminPass() {
+  const np=document.getElementById('set-new-pass').value;
+  const cp=document.getElementById('set-confirm-pass').value;
+  if(!np||np.length<6){showToast('Password min. 6 karakter!','err');return;}
+  if(np!==cp){showToast('Password tidak cocok!','err');return;}
+  localStorage.setItem(PASS_KEY,np);
+  document.getElementById('set-new-pass').value='';
+  document.getElementById('set-confirm-pass').value='';
+  showToast('Password admin berhasil diubah ✓','ok');
+}
+
+// ========================
+// INIT
+// ========================
+checkAuth();
+</script>
+</body>
+</html>

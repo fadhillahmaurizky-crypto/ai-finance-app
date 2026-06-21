@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="description" content="Saldoku — Catat keuangan lewat WhatsApp, analisa pakai AI. Gratis, mudah, langsung terasa manfaatnya."/>
+<title>Saldoku — Keuangan Cerdas, Hidup Tenang</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+<style>
+/* ============================================================
+   TOKENS
+   ============================================================ */
+:root {
+  --ink:        #0A0F1E;
+  --ink2:       #3D4860;
+  --ink3:       #8892A4;
+  --paper:      #F8F9FC;
+  --white:      #FFFFFF;
+  --green:      #00C47A;
+  --green-dk:   #009960;
+  --green-lt:   #E6FBF2;
+  --green-glow: rgba(0,196,122,.18);
+  --wa:         #25D366;
+  --amber:      #F59E0B;
+  --blue:       #3B82F6;
+  --border:     #E8ECF4;
+  --radius:     18px;
+  --font-display: 'DM Serif Display', serif;
+  --font-body:    'Plus Jakarta Sans', sans-serif;
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--font-body); background: var(--white); color: var(--ink); overflow-x: hidden; }
+img { max-width: 100%; }
+a { text-decoration: none; color: inherit; }
+button { font-family: var(--font-body); cursor: pointer; border: none; outline: none; }
+
+/* ============================================================
+   NAVBAR
+   ============================================================ */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 5%;
+  background: rgba(255,255,255,.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(232,236,244,.6);
+  transition: background .3s;
+}
+.nav-logo { display: flex; align-items: center; gap: 10px; }
+.nav-logo-mark {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, var(--green), var(--green-dk));
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px var(--green-glow);
+}
+.nav-logo-mark svg { width: 22px; height: 22px; }
+.nav-brand { font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -.3px; }
+.nav-brand span { color: var(--green); }
+.nav-links { display: flex; align-items: center; gap: 32px; }
+.nav-links a { font-size: 14px; font-weight: 500; color: var(--ink2); transition: color .2s; }
+.nav-links a:hover { color: var(--green); }
+.nav-cta {
+  background: var(--green);
+  color: #fff;
+  font-size: 13px; font-weight: 700;
+  padding: 10px 20px; border-radius: 10px;
+  transition: background .2s, transform .15s;
+  box-shadow: 0 2px 8px var(--green-glow);
+}
+.nav-cta:hover { background: var(--green-dk); transform: translateY(-1px); }
+.hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; }
+.hamburger span { width: 22px; height: 2px; background: var(--ink); border-radius: 2px; }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero {
+  min-height: 100vh;
+  display: flex; align-items: center;
+  padding: 120px 5% 80px;
+  background: linear-gradient(160deg, #F0FDF7 0%, #FFFFFF 50%, #F5F7FF 100%);
+  position: relative; overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; top: -200px; right: -200px;
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(0,196,122,.08) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.hero::after {
+  content: '';
+  position: absolute; bottom: -100px; left: -100px;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(59,130,246,.06) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.hero-inner { max-width: 1200px; margin: 0 auto; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; position: relative; z-index: 1; }
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--green-lt); color: var(--green-dk);
+  font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+  padding: 6px 14px; border-radius: 20px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(0,196,122,.2);
+}
+.hero-eyebrow::before { content: ''; width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+.hero-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(38px, 5vw, 64px);
+  line-height: 1.1;
+  color: var(--ink);
+  margin-bottom: 20px;
+  letter-spacing: -.5px;
+}
+.hero-h1 em { font-style: italic; color: var(--green); }
+.hero-sub {
+  font-size: 16px; line-height: 1.7; color: var(--ink2);
+  margin-bottom: 36px; max-width: 480px;
+}
+.hero-sub strong { color: var(--ink); }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 40px; }
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--green); color: #fff;
+  font-size: 15px; font-weight: 700;
+  padding: 14px 28px; border-radius: 13px;
+  box-shadow: 0 4px 20px var(--green-glow);
+  transition: all .2s;
+}
+.btn-primary:hover { background: var(--green-dk); transform: translateY(-2px); box-shadow: 0 8px 28px var(--green-glow); }
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--white); color: var(--ink);
+  font-size: 15px; font-weight: 600;
+  padding: 14px 28px; border-radius: 13px;
+  border: 1.5px solid var(--border);
+  transition: all .2s;
+}
+.btn-secondary:hover { border-color: var(--green); color: var(--green); transform: translateY(-2px); }
+.hero-stats { display: flex; gap: 32px; }
+.hero-stat-val { font-size: 22px; font-weight: 800; color: var(--ink); letter-spacing: -.5px; }
+.hero-stat-lbl { font-size: 12px; color: var(--ink3); margin-top: 2px; font-weight: 500; }
+
+/* HERO PHONE MOCKUP */
+.hero-visual { display: flex; justify-content: center; align-items: center; position: relative; }
+.phone-wrap {
+  position: relative;
+  animation: float 4s ease-in-out infinite;
+}
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+.phone-frame {
+  width: 280px;
+  background: var(--ink);
+  border-radius: 40px;
+  padding: 14px;
+  box-shadow: 0 30px 80px rgba(10,15,30,.25), 0 0 0 1px rgba(255,255,255,.1);
+  position: relative;
+}
+.phone-notch {
+  width: 80px; height: 6px;
+  background: #1a2035;
+  border-radius: 3px;
+  margin: 0 auto 12px;
+}
+.phone-screen {
+  background: #F7F8FA;
+  border-radius: 28px;
+  overflow: hidden;
+  min-height: 500px;
+}
+.phone-statusbar {
+  background: #fff;
+  padding: 8px 16px;
+  display: flex; justify-content: space-between;
+  font-size: 10px; font-weight: 600; color: var(--ink);
+  font-family: monospace;
+}
+.phone-header {
+  background: #fff;
+  padding: 10px 14px 14px;
+  border-bottom: 1px solid #E8ECF0;
+}
+.phone-greeting { font-size: 10px; color: #8A96A8; font-family: var(--font-body); }
+.phone-name { font-size: 14px; font-weight: 700; color: var(--ink); font-family: var(--font-body); }
+.phone-bal-card {
+  background: linear-gradient(135deg, #00C47A, #009960);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-top: 10px;
+  position: relative;
+  overflow: hidden;
+}
+.phone-bal-card::before { content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;background:rgba(255,255,255,.08);border-radius:50% }
+.phone-bal-lbl { font-size: 9px; color: rgba(255,255,255,.7); font-family: var(--font-body); }
+.phone-bal-val { font-size: 22px; font-weight: 700; color: #fff; font-family: var(--font-body); letter-spacing: -.5px; }
+.phone-bal-row { display: flex; gap: 6px; margin-top: 10px; }
+.phone-bal-pill { flex: 1; background: rgba(0,0,0,.2); border-radius: 8px; padding: 6px 8px; }
+.phone-bal-pill-lbl { font-size: 8px; color: rgba(255,255,255,.65); font-family: var(--font-body); }
+.phone-bal-pill-val { font-size: 11px; font-weight: 600; color: #fff; font-family: var(--font-body); }
+.phone-body { padding: 10px 12px; }
+.phone-sec-title { font-size: 10px; font-weight: 600; color: #3D4860; margin: 10px 0 6px; font-family: var(--font-body); }
+.phone-qa-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 4px; }
+.phone-qa-item { background: #fff; border-radius: 10px; padding: 8px 4px; text-align: center; border: 1px solid #E8ECF0; }
+.phone-qa-ico { width: 24px; height: 24px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 12px; margin: 0 auto 4px; }
+.phone-qa-lbl { font-size: 7.5px; color: #3D4860; font-weight: 500; font-family: var(--font-body); }
+.phone-txn { background: #fff; border-radius: 10px; padding: 8px 10px; border: 1px solid #E8ECF0; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; }
+.phone-txn-ico { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.phone-txn-info { flex: 1; }
+.phone-txn-name { font-size: 10px; font-weight: 600; color: var(--ink); font-family: var(--font-body); }
+.phone-txn-sub { font-size: 8.5px; color: #8A96A8; font-family: var(--font-body); }
+.phone-txn-amt { font-size: 11px; font-weight: 700; font-family: var(--font-body); }
+.phone-nav {
+  background: #fff;
+  border-top: 1px solid #E8ECF0;
+  padding: 8px 0;
+  display: flex;
+  margin-top: 4px;
+}
+.phone-nav-item { flex: 1; text-align: center; font-size: 7px; color: #8A96A8; font-family: var(--font-body); font-weight: 600; }
+.phone-nav-item.act { color: #00C47A; }
+.phone-nav-ico { font-size: 16px; display: block; margin-bottom: 2px; }
+
+/* FLOATING BADGES */
+.float-badge {
+  position: absolute;
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 32px rgba(10,15,30,.12);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+  animation: float2 3s ease-in-out infinite;
+}
+@keyframes float2 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+.float-badge:nth-child(2) { animation-delay: 1s; }
+.float-badge:nth-child(3) { animation-delay: .5s; }
+.fb-left { top: 10%; left: -60px; }
+.fb-right { bottom: 20%; right: -50px; }
+.fb-top { top: -20px; right: 10px; }
+.fb-ico { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.fb-val { font-size: 13px; font-weight: 700; color: var(--ink); }
+.fb-lbl { font-size: 10px; color: var(--ink3); margin-top: 1px; }
+
+/* ============================================================
+   LOGO STRIP
+   ============================================================ */
+.logo-strip {
+  background: var(--paper);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 5%;
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  flex-wrap: wrap;
+}
+.logo-strip-label { font-size: 12px; color: var(--ink3); font-weight: 500; white-space: nowrap; }
+.tech-pill {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: 20px; padding: 7px 14px;
+  font-size: 13px; font-weight: 600; color: var(--ink2);
+}
+.tech-pill i { font-size: 16px; }
+
+/* ============================================================
+   SECTIONS BASE
+   ============================================================ */
+section { padding: 96px 5%; }
+.section-inner { max-width: 1200px; margin: 0 auto; }
+.section-eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--green); margin-bottom: 12px;
+}
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 46px);
+  line-height: 1.15; color: var(--ink);
+  margin-bottom: 16px; letter-spacing: -.3px;
+}
+.section-title em { font-style: italic; color: var(--green); }
+.section-sub { font-size: 16px; line-height: 1.7; color: var(--ink2); max-width: 560px; }
+.text-center { text-align: center; }
+.text-center .section-sub { margin: 0 auto; }
+
+/* ============================================================
+   HOW IT WORKS
+   ============================================================ */
+#cara-kerja { background: var(--white); }
+.steps-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 32px; margin-top: 56px; }
+.step-card {
+  position: relative;
+  background: var(--paper);
+  border-radius: 20px;
+  padding: 32px 28px;
+  border: 1px solid var(--border);
+  transition: transform .2s, box-shadow .2s;
+}
+.step-card:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0,196,122,.1); }
+.step-num {
+  font-family: var(--font-display);
+  font-size: 64px;
+  color: rgba(0,196,122,.12);
+  line-height: 1;
+  position: absolute;
+  top: 16px; right: 20px;
+  font-style: italic;
+}
+.step-ico {
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  margin-bottom: 20px;
+}
+.step-title { font-size: 18px; font-weight: 700; color: var(--ink); margin-bottom: 10px; }
+.step-desc { font-size: 14px; line-height: 1.65; color: var(--ink2); }
+.step-arrow {
+  position: absolute;
+  top: 50%; right: -20px;
+  transform: translateY(-50%);
+  color: var(--green);
+  font-size: 20px;
+  z-index: 1;
+}
+
+/* ============================================================
+   FEATURES
+   ============================================================ */
+#fitur { background: var(--paper); }
+.features-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 24px; margin-top: 56px; }
+.feature-card {
+  background: var(--white);
+  border-radius: 20px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  display: flex; gap: 18px;
+  transition: transform .2s, box-shadow .2s;
+}
+.feature-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(10,15,30,.07); }
+.feature-card.highlight {
+  background: linear-gradient(135deg, #F0FDF7, #E6FBF2);
+  border-color: rgba(0,196,122,.3);
+}
+.feature-ico-wrap {
+  width: 48px; height: 48px; flex-shrink: 0;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+}
+.feature-title { font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+.feature-desc { font-size: 13px; line-height: 1.65; color: var(--ink2); }
+.feature-tag {
+  display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .5px;
+  text-transform: uppercase; padding: 3px 8px; border-radius: 6px;
+  margin-top: 8px;
+}
+
+/* ============================================================
+   PRICING
+   ============================================================ */
+#harga { background: var(--white); }
+.pricing-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; margin-top: 56px; }
+.price-card {
+  background: var(--paper);
+  border-radius: 20px;
+  padding: 32px 28px;
+  border: 1.5px solid var(--border);
+  position: relative;
+  transition: transform .2s;
+}
+.price-card:hover { transform: translateY(-4px); }
+.price-card.featured {
+  background: linear-gradient(160deg, #0A0F1E, #1a2540);
+  border-color: var(--green);
+  box-shadow: 0 8px 40px rgba(0,196,122,.2);
+}
+.price-badge {
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  background: var(--green); color: #fff;
+  font-size: 11px; font-weight: 700; padding: 4px 14px; border-radius: 20px;
+  white-space: nowrap;
+}
+.price-plan { font-size: 12px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--ink3); margin-bottom: 12px; }
+.price-card.featured .price-plan { color: rgba(255,255,255,.5); }
+.price-amount { font-family: var(--font-display); font-size: 42px; color: var(--ink); line-height: 1; margin-bottom: 4px; }
+.price-card.featured .price-amount { color: #fff; }
+.price-amount span { font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink3); }
+.price-card.featured .price-amount span { color: rgba(255,255,255,.5); }
+.price-desc { font-size: 13px; color: var(--ink3); margin-bottom: 24px; }
+.price-card.featured .price-desc { color: rgba(255,255,255,.5); }
+.price-features { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+.price-features li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--ink2); }
+.price-card.featured .price-features li { color: rgba(255,255,255,.8); }
+.price-features li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+.price-features li.no::before { content: '✗'; color: #ccc; }
+.price-features li.no { color: var(--ink3); }
+.price-card.featured .price-features li.no { color: rgba(255,255,255,.3); }
+.price-btn {
+  width: 100%; padding: 13px;
+  border-radius: 12px;
+  font-size: 14px; font-weight: 700;
+  transition: all .2s;
+  text-align: center;
+  display: block;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--ink);
+}
+.price-btn:hover { border-color: var(--green); color: var(--green); }
+.price-btn.cta {
+  background: var(--green); color: #fff;
+  border-color: var(--green);
+  box-shadow: 0 4px 16px var(--green-glow);
+}
+.price-btn.cta:hover { background: var(--green-dk); }
+
+/* ============================================================
+   TESTIMONIALS
+   ============================================================ */
+#testimoni { background: var(--paper); }
+.testi-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; margin-top: 56px; }
+.testi-card {
+  background: var(--white);
+  border-radius: 20px;
+  padding: 28px;
+  border: 1px solid var(--border);
+}
+.testi-stars { color: #F59E0B; font-size: 14px; margin-bottom: 14px; }
+.testi-text { font-size: 14px; line-height: 1.7; color: var(--ink2); margin-bottom: 20px; font-style: italic; }
+.testi-author { display: flex; align-items: center; gap: 10px; }
+.testi-av { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.testi-name { font-size: 13px; font-weight: 700; color: var(--ink); }
+.testi-job { font-size: 11px; color: var(--ink3); margin-top: 1px; }
+
+/* ============================================================
+   CTA SECTION
+   ============================================================ */
+#cta {
+  background: linear-gradient(135deg, var(--ink) 0%, #1a2540 100%);
+  text-align: center;
+  position: relative; overflow: hidden;
+}
+#cta::before { content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(0,196,122,.12) 0%,transparent 70%);border-radius:50% }
+.cta-inner { position: relative; z-index: 1; max-width: 700px; margin: 0 auto; }
+.cta-title { font-family: var(--font-display); font-size: clamp(28px,4vw,52px); color: #fff; margin-bottom: 16px; line-height: 1.15; }
+.cta-title em { font-style: italic; color: var(--green); }
+.cta-sub { font-size: 16px; color: rgba(255,255,255,.6); margin-bottom: 36px; line-height: 1.7; }
+.cta-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn-wa {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--wa); color: #fff;
+  font-size: 15px; font-weight: 700;
+  padding: 14px 28px; border-radius: 13px;
+  box-shadow: 0 4px 20px rgba(37,211,102,.3);
+  transition: all .2s;
+}
+.btn-wa:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(37,211,102,.4); }
+.btn-white {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,.1); color: #fff;
+  font-size: 15px; font-weight: 600;
+  padding: 14px 28px; border-radius: 13px;
+  border: 1.5px solid rgba(255,255,255,.2);
+  backdrop-filter: blur(8px);
+  transition: all .2s;
+}
+.btn-white:hover { background: rgba(255,255,255,.15); transform: translateY(-2px); }
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+footer {
+  background: var(--ink);
+  padding: 56px 5% 32px;
+  color: rgba(255,255,255,.5);
+}
+.footer-inner { max-width: 1200px; margin: 0 auto; }
+.footer-top { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
+.footer-brand { margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+.footer-desc { font-size: 13px; line-height: 1.7; color: rgba(255,255,255,.4); max-width: 280px; }
+.footer-col-title { font-size: 12px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: rgba(255,255,255,.7); margin-bottom: 16px; }
+.footer-col a { display: block; font-size: 13px; color: rgba(255,255,255,.4); margin-bottom: 8px; transition: color .2s; }
+.footer-col a:hover { color: var(--green); }
+.footer-bottom { border-top: 1px solid rgba(255,255,255,.08); padding-top: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 12px; }
+.footer-copy { color: rgba(255,255,255,.3); }
+.footer-links { display: flex; gap: 20px; }
+.footer-links a { color: rgba(255,255,255,.3); transition: color .2s; }
+.footer-links a:hover { color: var(--green); }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media(max-width:1024px){
+  .hero-inner { grid-template-columns: 1fr; gap: 48px; }
+  .hero-visual { order: -1; }
+  .fb-left, .fb-right { display: none; }
+  .steps-grid { grid-template-columns: 1fr; }
+  .step-arrow { display: none; }
+  .pricing-grid, .testi-grid { grid-template-columns: 1fr 1fr; }
+  .footer-top { grid-template-columns: 1fr 1fr; }
+}
+@media(max-width:768px){
+  nav { padding: 14px 5%; }
+  .nav-links { display: none; }
+  .hamburger { display: flex; }
+  .hero { padding: 100px 5% 60px; }
+  .features-grid { grid-template-columns: 1fr; }
+  .pricing-grid, .testi-grid { grid-template-columns: 1fr; }
+  .footer-top { grid-template-columns: 1fr; }
+  section { padding: 64px 5%; }
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+.fade-up { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
+.fade-up.visible { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="navbar">
+  <div class="nav-logo">
+    <div class="nav-logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="rgba(255,255,255,.15)"/>
+        <path d="M12 6v2M12 16v2M8 12h2m4 0h2" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="12" cy="12" r="3" fill="white"/>
+      </svg>
+    </div>
+    <span class="nav-brand">Saldo<span>ku</span></span>
+  </div>
+  <div class="nav-links">
+    <a href="#cara-kerja">Cara Kerja</a>
+    <a href="#fitur">Fitur</a>
+    <a href="#harga">Harga</a>
+    <a href="#testimoni">Testimoni</a>
+  </div>
+  <a href="#cta" class="nav-cta">Coba Gratis</a>
+  <div class="hamburger" onclick="toggleMenu()">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="hero">
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-eyebrow">✦ Didukung Claude AI · Terhubung WhatsApp</div>
+      <h1 class="hero-h1">
+        Catat keuangan<br>
+        <em>semudah chat</em><br>
+        WhatsApp
+      </h1>
+      <p class="hero-sub">
+        <strong>Saldoku</strong> mengubah pesan WhatsApp biasamu jadi laporan keuangan cerdas — dianalisa AI, real-time, tanpa ribet.
+      </p>
+      <div class="hero-actions">
+        <a href="#cta" class="btn-primary"><i class="ti ti-brand-whatsapp"></i> Mulai Gratis Sekarang</a>
+        <a href="#cara-kerja" class="btn-secondary"><i class="ti ti-play"></i> Lihat cara kerjanya</a>
+      </div>
+      <div class="hero-stats">
+        <div>
+          <div class="hero-stat-val">100%</div>
+          <div class="hero-stat-lbl">Via WhatsApp</div>
+        </div>
+        <div style="width:1px;background:var(--border)"></div>
+        <div>
+          <div class="hero-stat-val">AI</div>
+          <div class="hero-stat-lbl">Powered Analysis</div>
+        </div>
+        <div style="width:1px;background:var(--border)"></div>
+        <div>
+          <div class="hero-stat-val">Gratis</div>
+          <div class="hero-stat-lbl">Untuk memulai</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="phone-wrap">
+        <!-- Floating badges -->
+        <div class="float-badge fb-left">
+          <div class="fb-ico" style="background:#E6FBF2;color:#00C47A"><i class="ti ti-trending-up"></i></div>
+          <div><div class="fb-val" style="color:#00C47A">+Rp 5jt</div><div class="fb-lbl">Gaji masuk ✓</div></div>
+        </div>
+        <div class="float-badge fb-right">
+          <div class="fb-ico" style="background:#EBF3FF;color:#3B82F6"><i class="ti ti-robot"></i></div>
+          <div><div class="fb-val">AI Analisa</div><div class="fb-lbl">Keuangan sehat 💚</div></div>
+        </div>
+
+        <!-- Phone frame -->
+        <div class="phone-frame">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <div class="phone-statusbar"><span>09:41</span><span>📶 🔋</span></div>
+            <div class="phone-header">
+              <div class="phone-greeting">Selamat pagi 👋</div>
+              <div class="phone-name">Maurizky Fadhillah</div>
+              <div class="phone-bal-card">
+                <div class="phone-bal-lbl">Saldo Sekarang</div>
+                <div class="phone-bal-val">Rp 4.250.000</div>
+                <div class="phone-bal-row">
+                  <div class="phone-bal-pill"><div class="phone-bal-pill-lbl">↓ Pemasukan</div><div class="phone-bal-pill-val">Rp 8jt</div></div>
+                  <div class="phone-bal-pill"><div class="phone-bal-pill-lbl">↑ Keluar</div><div class="phone-bal-pill-val">Rp 3.75jt</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="phone-body">
+              <div class="phone-sec-title">Aksi Cepat</div>
+              <div class="phone-qa-row">
+                <div class="phone-qa-item"><div class="phone-qa-ico" style="background:#E6FBF2;color:#00C47A">＋</div><div class="phone-qa-lbl">Catat</div></div>
+                <div class="phone-qa-item"><div class="phone-qa-ico" style="background:#EBF3FF;color:#3B82F6">🤖</div><div class="phone-qa-lbl">AI</div></div>
+                <div class="phone-qa-item"><div class="phone-qa-ico" style="background:#FEF3C7;color:#F59E0B">🎯</div><div class="phone-qa-lbl">Target</div></div>
+                <div class="phone-qa-item"><div class="phone-qa-ico" style="background:#F3EEFF;color:#7C3AED">📊</div><div class="phone-qa-lbl">Laporan</div></div>
+              </div>
+              <div class="phone-sec-title">Transaksi Terakhir</div>
+              <div class="phone-txn">
+                <div class="phone-txn-ico" style="background:#FFF0F0;color:#EF4444">🍜</div>
+                <div class="phone-txn-info"><div class="phone-txn-name">Makan siang</div><div class="phone-txn-sub">Pengeluaran • makanan</div></div>
+                <div class="phone-txn-amt" style="color:#EF4444">-Rp 35rb</div>
+              </div>
+              <div class="phone-txn">
+                <div class="phone-txn-ico" style="background:#E6FBF2;color:#00C47A">💰</div>
+                <div class="phone-txn-info"><div class="phone-txn-name">Gaji bulan ini</div><div class="phone-txn-sub">Pemasukan • gaji</div></div>
+                <div class="phone-txn-amt" style="color:#00C47A">+Rp 5jt</div>
+              </div>
+            </div>
+            <div class="phone-nav">
+              <div class="phone-nav-item act"><span class="phone-nav-ico">🏠</span>Beranda</div>
+              <div class="phone-nav-item"><span class="phone-nav-ico">≡</span>Transaksi</div>
+              <div class="phone-nav-item"><span class="phone-nav-ico" style="font-size:18px">📷</span>Foto</div>
+              <div class="phone-nav-item" style="color:#3B82F6"><span class="phone-nav-ico">🤖</span>AI</div>
+              <div class="phone-nav-item"><span class="phone-nav-ico">⚙️</span>Setting</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH STRIP -->
+<div class="logo-strip">
+  <span class="logo-strip-label">Ditenagai oleh teknologi terpercaya:</span>
+  <div class="tech-pill"><i class="ti ti-brand-whatsapp" style="color:#25D366"></i> WhatsApp</div>
+  <div class="tech-pill"><i class="ti ti-robot" style="color:#7C3AED"></i> Claude AI</div>
+  <div class="tech-pill"><i class="ti ti-brand-google" style="color:#4285F4"></i> Google Sheets</div>
+  <div class="tech-pill"><i class="ti ti-database" style="color:#3ECF8E"></i> Supabase</div>
+  <div class="tech-pill"><i class="ti ti-brand-github" style="color:#333"></i> GitHub Pages</div>
+</div>
+
+<!-- CARA KERJA -->
+<section id="cara-kerja">
+  <div class="section-inner">
+    <div class="text-center fade-up">
+      <div class="section-eyebrow">Cara Kerja</div>
+      <h2 class="section-title">3 langkah, <em>selesai</em></h2>
+      <p class="section-sub">Tidak perlu install app rumit. Cukup WhatsApp yang sudah ada di HP kamu.</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card fade-up" style="transition-delay:.1s">
+        <div class="step-num">1</div>
+        <div class="step-ico" style="background:#E6FBF2;color:#00C47A"><i class="ti ti-brand-whatsapp"></i></div>
+        <div class="step-title">Kirim pesan ke bot</div>
+        <div class="step-desc">Ketik saja "makan 35rb" atau "gaji 5jt" ke nomor bot Saldoku di WhatsApp. Tidak perlu format khusus.</div>
+        <div class="step-arrow"><i class="ti ti-arrow-right"></i></div>
+      </div>
+      <div class="step-card fade-up" style="transition-delay:.2s">
+        <div class="step-num">2</div>
+        <div class="step-ico" style="background:#EBF3FF;color:#3B82F6"><i class="ti ti-database"></i></div>
+        <div class="step-title">Otomatis tercatat</div>
+        <div class="step-desc">AI memproses pesanmu — kategori, prioritas, dan saldo dihitung otomatis. Tersimpan real-time di Google Sheets kamu.</div>
+        <div class="step-arrow"><i class="ti ti-arrow-right"></i></div>
+      </div>
+      <div class="step-card fade-up" style="transition-delay:.3s">
+        <div class="step-num">3</div>
+        <div class="step-ico" style="background:#F3EEFF;color:#7C3AED"><i class="ti ti-chart-pie-2"></i></div>
+        <div class="step-title">Analisa di dashboard</div>
+        <div class="step-desc">Buka app Saldoku, lihat grafik, tanya AI tentang kondisi keuanganmu, dan capai target tabunganmu.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FITUR -->
+<section id="fitur">
+  <div class="section-inner">
+    <div class="text-center fade-up">
+      <div class="section-eyebrow">Fitur Unggulan</div>
+      <h2 class="section-title">Semua yang kamu butuhkan,<br><em>tidak lebih, tidak kurang</em></h2>
+    </div>
+    <div class="features-grid" style="margin-top:56px">
+      <div class="feature-card highlight fade-up" style="transition-delay:.1s">
+        <div class="feature-ico-wrap" style="background:#E6FBF2;color:#00C47A"><i class="ti ti-robot"></i></div>
+        <div>
+          <div class="feature-title">AI Finansial Pribadi</div>
+          <div class="feature-desc">Tanya Claude AI tentang kondisi keuanganmu. Dapat insight langsung berdasarkan data transaksi nyata kamu — bukan saran generik.</div>
+          <span class="feature-tag" style="background:#E6FBF2;color:#00C47A">🔥 Killer Feature</span>
+        </div>
+      </div>
+      <div class="feature-card fade-up" style="transition-delay:.2s">
+        <div class="feature-ico-wrap" style="background:#EBF3FF;color:#3B82F6"><i class="ti ti-brand-whatsapp"></i></div>
+        <div>
+          <div class="feature-title">Catat Lewat WhatsApp</div>
+          <div class="feature-desc">Kirim "makan 35rb" atau "gojek 18rb" — langsung tercatat. No app switching, pakai WA yang sudah ada.</div>
+          <span class="feature-tag" style="background:#EBF3FF;color:#3B82F6">⚡ Super Cepat</span>
+        </div>
+      </div>
+      <div class="feature-card fade-up" style="transition-delay:.3s">
+        <div class="feature-ico-wrap" style="background:#FEF3C7;color:#F59E0B"><i class="ti ti-camera"></i></div>
+        <div>
+          <div class="feature-title">Scan Struk Otomatis</div>
+          <div class="feature-desc">Foto struk belanja → AI baca dan isi form otomatis. Tidak perlu input manual satu per satu.</div>
+          <span class="feature-tag" style="background:#FEF3C7;color:#F59E0B">📸 AI Vision</span>
+        </div>
+      </div>
+      <div class="feature-card fade-up" style="transition-delay:.4s">
+        <div class="feature-ico-wrap" style="background:#F3EEFF;color:#7C3AED"><i class="ti ti-target"></i></div>
+        <div>
+          <div class="feature-title">Target Tabungan</div>
+          <div class="feature-desc">Set target — beli HP baru, liburan, atau dana darurat. Pantau progress dengan visual yang motivasi kamu.</div>
+          <span class="feature-tag" style="background:#F3EEFF;color:#7C3AED">🎯 Goal Tracker</span>
+        </div>
+      </div>
+      <div class="feature-card fade-up" style="transition-delay:.5s">
+        <div class="feature-ico-wrap" style="background:#FFF0F0;color:#EF4444"><i class="ti ti-chart-bar"></i></div>
+        <div>
+          <div class="feature-title">Laporan Real-Time</div>
+          <div class="feature-desc">Dashboard rapi dengan grafik pengeluaran per kategori, trend bulanan, dan perbandingan pemasukan vs pengeluaran.</div>
+          <span class="feature-tag" style="background:#FFF0F0;color:#EF4444">📊 Live Data</span>
+        </div>
+      </div>
+      <div class="feature-card fade-up" style="transition-delay:.6s">
+        <div class="feature-ico-wrap" style="background:#E6FBF2;color:#00C47A"><i class="ti ti-fingerprint"></i></div>
+        <div>
+          <div class="feature-title">Login Aman & Cepat</div>
+          <div class="feature-desc">Login pakai username/password, atau fingerprint untuk akses instan. Lupa password? Reset via OTP WhatsApp.</div>
+          <span class="feature-tag" style="background:#E6FBF2;color:#00C47A">🔒 Aman</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="harga">
+  <div class="section-inner">
+    <div class="text-center fade-up">
+      <div class="section-eyebrow">Harga</div>
+      <h2 class="section-title">Mulai <em>gratis</em>, upgrade kalau butuh</h2>
+      <p class="section-sub">Tidak ada kartu kredit. Tidak ada kejutan biaya. Mulai pakai hari ini.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="price-card fade-up" style="transition-delay:.1s">
+        <div class="price-plan">Starter</div>
+        <div class="price-amount">Gratis<span> /selamanya</span></div>
+        <div class="price-desc">Untuk personal, mulai kenalan dulu</div>
+        <ul class="price-features">
+          <li>1 akun pengguna</li>
+          <li>Catat via WhatsApp</li>
+          <li>Dashboard basic</li>
+          <li>100 transaksi/bulan</li>
+          <li class="no">AI Chat Finansial</li>
+          <li class="no">Scan Struk</li>
+          <li class="no">Target Tabungan</li>
+        </ul>
+        <a href="#cta" class="price-btn">Mulai Gratis</a>
+      </div>
+      <div class="price-card featured fade-up" style="transition-delay:.2s">
+        <div class="price-badge">✦ Paling Populer</div>
+        <div class="price-plan">Pro</div>
+        <div class="price-amount">Rp 29rb<span> /bulan</span></div>
+        <div class="price-desc">Untuk yang serius kelola keuangan</div>
+        <ul class="price-features">
+          <li>1 akun pengguna</li>
+          <li>Catat via WhatsApp</li>
+          <li>Dashboard lengkap</li>
+          <li>Transaksi unlimited</li>
+          <li>AI Chat Finansial ✨</li>
+          <li>Scan Struk AI</li>
+          <li>Target Tabungan</li>
+        </ul>
+        <a href="#cta" class="price-btn cta">Coba 7 Hari Gratis</a>
+      </div>
+      <div class="price-card fade-up" style="transition-delay:.3s">
+        <div class="price-plan">Keluarga</div>
+        <div class="price-amount">Rp 59rb<span> /bulan</span></div>
+        <div class="price-desc">Kelola keuangan seluruh keluarga</div>
+        <ul class="price-features">
+          <li>5 akun anggota keluarga</li>
+          <li>Semua fitur Pro</li>
+          <li>Dashboard gabungan</li>
+          <li>Laporan per anggota</li>
+          <li>AI Chat Finansial ✨</li>
+          <li>Scan Struk AI</li>
+          <li>Priority support</li>
+        </ul>
+        <a href="#cta" class="price-btn">Mulai Sekarang</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONI -->
+<section id="testimoni">
+  <div class="section-inner">
+    <div class="text-center fade-up">
+      <div class="section-eyebrow">Testimoni</div>
+      <h2 class="section-title">Kata mereka yang sudah<br><em>merasakannya</em></h2>
+    </div>
+    <div class="testi-grid">
+      <div class="testi-card fade-up" style="transition-delay:.1s">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-text">"Akhirnya ada aplikasi keuangan yang masuk akal! Gak perlu install ini itu, tinggal WA bot-nya, langsung keliatan saldo. AI-nya juga beneran kasih saran yang useful."</div>
+        <div class="testi-author">
+          <div class="testi-av" style="background:#00C47A">R</div>
+          <div><div class="testi-name">Rafi A.</div><div class="testi-job">Freelancer · Jakarta</div></div>
+        </div>
+      </div>
+      <div class="testi-card fade-up" style="transition-delay:.2s">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-text">"Fitur scan struk game changer banget. Sekarang setiap belanja tinggal foto, langsung masuk. Gak ada lagi lupa catat."</div>
+        <div class="testi-author">
+          <div class="testi-av" style="background:#3B82F6">D</div>
+          <div><div class="testi-name">Dinda P.</div><div class="testi-job">Mahasiswi · Bandung</div></div>
+        </div>
+      </div>
+      <div class="testi-card fade-up" style="transition-delay:.3s">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-text">"Saya pakai buat keluarga, 5 orang. Sekarang semua transaksi keliatan, bisa tau mana yang boros. Dalam 2 bulan bisa nabung 2x lipat dari biasanya!"</div>
+        <div class="testi-author">
+          <div class="testi-av" style="background:#F59E0B">B</div>
+          <div><div class="testi-name">Budi S.</div><div class="testi-job">Kepala Keluarga · Surabaya</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="cta">
+  <div class="section-inner">
+    <div class="cta-inner fade-up">
+      <div class="section-eyebrow" style="color:rgba(0,196,122,.8)">Mulai Sekarang</div>
+      <h2 class="cta-title">Saldo kamu lebih besar<br>dari yang kamu <em>kira</em></h2>
+      <p class="cta-sub">Bergabung dengan pengguna Saldoku yang sudah lebih sadar keuangannya. Gratis, tidak perlu kartu kredit.</p>
+      <div class="cta-actions">
+        <a href="https://fadhillahmaurizky-crypto.github.io/ai-finance-app" class="btn-primary" target="_blank"><i class="ti ti-rocket"></i> Buka Aplikasi Sekarang</a>
+        <a href="https://wa.me/6285727318698" class="btn-wa" target="_blank"><i class="ti ti-brand-whatsapp"></i> Chat dengan Admin</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div>
+        <div class="footer-brand">
+          <div class="nav-logo-mark"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="rgba(255,255,255,.15)"/><path d="M12 6v2M12 16v2M8 12h2m4 0h2" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="3" fill="white"/></svg></div>
+          <span style="font-size:18px;font-weight:800;color:#fff">Saldo<span style="color:var(--green)">ku</span></span>
+        </div>
+        <p class="footer-desc">Pencatat keuangan berbasis AI yang terhubung langsung dengan WhatsApp. Simpel, cerdas, dan efektif.</p>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Produk</div>
+        <a href="#fitur">Fitur</a>
+        <a href="#harga">Harga</a>
+        <a href="#cara-kerja">Cara Kerja</a>
+        <a href="#testimoni">Testimoni</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Dukungan</div>
+        <a href="https://wa.me/6285727318698">WhatsApp Support</a>
+        <a href="#cta">Hubungi Kami</a>
+        <a href="#">FAQ</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-title">Legal</div>
+        <a href="#">Kebijakan Privasi</a>
+        <a href="#">Syarat & Ketentuan</a>
+        <a href="#">Keamanan Data</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy">© 2024 Saldoku. Dibuat dengan ❤️ di Indonesia.</div>
+      <div class="footer-links">
+        <a href="https://wa.me/6285727318698"><i class="ti ti-brand-whatsapp"></i></a>
+        <a href="#"><i class="ti ti-brand-instagram"></i></a>
+        <a href="#"><i class="ti ti-brand-tiktok"></i></a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Scroll animations
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+// Navbar scroll
+window.addEventListener('scroll', () => {
+  const nav = document.getElementById('navbar');
+  nav.style.background = window.scrollY > 20 ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.85)';
+});
+
+// Mobile menu
+function toggleMenu() {
+  const links = document.querySelector('.nav-links');
+  links.style.display = links.style.display === 'flex' ? 'none' : 'flex';
+  links.style.flexDirection = 'column';
+  links.style.position = 'absolute';
+  links.style.top = '70px';
+  links.style.left = '0';
+  links.style.right = '0';
+  links.style.background = '#fff';
+  links.style.padding = '20px';
+  links.style.borderBottom = '1px solid #E8ECF4';
+  links.style.gap = '16px';
+}
+
+// Smooth scroll for nav links
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const target = document.querySelector(a.getAttribute('href'));
+    if(target) { e.preventDefault(); target.scrollIntoView({behavior:'smooth'}); }
+  });
+});
+</script>
+</body>
+</html>
