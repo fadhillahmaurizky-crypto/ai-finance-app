@@ -573,15 +573,6 @@ input,select{font-family:var(--font)}
               <div class="set-row"><div class="set-ico" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-brand-whatsapp"></i></div><div><div class="set-lbl">WhatsApp Bot</div><div class="set-sub">Fonnte Webhook</div></div><span class="pill ok">Aktif</span></div>
             </div>
           </div>
-          <div class="set-section">
-            <div class="set-sec-title">API Key (Pool AI)</div>
-            <div style="margin:0 16px;background:var(--bg2);border-radius:14px;border:1px solid var(--border);padding:16px">
-              <div style="font-size:11px;color:var(--text3);margin-bottom:8px">API key ini dipakai semua user Pro. Dari console.anthropic.com</div>
-              <input style="width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:11px;padding:10px 13px;font-size:12px;color:var(--text);outline:none;font-family:monospace" id="api-key-input" type="password" placeholder="sk-ant-api03-..."/>
-              <button style="width:100%;margin-top:10px;padding:11px;border-radius:11px;background:var(--green);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer" onclick="saveApiKey()">Simpan API Key Pool</button>
-              <div style="margin-top:10px;display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--text3)">Status AI:</span><span class="pill" id="api-pill">Belum diisi</span></div>
-            </div>
-          </div>
         </div>
 
         <div class="set-section">
@@ -990,8 +981,8 @@ async function scanStruk(input){
   document.getElementById('struk-loading').style.display='block';document.getElementById('struk-result').style.display='none';
   try{
     const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=()=>rej(new Error('Gagal'));r.readAsDataURL(file);});
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':getKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:b64}},{type:'text',text:'Baca struk ini. Kembalikan JSON saja: {"toko":"nama toko","total":angka,"kategori":"makanan/belanja/transportasi/tagihan/hiburan/lainnya","prioritas":"penting/tidak penting","keterangan":"deskripsi max 30 karakter"}. Jika bukan struk: {"error":"Bukan struk"}'}]}]})});
-    const d=await resp.json();const m=d.content?.[0]?.text?.match(/\{[\s\S]*\}/);if(!m)throw new Error('Format tidak valid');
+    const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getKey()},body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:400,messages:[{role:'user',content:[{type:'image_url',image_url:{url:`data:${file.type||'image/jpeg'};base64,${b64}`}},{type:'text',text:'Baca struk ini. Kembalikan JSON saja tanpa penjelasan: {"toko":"nama toko","total":angka,"kategori":"makanan/belanja/transportasi/tagihan/hiburan/lainnya","prioritas":"penting/tidak penting","keterangan":"deskripsi max 30 karakter"}. Jika bukan struk: {"error":"Bukan struk"}'}]}]})});
+    const d=await resp.json();const m=(d.choices?.[0]?.message?.content||'').match(/\{[\s\S]*\}/);if(!m)throw new Error('Format tidak valid');
     const h=JSON.parse(m[0]);if(h.error)throw new Error(h.error);
     setJenis('pengeluaran');document.getElementById('f-nominal').value=h.total||'';document.getElementById('f-ket').value=h.keterangan||h.toko||'';
     for(let o of document.getElementById('f-kat').options)if(o.value===(h.kategori||'lainnya')){o.selected=true;break;}
@@ -1022,8 +1013,13 @@ async function sendMsg(text){
   if(!canAI()){addMsg(text,'user');const p=getPlan();addMsg(p==='free'?'🔒 AI Chat tersedia di paket Pro (Rp 19rb/bulan). Hubungi admin untuk upgrade!':'⚠️ Limit AI Chat bulan ini habis. Upgrade ke Unlimited!','ai');return;}
   if(!getKey()){addMsg(text,'user');addMsg('Saldoku AI belum aktif. Hubungi admin untuk aktivasi.','ai');return;}
   loading=true;document.getElementById('send-btn').disabled=true;addMsg(text,'user');chatHist.push({role:'user',content:text});addTyping();
-  try{const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':getKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:400,system:SYS+'\n\n'+(ctx||''),messages:chatHist})});const d=await r.json();const reply=d.content?.[0]?.text||'Maaf ada gangguan.';removeTyping();chatHist.push({role:'assistant',content:reply});addMsg(reply,'ai');aiChat++;user.ai_chat_count=aiChat;sb(`users?id=eq.${user.id}`,'PATCH',{ai_chat_count:aiChat}).catch(()=>{});renderAINotice();renderPlanCard();}
-  catch(e){removeTyping();addMsg('Koneksi bermasalah!','ai');}
+  try{
+    const messages=[{role:'system',content:SYS+'\n\n'+(ctx||'')},...chatHist];
+    const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getKey()},body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:400,messages})});
+    const d=await r.json();const reply=d.choices?.[0]?.message?.content||'Maaf ada gangguan.';
+    removeTyping();chatHist.push({role:'assistant',content:reply});addMsg(reply,'ai');
+    aiChat++;user.ai_chat_count=aiChat;sb(`users?id=eq.${user.id}`,'PATCH',{ai_chat_count:aiChat}).catch(()=>{});renderAINotice();renderPlanCard();
+  }catch(e){removeTyping();addMsg('Koneksi bermasalah!','ai');}
   loading=false;document.getElementById('send-btn').disabled=false;
 }
 
