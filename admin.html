@@ -898,7 +898,7 @@ function togglePoolKey(){
 function savePoolKey(){
   const val=document.getElementById('pool-key-input')?.value.trim();
   if(!val){showToast('Masukkan API key!','err');return;}
-  if(!val.startsWith('sk-')){showToast('API key tidak valid! Harus diawali sk-','err');return;}
+  if(!val.startsWith('gsk_')){showToast('API key tidak valid! Harus diawali gsk_','err');return;}
   localStorage.setItem('saldoku_pool_key',val);
   loadPoolKey();
   showToast('API Key Pool tersimpan ✓','ok');
