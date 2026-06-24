@@ -100,6 +100,8 @@ tbody tr:hover{background:var(--bg3)}
 .badge-pill.blue{background:var(--blue-bg);color:var(--blue)}
 .badge-pill.amber{background:var(--amber-bg);color:var(--amber)}
 .badge-pill.purple{background:var(--purple-bg);color:var(--purple)}
+.token-opt{padding:10px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .2s}
+.token-opt.active{background:var(--green-bg);border-color:var(--green);color:var(--green)}
 .amount-cell{font-weight:600}
 .amount-cell.pos{color:var(--green)}
 .amount-cell.neg{color:var(--red)}
@@ -206,7 +208,7 @@ tbody tr:hover{background:var(--bg3)}
   <div class="sidebar-nav">
     <div class="nav-group-title">Menu Utama</div>
     <button class="nav-link active" onclick="showPage('overview')"><i class="ti ti-layout-dashboard"></i> Overview</button>
-    <button class="nav-link" onclick="showPage('users')"><i class="ti ti-users"></i> Manajemen User</button>
+    <button class="nav-link" onclick="showPage('users')" id="nav-users"><i class="ti ti-users"></i> Manajemen User <span id="pending-badge" style="display:none;background:var(--amber);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:4px">0</span></button>
     <button class="nav-link" onclick="showPage('transaksi')"><i class="ti ti-receipt"></i> Semua Transaksi</button>
     <button class="nav-link" onclick="showPage('laporan')"><i class="ti ti-chart-bar"></i> Laporan</button>
     <div class="nav-group-title" style="margin-top:8px">Lainnya</div>
@@ -298,6 +300,26 @@ tbody tr:hover{background:var(--bg3)}
 
     <!-- USERS -->
     <div class="page" id="page-users">
+
+      <!-- PENDING USERS -->
+      <div class="card" id="pending-card" style="border:2px solid var(--amber);margin-bottom:16px">
+        <div class="card-header">
+          <div><div class="card-title" style="color:var(--amber)">⏳ Menunggu Aktivasi</div><div class="card-sub" id="pending-count-sub">Memuat...</div></div>
+          <button class="topbar-btn" onclick="loadPendingUsers()"><i class="ti ti-refresh"></i></button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>User</th><th>Username</th><th>No. WA</th><th>Email</th><th>Daftar</th><th>Aksi</th></tr>
+            </thead>
+            <tbody id="pending-table">
+              <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ALL USERS -->
       <div class="card">
         <div class="card-header">
           <div><div class="card-title">Semua User</div><div class="card-sub" id="user-count-sub">Memuat...</div></div>
@@ -430,6 +452,44 @@ tbody tr:hover{background:var(--bg3)}
 </div>
 
 <!-- MODAL DETAIL USER -->
+<!-- AKTIVASI USER MODAL -->
+<div class="modal-overlay" id="aktivasi-modal">
+  <div class="modal-box" style="max-width:420px;width:100%">
+    <div class="modal-header">
+      <div class="modal-title">🎉 Aktivasi User</div>
+      <button class="modal-close" onclick="document.getElementById('aktivasi-modal').classList.remove('open')"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="padding:20px">
+      <div id="aktivasi-user-info" style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px"></div>
+
+      <div class="f-group" style="margin-bottom:12px">
+        <label class="f-label">Plan</label>
+        <select id="aktivasi-plan" style="width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:9px 13px;font-size:13px;color:var(--text);outline:none" onchange="updateTokenOptions()">
+          <option value="basic">Basic — Rp 79.000 (lifetime)</option>
+          <option value="pro">Pro — Rp 129.000 (lifetime)</option>
+          <option value="unlimited">Unlimited — Rp 139.000 (lifetime)</option>
+        </select>
+      </div>
+
+      <div class="f-group" style="margin-bottom:16px">
+        <label class="f-label">Token AI Bulan Ini</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="token-options">
+          <button class="token-opt active" onclick="selectToken(this,0)">Tanpa Token<br><span style="font-size:10px;color:var(--text3)">Gratis</span></button>
+          <button class="token-opt" onclick="selectToken(this,2000000)">2 Juta Token<br><span style="font-size:10px;color:var(--text3)">Rp 35.000/bln</span></button>
+          <button class="token-opt" onclick="selectToken(this,5000000)">5 Juta Token<br><span style="font-size:10px;color:var(--text3)">Rp 59.000/bln</span></button>
+          <button class="token-opt" onclick="selectToken(this,'custom')">Custom Token<br><span style="font-size:10px;color:var(--text3)">Isi manual</span></button>
+        </div>
+        <input type="number" id="custom-token-input" placeholder="Jumlah token (contoh: 1000000)" style="display:none;width:100%;margin-top:8px;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:9px 13px;font-size:13px;color:var(--text);outline:none"/>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button class="f-btn green" style="flex:1;padding:12px" onclick="aktivasiUser()"><i class="ti ti-check"></i> Aktifkan Sekarang</button>
+        <button class="f-btn" style="flex:1;padding:12px" onclick="document.getElementById('aktivasi-modal').classList.remove('open')">Batal</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="detail-modal">
   <div class="modal-box">
     <div class="modal-header">
@@ -534,7 +594,7 @@ function showPage(name) {
   document.querySelectorAll('.nav-link').forEach(l=>{
     if(l.textContent.trim().toLowerCase().includes((meta.title||'').toLowerCase().split(' ')[0].toLowerCase())) l.classList.add('active');
   });
-  if(name==='users') loadUsers();
+  if(name==='users') { loadUsers(); loadPendingUsers(); }
   if(name==='transaksi') loadAllTrx();
   if(name==='laporan') renderLaporan();
   if(name==='settings') loadPoolKey();
@@ -546,6 +606,7 @@ function showPage(name) {
 async function init() {
   await loadAllData();
   renderOverview();
+  loadPendingUsers();
 }
 
 async function loadAllData() {
@@ -795,6 +856,73 @@ function showDetailUser(userId) {
 }
 
 function closeDetailModal() { document.getElementById('detail-modal').classList.remove('open'); }
+
+// ========================
+// PENDING USERS
+// ========================
+let aktivasiTargetId = null;
+let selectedToken = 0;
+
+async function loadPendingUsers() {
+  document.getElementById('pending-table').innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Memuat...</td></tr>';
+  try {
+    const pending = await sbFetch('users?status=eq.pending&order=created_at.desc&select=*');
+    document.getElementById('pending-count-sub').textContent=(pending?.length||0)+' user menunggu aktivasi';
+    document.getElementById('pending-card').style.display=pending?.length?'block':'none';
+    const badge=document.getElementById('pending-badge');
+    if(badge){badge.style.display=pending?.length?'inline':'none';badge.textContent=pending?.length||0;}
+    if(!pending?.length){document.getElementById('pending-table').innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Tidak ada user pending 🎉</td></tr>';return;}
+    document.getElementById('pending-table').innerHTML=pending.map(u=>{
+      const tgl=u.created_at?new Date(u.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+      return`<tr>
+        <td><div class="user-cell"><div class="user-av" style="background:var(--amber)">${(u.full_name||'U').charAt(0).toUpperCase()}</div><div class="user-name">${u.full_name||'—'}</div></div></td>
+        <td style="font-size:12px">@${u.username||'—'}</td>
+        <td style="font-size:12px">${u.wa_number||'—'}</td>
+        <td style="font-size:12px;color:var(--text3)">${u.email||'—'}</td>
+        <td style="font-size:11px;color:var(--text3)">${tgl}</td>
+        <td><button class="f-btn green" style="padding:6px 14px;font-size:12px;width:auto" onclick="openAktivasiModal('${u.id}','${u.full_name||u.username}','${u.plan||'basic'}')"><i class="ti ti-check"></i> Aktifkan</button></td>
+      </tr>`;
+    }).join('');
+  } catch(e){document.getElementById('pending-table').innerHTML=`<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--red)">Gagal: ${e.message}</td></tr>`;}
+}
+
+function openAktivasiModal(userId, nama, plan) {
+  aktivasiTargetId = userId;
+  selectedToken = 0;
+  document.getElementById('aktivasi-user-info').innerHTML=`<strong>${nama}</strong> siap diaktifkan`;
+  document.getElementById('aktivasi-plan').value = plan||'basic';
+  document.querySelectorAll('.token-opt').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.token-opt').classList.add('active');
+  document.getElementById('custom-token-input').style.display='none';
+  document.getElementById('aktivasi-modal').classList.add('open');
+}
+
+function selectToken(btn, val) {
+  document.querySelectorAll('.token-opt').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const ci = document.getElementById('custom-token-input');
+  if(val==='custom'){ci.style.display='block';selectedToken=0;}
+  else{ci.style.display='none';selectedToken=val;}
+}
+
+function updateTokenOptions(){}
+
+async function aktivasiUser() {
+  if(!aktivasiTargetId){showToast('Error: user tidak dipilih','err');return;}
+  const plan = document.getElementById('aktivasi-plan').value;
+  const customVal = document.getElementById('custom-token-input').value;
+  const tokens = selectedToken==='custom'||selectedToken===0&&customVal ? parseInt(customVal)||0 : selectedToken;
+  const month = new Date().toISOString().substring(0,7);
+  try {
+    await sbFetch(`users?id=eq.${aktivasiTargetId}`,'PATCH',{
+      status:'active', plan, tokens_limit:tokens, tokens_used:0, token_reset_month:month
+    });
+    document.getElementById('aktivasi-modal').classList.remove('open');
+    showToast('User berhasil diaktifkan ✓','ok');
+    await loadPendingUsers();
+    await loadUsers();
+  } catch(e){showToast('Gagal: '+e.message,'err');}
+}
 
 async function updateUserPlan(userId) {
   const plan = document.getElementById('modal-plan-select').value;
