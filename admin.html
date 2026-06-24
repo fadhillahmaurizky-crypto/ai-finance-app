@@ -633,7 +633,7 @@ async function loadUsers() {
   document.getElementById('user-count-sub').textContent=supaUsers.length+' user terdaftar';
   // Populate filter transaksi
   const sel=document.getElementById('trx-filter-user');
-  sel.innerHTML='<option value="">Semua User</option>'+supaUsers.map(u=>`<option value="${u.wa_number}">${u.full_name||u.username}</option>`).join('');
+  sel.innerHTML='<option value="">Semua User</option>'+supaUsers.map(u=>`<option value="${u.id}">${u.full_name||u.username}</option>`).join('');
 }
 
 const AVATAR_COLORS=['#00B26A','#2B7EF8','#F59E0B','#8B5CF6','#EC4899','#EF4444','#06B6D4'];
@@ -886,25 +886,31 @@ async function loadAllTrx() {
   const filter=document.getElementById('trx-filter-jenis')?.value||'semua';
   document.getElementById('trx-table').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">Memuat...</td></tr>';
   try {
-    let url=GAS_URL+'?action=transaksi&limit=100&filter='+filter;
-    if(userId) url+='&userId='+userId;
-    const res=await fetch(url);
-    const data=await res.json();
-    if(data.status!=='ok') throw new Error(data.error);
-    const trx=data.transaksi||[];
-    document.getElementById('trx-count-sub').textContent=trx.length+' transaksi'+(userId?' (filter user)':'');
-    if(!trx.length){document.getElementById('trx-table').innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">Tidak ada transaksi</td></tr>';return;}
+    let q=`transactions?select=*,users(id,username,full_name,wa_number)&order=created_at.desc&limit=200`;
+    if(userId) q+=`&user_id=eq.${userId}`;
+    if(filter==='pemasukan') q+=`&jenis=eq.pemasukan`;
+    else if(filter==='pengeluaran') q+=`&jenis=eq.pengeluaran`;
+    const trx=await sbFetch(q);
+    document.getElementById('trx-count-sub').textContent=(trx?.length||0)+' transaksi'+(userId?' (filter user)':'');
+    if(!trx?.length){document.getElementById('trx-table').innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">Tidak ada transaksi</td></tr>';return;}
+    // Hitung running saldo per user
+    const saldoMap={};
+    [...trx].reverse().forEach(t=>{
+      const uid=t.user_id;
+      if(!saldoMap[uid])saldoMap[uid]=0;
+      saldoMap[uid]+=t.jenis==='pemasukan'?Number(t.nominal):-Number(t.nominal);
+    });
     document.getElementById('trx-table').innerHTML=trx.map(t=>{
-      const isInc=(t.jenis||'').toLowerCase()==='pemasukan';
-      const supaUser=supaUsers.find(u=>u.wa_number==t.userId)||{};
+      const isInc=t.jenis==='pemasukan';
+      const u=t.users||{};
       return `<tr>
-        <td><div class="user-cell"><div class="user-av" style="background:var(--blue);font-size:11px">${(supaUser.full_name||t.userId||'U').charAt(0)}</div><div class="user-name">${supaUser.full_name||t.userId}</div></div></td>
-        <td style="font-size:12px;color:var(--text3)">${t.tanggal||'—'}</td>
+        <td><div class="user-cell"><div class="user-av" style="background:var(--blue);font-size:11px">${(u.full_name||'U').charAt(0).toUpperCase()}</div><div class="user-name">${u.full_name||u.username||'—'}</div></div></td>
+        <td style="font-size:12px;color:var(--text3)">${t.tanggal||'—'} ${t.created_at?new Date(t.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}):''}</td>
         <td><span class="badge-pill ${isInc?'green':'red'}">${t.jenis||'—'}</span></td>
         <td style="text-transform:capitalize">${t.kategori||'—'}</td>
         <td class="amount-cell ${isInc?'pos':'neg'}">${isInc?'+':'−'}${rpFull(t.nominal)}</td>
         <td style="color:var(--text3);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.keterangan||'—'}</td>
-        <td class="amount-cell ${t.saldo>=0?'pos':'neg'}">${rpFull(t.saldo)}</td>
+        <td class="amount-cell ${(saldoMap[t.user_id]||0)>=0?'pos':'neg'}">${rpFull(saldoMap[t.user_id]||0)}</td>
       </tr>`;
     }).join('');
   } catch(e){document.getElementById('trx-table').innerHTML=`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--red)">Gagal: ${e.message}</td></tr>`;}
