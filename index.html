@@ -715,6 +715,8 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const GAS='https://script.google.com/macros/s/AKfycbxO5RHZcHojCy-d65QiKDMnk4d-z_d_vCCqAETetTnr0kVqMoRXp6yrep8AuU3mmCtNuw/exec';
 const CS='6285727318698';
 const MASTER='maurizky';
+const PLANS={basic:{label:'Basic',price:'Rp 79.000',ai:false},pro:{label:'Pro',price:'Rp 129.000',ai:true},unlimited:{label:'Unlimited',price:'Rp 139.000',ai:true}};
+const TOKEN_PACKS=[{id:'2M',tokens:2000000,price:'Rp 29.000/bln',label:'2 Juta Token'},{id:'5M',tokens:5000000,price:'Rp 39.000/bln',label:'5 Juta Token'}];
 const LIMITS={free:{ai:0,scan:0,label:'Starter'},pro:{ai:50,scan:20,label:'Pro'},unlimited:{ai:-1,scan:-1,label:'Unlimited'}};
 
 let user=null,chatHist=[],loading=false,sumData=null,jenis='pemasukan',targets=[],dP,fpUser=null,fpOTP=null,aiChat=0,aiScan=0;
@@ -722,9 +724,9 @@ let user=null,chatHist=[],loading=false,sumData=null,jenis='pemasukan',targets=[
 async function sb(path,method='GET',body=null){const o={method,headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':method==='POST'?'return=representation':''}};if(body)o.body=JSON.stringify(body);const r=await fetch(SB_URL+'/rest/v1/'+path,o);if(!r.ok){const e=await r.json();throw new Error(e.message||'Error');}return r.status===204?null:r.json();}
 async function hp(p){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p+'finly_salt_2024'));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
 function getKey(){return localStorage.getItem('saldoku_pool_key')||localStorage.getItem('finly_api_key')||'';}
-function getPlan(){if(!user)return'free';if(user.role==='admin'||user.username===MASTER)return'unlimited';return user.plan||'free';}
-function canAI(){const l=LIMITS[getPlan()];return l.ai===-1||(l.ai>0&&aiChat<l.ai);}
-function canScan(){const l=LIMITS[getPlan()];return l.scan===-1||(l.scan>0&&aiScan<l.scan);}
+function getPlan(){if(!user)return'basic';if(user.role==='admin'||user.username===MASTER)return'unlimited';return user.plan||'basic';}
+function canAI(){const p=getPlan();if(p==='basic')return false;if(p==='unlimited'&&user.username===MASTER)return true;return(user.tokens_limit||0)>(user.tokens_used||0);}
+function canScan(){return canAI();}
 function getMonth(){return new Date().toISOString().substring(0,7);}
 function getNextMonth(){const d=new Date();d.setMonth(d.getMonth()+1);return d.toISOString().substring(0,7);}
 
@@ -860,10 +862,16 @@ async function changePW(){
 }
 
 function renderPlanCard(){
-  const plan=getPlan();const limits=LIMITS[plan];const el=document.getElementById('plan-card');if(!el)return;
-  if(plan==='unlimited'){el.innerHTML=`<div class="plan-card pro" style="margin:0 16px 16px"><div class="plan-badge" style="background:var(--green);color:#fff">UNLIMITED</div><div class="plan-name" style="color:#fff">Paket Unlimited 🚀</div><div class="plan-feature" style="color:rgba(255,255,255,.8)">AI Chat unlimited</div><div class="plan-feature" style="color:rgba(255,255,255,.8)">Scan struk unlimited</div></div>`;}
-  else if(plan==='pro'){const cl=Math.max(0,limits.ai-aiChat);const sl=Math.max(0,limits.scan-aiScan);el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px;border-color:var(--amber)"><div class="plan-badge" style="background:var(--amber);color:#fff">PRO ⭐</div><div class="plan-name">Paket Pro</div><div class="plan-feature">AI Chat: ${cl}/${limits.ai} tersisa bulan ini</div><div class="plan-feature">Scan Struk: ${sl}/${limits.scan} tersisa</div></div>`;}
-  else{el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px"><div class="plan-badge" style="background:var(--border2);color:var(--text3)">STARTER</div><div class="plan-name">Paket Starter (Gratis)</div><div class="plan-feature" style="color:var(--text3)">Catat via WA ✓</div><div class="plan-feature" style="color:var(--text3)">Dashboard basic ✓</div><button class="upgrade-btn" onclick="hubungiCS()">Upgrade ke Pro — Rp 19rb/bulan 🚀</button></div>`;}
+  const plan=getPlan();const el=document.getElementById('plan-card');if(!el)return;
+  const tokenLimit=user?.tokens_limit||0;const tokenUsed=user?.tokens_used||0;const tokenSisa=Math.max(0,tokenLimit-tokenUsed);const tokenPct=tokenLimit>0?Math.min(100,Math.round((tokenSisa/tokenLimit)*100)):0;
+  if(plan==='unlimited'&&user?.username===MASTER){
+    el.innerHTML=`<div class="plan-card pro" style="margin:0 16px 16px"><div class="plan-badge" style="background:var(--green);color:#fff">SUPER ADMIN</div><div class="plan-name" style="color:#fff">Unlimited Access 🚀</div><div class="plan-feature" style="color:rgba(255,255,255,.8)">AI Chat & Scan unlimited</div></div>`;
+  } else if(plan==='basic'){
+    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px"><div class="plan-badge" style="background:var(--border2);color:var(--text3)">BASIC · Rp 79.000</div><div class="plan-name">Paket Basic</div><div class="plan-feature">Catat transaksi manual ✓</div><div class="plan-feature">Dashboard & Laporan ✓</div><div class="plan-feature">Integrasi WhatsApp ✓</div><div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);border-radius:10px;font-size:12px;color:var(--amber)">🤖 Tambah token AI mulai Rp 29.000/bln</div><button class="upgrade-btn" onclick="hubungiCS()">Beli Token AI → Rp 29.000/bln</button></div>`;
+  } else {
+    const planInfo=PLANS[plan]||PLANS['pro'];
+    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px;border-color:var(--green)"><div class="plan-badge" style="background:var(--green);color:#fff">${planInfo.label.toUpperCase()} · ${planInfo.price}</div><div class="plan-name">${planInfo.label} — Lifetime 🎉</div><div class="plan-feature">Semua fitur Basic ✓</div><div class="plan-feature">AI Chat & Scan Struk ✓</div><div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px"><span style="color:var(--text3)">Token AI bulan ini</span><span style="color:var(--green);font-weight:600">${(tokenSisa/1000).toFixed(0)}K / ${(tokenLimit/1000).toFixed(0)}K</span></div><div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden"><div style="width:${tokenPct}%;height:100%;background:var(--green);border-radius:3px;transition:width .5s"></div></div></div>${tokenSisa<100000?`<button class="upgrade-btn" style="background:var(--blue);margin-top:12px" onclick="hubungiCS()">Isi Token Lagi → mulai Rp 29.000</button>`:''}</div>`;
+  }
 }
 
 const PAGES=['home','catat','transaksi','target','laporan','settings'];
@@ -1003,11 +1011,11 @@ function renderLaporan(){if(!sumData)return;const pM=sumData.kategoriPemasukan||
 
 let ctx='';
 function updateCtx(data){if(!data)return;const s=data.summary;ctx=`Data keuangan ${user?.full_name||'user'}:\n- Saldo: ${rpF(s.saldo)}\n- Pemasukan: ${rpF(s.totalMasuk)}\n- Pengeluaran: ${rpF(s.totalKeluar)}\n- Tidak Penting: ${rpF(s.tidakPenting)}\n- Pengeluaran per kategori: ${JSON.stringify(data.kategoriPengeluaran)}\n- Pemasukan per kategori: ${JSON.stringify(data.kategoriPemasukan)}`;}
-const SYS='Kamu adalah Saldoku AI, asisten keuangan pintar dari aplikasi Saldoku. Jawab Bahasa Indonesia, singkat dan ramah (maks 4 kalimat). Gunakan angka nyata dari data. Tidak perlu markdown. Panggil user dengan nama depannya.';
+const SYS='Kamu adalah Saldoku AI, asisten keuangan pintar. Jawab Bahasa Indonesia, singkat dan ramah (maks 4 kalimat). Panggil user dengan nama depannya. PENTING: Jika user minta catat/simpan transaksi (contoh: "catat makan 15rb", "beli bensin 50000", "gaji masuk 3jt"), balas HANYA dengan JSON ini tanpa teks lain: {"action":"catat","jenis":"pemasukan/pengeluaran","nominal":angka,"kategori":"makanan/transportasi/belanja/tagihan/hiburan/gaji/bonus/lainnya","keterangan":"deskripsi singkat","konfirmasi":"pesan konfirmasi ke user"}. Untuk pertanyaan biasa, jawab teks normal saja.';
 
 function openChat(){document.getElementById('chat-sheet').classList.add('open');renderAINotice();document.getElementById('chat-input').focus();}
 function closeChat(){document.getElementById('chat-sheet').classList.remove('open');}
-function renderAINotice(){const el=document.getElementById('ai-notice');if(!el)return;const plan=getPlan();if(plan==='free'){el.innerHTML=`<div class="plan-notice">🔒 AI Chat tersedia di paket Pro. <span style="text-decoration:underline;cursor:pointer;font-weight:700" onclick="hubungiCS()">Upgrade Rp 19rb/bulan</span></div>`;}else if(plan==='pro'){const left=Math.max(0,50-aiChat);el.innerHTML=`<div class="plan-notice pro">✨ Pro · ${left} chat tersisa bulan ini</div>`;}else{el.innerHTML=`<div class="plan-notice pro">✨ Unlimited · Chat tanpa batas</div>`;}}
+function renderAINotice(){const el=document.getElementById('ai-notice');if(!el)return;const plan=getPlan();if(plan==='basic'){el.innerHTML=`<div class="plan-notice">🔒 AI tersedia di paket Pro/Unlimited. <span style="text-decoration:underline;cursor:pointer;font-weight:700" onclick="hubungiCS()">Hubungi admin</span></div>`;}else{const tokenSisa=Math.max(0,(user?.tokens_limit||0)-(user?.tokens_used||0));if(tokenSisa<=0){el.innerHTML=`<div class="plan-notice">⚠️ Token AI habis. <span style="text-decoration:underline;cursor:pointer;font-weight:700" onclick="hubungiCS()">Isi token lagi</span></div>`;}else{el.innerHTML=`<div class="plan-notice pro">✨ ${(tokenSisa/1000).toFixed(0)}K token tersisa bulan ini</div>`;}}}
 function addMsg(text,role){const msgs=document.getElementById('chat-msgs');const row=document.createElement('div');row.className='msg-row'+(role==='user'?' user':'');row.innerHTML=role==='ai'?`<div class="msg-av"><i class="ti ti-robot"></i></div><div class="bubble ai">${text}</div>`:`<div class="bubble user">${text}</div>`;msgs.appendChild(row);msgs.scrollTop=msgs.scrollHeight;}
 function addTyping(){const m=document.getElementById('chat-msgs');const r=document.createElement('div');r.className='msg-row';r.id='typing';r.innerHTML='<div class="msg-av"><i class="ti ti-robot"></i></div><div class="bubble ai"><div class="typing-dots"><span></span><span></span><span></span></div></div>';m.appendChild(r);m.scrollTop=m.scrollHeight;}
 function removeTyping(){document.getElementById('typing')?.remove();}
@@ -1016,14 +1024,27 @@ async function handleSend(){const inp=document.getElementById('chat-input');cons
 document.getElementById('chat-input').addEventListener('keydown',e=>{if(e.key==='Enter')handleSend();});
 async function sendMsg(text){
   if(loading)return;
-  if(!canAI()){addMsg(text,'user');const p=getPlan();addMsg(p==='free'?'🔒 AI Chat tersedia di paket Pro (Rp 19rb/bulan). Hubungi admin untuk upgrade!':'⚠️ Limit AI Chat bulan ini habis. Upgrade ke Unlimited!','ai');return;}
+  if(!canAI()){addMsg(text,'user');const p=getPlan();addMsg(p==='basic'?'🔒 AI tersedia di paket Pro/Unlimited. Hubungi admin untuk upgrade!':'⚠️ Token AI bulan ini habis. Hubungi admin untuk isi ulang!','ai');return;}
   if(!getKey()){addMsg(text,'user');addMsg('Saldoku AI belum aktif. Hubungi admin untuk aktivasi.','ai');return;}
   loading=true;document.getElementById('send-btn').disabled=true;addMsg(text,'user');chatHist.push({role:'user',content:text});addTyping();
   try{
     const messages=[{role:'system',content:SYS+'\n\n'+(ctx||'')},...chatHist];
     const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getKey()},body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:400,messages})});
-    const d=await r.json();const reply=d.choices?.[0]?.message?.content||'Maaf ada gangguan.';
-    removeTyping();chatHist.push({role:'assistant',content:reply});addMsg(reply,'ai');
+    const d=await r.json();let reply=d.choices?.[0]?.message?.content||'Maaf ada gangguan.';
+    const tokensUsed=d.usage?.total_tokens||0;
+    if(tokensUsed>0&&user.username!==MASTER){user.tokens_used=(user.tokens_used||0)+tokensUsed;sb(`users?id=eq.${user.id}`,'PATCH',{tokens_used:user.tokens_used}).catch(()=>{});}
+    removeTyping();
+    // Cek apakah AI mau catat transaksi
+    const jsonMatch=reply.match(/\{[\s\S]*"action"\s*:\s*"catat"[\s\S]*\}/);
+    if(jsonMatch){
+      try{
+        const trx=JSON.parse(jsonMatch[0]);
+        await sb('transactions','POST',{user_id:user.id,jenis:trx.jenis,nominal:parseFloat(trx.nominal),kategori:trx.kategori,keterangan:trx.keterangan,prioritas:'penting',tanggal:new Date().toISOString().substring(0,10)});
+        reply=trx.konfirmasi||'Transaksi berhasil dicatat ✓';
+        loadSummary();loadTrx('semua','txn-home',4);
+      }catch(e){reply='Gagal menyimpan transaksi: '+e.message;}
+    }
+    chatHist.push({role:'assistant',content:reply});addMsg(reply,'ai');
     aiChat++;user.ai_chat_count=aiChat;sb(`users?id=eq.${user.id}`,'PATCH',{ai_chat_count:aiChat}).catch(()=>{});renderAINotice();renderPlanCard();
   }catch(e){removeTyping();addMsg('Koneksi bermasalah!','ai');}
   loading=false;document.getElementById('send-btn').disabled=false;
@@ -1032,7 +1053,7 @@ async function sendMsg(text){
 function updateApiStatus(){const key=localStorage.getItem('saldoku_pool_key')||'';const pill=document.getElementById('api-pill');if(pill){pill.textContent=key?'Tersimpan ✓':'Belum diisi';pill.className='pill '+(key?'ok':'no');}const inp=document.getElementById('api-key-input');if(inp&&key)inp.value=key;}
 function saveApiKey(){const v=document.getElementById('api-key-input')?.value.trim();if(!v){showToast('Masukkan API key!','err');return;}localStorage.setItem('saldoku_pool_key',v);updateApiStatus();showToast('API key pool tersimpan ✓','ok');}
 function showWAGuide(){document.getElementById('wa-modal').classList.add('open');}
-function hubungiCS(){window.open('https://wa.me/'+CS+'?text='+encodeURIComponent('Hallo Admin Saldoku, saya mau tanya tentang upgrade paket Pro'),'_blank');}
+function hubungiCS(){window.open('https://wa.me/'+CS+'?text='+encodeURIComponent('Hallo Admin Saldoku, saya mau tanya tentang paket Saldoku'),'_blank');}
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dP=e;});
 function installPWA(){if(dP){dP.prompt();dP.userChoice.then(()=>{dP=null;});}else showToast('Di Chrome: ⋮ → Add to homescreen');}
 
