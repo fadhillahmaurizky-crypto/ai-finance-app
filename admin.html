@@ -653,6 +653,7 @@ function renderUsersTable(users) {
       <td style="font-size:12px;color:var(--text3)">${u.email||'—'}</td>
       <td class="amount-cell ${(gas.saldo||0)>=0?'pos':'neg'}">${rp(gas.saldo||0)}</td>
       <td><span class="badge-pill blue">${gas.totalTrx||0} trx</span></td>
+      <td><span class="badge-pill ${u.plan==='unlimited'?'green':u.plan==='pro'?'blue':'amber'}">${u.plan||'basic'}</span></td>
       <td>
         <select class="status-select" onchange="updateStatus('${u.id}',this.value)">
           <option value="active" ${u.status==='active'?'selected':''}>✅ Aktif</option>
@@ -732,6 +733,36 @@ function showDetailUser(userId) {
       </div>
     </div>
 
+    <!-- Plan & Token Management -->
+    <div class="detail-section">
+      <div class="detail-section-title">💳 Plan & Token AI</div>
+      <div class="detail-grid">
+        <div class="detail-item"><div class="detail-label">Plan Sekarang</div><div class="detail-value" style="text-transform:capitalize;font-weight:700;color:var(--green)">${u.plan||'basic'}</div></div>
+        <div class="detail-item"><div class="detail-label">Token Dipakai</div><div class="detail-value">${((u.tokens_used||0)/1000).toFixed(0)}K / ${((u.tokens_limit||0)/1000).toFixed(0)}K</div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+        <div>
+          <div class="detail-label" style="margin-bottom:6px">Ubah Plan</div>
+          <select id="modal-plan-select" style="width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:9px 13px;font-size:13px;color:var(--text);outline:none">
+            <option value="basic" ${(u.plan||'basic')==='basic'?'selected':''}>Basic — Rp 79.000 (tanpa AI)</option>
+            <option value="pro" ${u.plan==='pro'?'selected':''}>Pro — Rp 129.000</option>
+            <option value="unlimited" ${u.plan==='unlimited'?'selected':''}>Unlimited — Rp 139.000</option>
+          </select>
+        </div>
+        <div>
+          <div class="detail-label" style="margin-bottom:6px">Set Token AI (pilih paket)</div>
+          <div style="display:flex;gap:8px">
+            <button class="f-btn" style="flex:1;background:var(--blue-bg);color:var(--blue);border:1.5px solid var(--blue)" onclick="setUserTokens('${u.id}',2000000)">+ 2 Juta Token<br><span style="font-size:10px">Rp 35.000/bln</span></button>
+            <button class="f-btn" style="flex:1;background:#F3EEFF;color:#7C3AED;border:1.5px solid #7C3AED" onclick="setUserTokens('${u.id}',5000000)">+ 5 Juta Token<br><span style="font-size:10px">Rp 59.000/bln</span></button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="f-btn green" style="flex:1" onclick="updateUserPlan('${u.id}')"><i class="ti ti-device-floppy"></i> Simpan Plan</button>
+          <button class="f-btn" style="flex:1;background:var(--amber-bg);color:var(--amber);border:1.5px solid var(--amber)" onclick="resetUserTokens('${u.id}')"><i class="ti ti-refresh"></i> Reset Token Used</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Password Hash -->
     <div class="detail-section">
       <div class="detail-section-title">Keamanan</div>
@@ -764,6 +795,39 @@ function showDetailUser(userId) {
 }
 
 function closeDetailModal() { document.getElementById('detail-modal').classList.remove('open'); }
+
+async function updateUserPlan(userId) {
+  const plan = document.getElementById('modal-plan-select').value;
+  try {
+    await sbFetch(`users?id=eq.${userId}`,'PATCH',{plan});
+    const u = supaUsers.find(u=>u.id===userId);
+    if(u) u.plan = plan;
+    showToast('Plan diupdate ke '+plan+' ✓','ok');
+    renderUsersTable(supaUsers);
+  } catch(e) { showToast('Gagal: '+e.message,'err'); }
+}
+
+async function setUserTokens(userId, amount) {
+  const month = new Date().toISOString().substring(0,7);
+  try {
+    await sbFetch(`users?id=eq.${userId}`,'PATCH',{tokens_limit:amount, tokens_used:0, token_reset_month:month});
+    const u = supaUsers.find(u=>u.id===userId);
+    if(u){u.tokens_limit=amount;u.tokens_used=0;u.token_reset_month=month;}
+    showToast((amount/1000000)+'M token diset ✓','ok');
+    showDetailUser(userId);
+  } catch(e) { showToast('Gagal: '+e.message,'err'); }
+}
+
+async function resetUserTokens(userId) {
+  if(!confirm('Reset token used ke 0 untuk user ini?')) return;
+  try {
+    await sbFetch(`users?id=eq.${userId}`,'PATCH',{tokens_used:0});
+    const u = supaUsers.find(u=>u.id===userId);
+    if(u) u.tokens_used=0;
+    showToast('Token direset ✓','ok');
+    showDetailUser(userId);
+  } catch(e) { showToast('Gagal: '+e.message,'err'); }
+}
 
 async function modalResetPassword(userId, nama) {
   const newPass  = document.getElementById('modal-new-pass').value;
