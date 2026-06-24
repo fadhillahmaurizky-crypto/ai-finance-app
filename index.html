@@ -723,7 +723,14 @@ let user=null,chatHist=[],loading=false,sumData=null,jenis='pemasukan',targets=[
 
 async function sb(path,method='GET',body=null){const o={method,headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':method==='POST'?'return=representation':''}};if(body)o.body=JSON.stringify(body);const r=await fetch(SB_URL+'/rest/v1/'+path,o);if(!r.ok){const e=await r.json();throw new Error(e.message||'Error');}return r.status===204?null:r.json();}
 async function hp(p){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p+'finly_salt_2024'));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
-function getKey(){return localStorage.getItem('saldoku_pool_key')||localStorage.getItem('finly_api_key')||'';}
+let poolKey='';
+async function loadPoolKey(){
+  try{
+    const res=await sb('settings?key=eq.groq_api_key&select=value');
+    poolKey=res?.[0]?.value||localStorage.getItem('saldoku_pool_key')||'';
+  }catch(e){poolKey=localStorage.getItem('saldoku_pool_key')||'';}
+}
+function getKey(){return poolKey||localStorage.getItem('saldoku_pool_key')||'';}
 function getPlan(){if(!user)return'basic';if(user.role==='admin'||user.username===MASTER)return'unlimited';return user.plan||'basic';}
 function canAI(){const p=getPlan();if(p==='basic')return false;if(p==='unlimited'&&user.username===MASTER)return true;return(user.tokens_limit||0)>(user.tokens_used||0);}
 function canScan(){return canAI();}
@@ -850,7 +857,7 @@ function showApp(){
     renderPlanCard();
     try{PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(av=>{const row=document.getElementById('bio-row');if(row)row.style.display=av?'flex':'none';if(av&&localStorage.getItem('sdk_bio_cred')){const bs=document.getElementById('bio-status');if(bs)bs.textContent='Fingerprint aktif ✓';}});}catch(e){}
   }
-  loadSummary();loadTrx('semua','txn-home',4);
+  loadPoolKey();loadSummary();loadTrx('semua','txn-home',4);
 }
 
 function logout(){localStorage.removeItem('sdk_session');user=null;showLoginPage();}

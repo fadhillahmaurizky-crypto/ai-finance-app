@@ -1079,27 +1079,39 @@ function renderKatChart(id,data,color) {
     </div>`).join('');
 }
 
-function loadPoolKey(){
-  const key=localStorage.getItem('saldoku_pool_key')||'';
+async function loadPoolKey(){
   const inp=document.getElementById('pool-key-input');
   const status=document.getElementById('pool-status');
-  if(inp&&key)inp.value=key;
-  if(status){
-    if(key){status.textContent='✓ Tersimpan';status.style.background='var(--green-bg)';status.style.color='var(--green)';}
-    else{status.textContent='Belum diisi';status.style.background='var(--red-bg)';status.style.color='var(--red)';}
+  try{
+    const res=await sbFetch('settings?key=eq.groq_api_key&select=value');
+    const key=res?.[0]?.value||'';
+    if(inp&&key)inp.value=key;
+    if(status){
+      if(key){status.textContent='✓ Tersimpan';status.style.background='var(--green-bg)';status.style.color='var(--green)';}
+      else{status.textContent='Belum diisi';status.style.background='var(--red-bg)';status.style.color='var(--red)';}
+    }
+  }catch(e){
+    // fallback localStorage
+    const key=localStorage.getItem('saldoku_pool_key')||'';
+    if(inp&&key)inp.value=key;
   }
 }
 function togglePoolKey(){
   const inp=document.getElementById('pool-key-input');
   if(inp)inp.type=inp.type==='password'?'text':'password';
 }
-function savePoolKey(){
+async function savePoolKey(){
   const val=document.getElementById('pool-key-input')?.value.trim();
   if(!val){showToast('Masukkan API key!','err');return;}
   if(!val.startsWith('gsk_')){showToast('API key tidak valid! Harus diawali gsk_','err');return;}
-  localStorage.setItem('saldoku_pool_key',val);
-  loadPoolKey();
-  showToast('API Key Pool tersimpan ✓','ok');
+  try{
+    // Upsert ke Supabase
+    await sbFetch('settings?key=eq.groq_api_key','DELETE');
+    await sbFetch('settings','POST',{key:'groq_api_key',value:val});
+    localStorage.setItem('saldoku_pool_key',val); // backup
+    loadPoolKey();
+    showToast('API Key Pool tersimpan ✓','ok');
+  }catch(e){showToast('Gagal simpan: '+e.message,'err');}
 }
 
 // ========================
