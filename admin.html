@@ -301,6 +301,20 @@ tbody tr:hover{background:var(--bg3)}
     <!-- USERS -->
     <div class="page" id="page-users">
 
+      <!-- PENDING ORDERS (Bukti Transfer) -->
+      <div class="card" id="orders-card" style="border:2px solid var(--green);margin-bottom:16px">
+        <div class="card-header">
+          <div><div class="card-title" style="color:var(--green)">💳 Bukti Transfer Masuk</div><div class="card-sub" id="orders-count-sub">Memuat...</div></div>
+          <button class="topbar-btn" onclick="loadOrders()"><i class="ti ti-refresh"></i></button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>User</th><th>Paket</th><th>Total</th><th>Bukti</th><th>Waktu</th><th>Aksi</th></tr></thead>
+            <tbody id="orders-table"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Memuat...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- PENDING USERS -->
       <div class="card" id="pending-card" style="border:2px solid var(--amber);margin-bottom:16px">
         <div class="card-header">
@@ -594,7 +608,7 @@ function showPage(name) {
   document.querySelectorAll('.nav-link').forEach(l=>{
     if(l.textContent.trim().toLowerCase().includes((meta.title||'').toLowerCase().split(' ')[0].toLowerCase())) l.classList.add('active');
   });
-  if(name==='users') { loadUsers(); loadPendingUsers(); }
+  if(name==='users') { loadUsers(); loadPendingUsers(); loadOrders(); }
   if(name==='transaksi') loadAllTrx();
   if(name==='laporan') renderLaporan();
   if(name==='settings') loadPoolKey();
@@ -607,6 +621,7 @@ async function init() {
   await loadAllData();
   renderOverview();
   loadPendingUsers();
+  loadOrders();
 }
 
 async function loadAllData() {
@@ -856,6 +871,71 @@ function showDetailUser(userId) {
 }
 
 function closeDetailModal() { document.getElementById('detail-modal').classList.remove('open'); }
+
+// ========================
+// ORDERS (BUKTI TRANSFER)
+// ========================
+async function loadOrders(){
+  document.getElementById('orders-table').innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Memuat...</td></tr>';
+  try{
+    const orders=await sbFetch('orders?status=eq.pending&order=created_at.desc&select=*,users(full_name,username,wa_number)');
+    document.getElementById('orders-count-sub').textContent=(orders?.length||0)+' menunggu konfirmasi';
+    document.getElementById('orders-card').style.display=orders?.length?'block':'none';
+    if(!orders?.length){document.getElementById('orders-table').innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Tidak ada order masuk 🎉</td></tr>';return;}
+    document.getElementById('orders-table').innerHTML=orders.map(o=>{
+      const u=o.users||{};
+      const tgl=o.created_at?new Date(o.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
+      return`<tr>
+        <td><div class="user-cell"><div class="user-av" style="background:var(--green)">${(u.full_name||'U').charAt(0)}</div><div><div class="user-name">${u.full_name||'—'}</div><div style="font-size:10px;color:var(--text3)">${u.wa_number||''}</div></div></div></td>
+        <td><span class="badge-pill ${o.plan==='unlimited'?'green':o.plan==='pro'?'blue':'amber'}">${o.plan||'—'}</span></td>
+        <td style="font-weight:700;color:var(--green)">Rp${(o.amount||0).toLocaleString('id-ID')}</td>
+        <td><button onclick="lihatBukti('${o.id}')" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue);padding:4px 10px;border-radius:7px;font-size:11px;cursor:pointer"><i class="ti ti-photo"></i> Lihat</button></td>
+        <td style="font-size:11px;color:var(--text3)">${tgl}</td>
+        <td style="display:flex;gap:6px">
+          <button onclick="konfirmasiOrder('${o.id}','${o.user_id}','${o.plan}')" style="background:var(--green);color:#fff;border:none;padding:5px 10px;border-radius:7px;font-size:11px;cursor:pointer"><i class="ti ti-check"></i> Konfirmasi</button>
+          <button onclick="tolakOrder('${o.id}')" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red);padding:5px 10px;border-radius:7px;font-size:11px;cursor:pointer"><i class="ti ti-x"></i></button>
+        </td>
+      </tr>`;
+    }).join('');
+  }catch(e){document.getElementById('orders-table').innerHTML=`<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--red)">Gagal: ${e.message}</td></tr>`;}
+}
+
+let currentBuktiUrl='';
+function lihatBukti(orderId){
+  // Find order and show image
+  sbFetch(`orders?id=eq.${orderId}&select=bukti_url`).then(res=>{
+    const url=res?.[0]?.bukti_url;
+    if(!url){showToast('Bukti tidak ditemukan','err');return;}
+    const modal=document.createElement('div');
+    modal.style.cssText='position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer';
+    modal.innerHTML=`<div style="position:relative;max-width:400px;width:100%"><img src="${url}" style="width:100%;border-radius:12px"/><button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:-12px;right:-12px;width:32px;height:32px;border-radius:50%;background:#fff;border:none;font-size:16px;cursor:pointer">✕</button></div>`;
+    modal.onclick=e=>{if(e.target===modal)modal.remove();};
+    document.body.appendChild(modal);
+  }).catch(()=>showToast('Gagal load bukti','err'));
+}
+
+async function konfirmasiOrder(orderId, userId, plan){
+  if(!confirm('Konfirmasi pembayaran dan aktifkan akun ini?')) return;
+  try{
+    const month=new Date().toISOString().substring(0,7);
+    const tokens=plan==='unlimited'?5000000:plan==='pro'?2000000:0;
+    await sbFetch(`orders?id=eq.${orderId}`,'PATCH',{status:'paid'});
+    await sbFetch(`users?id=eq.${userId}`,'PATCH',{status:'active',plan,tokens_limit:tokens,tokens_used:0,token_reset_month:month});
+    showToast('Order dikonfirmasi & akun diaktifkan ✓','ok');
+    await loadOrders();
+    await loadUsers();
+    await loadPendingUsers();
+  }catch(e){showToast('Gagal: '+e.message,'err');}
+}
+
+async function tolakOrder(orderId){
+  if(!confirm('Tolak order ini?')) return;
+  try{
+    await sbFetch(`orders?id=eq.${orderId}`,'PATCH',{status:'cancelled'});
+    showToast('Order ditolak','ok');
+    await loadOrders();
+  }catch(e){showToast('Gagal: '+e.message,'err');}
+}
 
 // ========================
 // PENDING USERS

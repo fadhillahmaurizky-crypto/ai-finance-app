@@ -709,6 +709,112 @@ input,select{font-family:var(--font)}
 
 <div class="toast" id="toast"></div>
 
+<!-- PAYMENT FLOW -->
+<div id="payment-wrap" style="display:none;position:fixed;inset:0;z-index:998;background:var(--bg);overflow-y:auto;max-width:430px;left:50%;transform:translateX(-50%)">
+
+  <!-- STEP 1: PILIH PAKET -->
+  <div id="pay-step1">
+    <div style="background:linear-gradient(160deg,#00B26A,#007A48);padding:52px 24px 32px;text-align:center">
+      <div style="font-size:40px;margin-bottom:10px">🎉</div>
+      <div style="font-size:22px;font-weight:700;color:#fff">Akun berhasil dibuat!</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:6px">Pilih paket untuk mulai menggunakan Saldoku</div>
+    </div>
+    <div style="padding:20px 16px">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">Pilih Paket Saldoku</div>
+      <div onclick="selectPlan('basic',79000)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:15px;font-weight:700;color:var(--text)">Basic</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Catat transaksi · Dashboard · Laporan</div></div>
+          <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">Rp 79.000</div><div style="font-size:10px;color:var(--text3)">lifetime</div></div>
+        </div>
+      </div>
+      <div onclick="selectPlan('pro',129000)" style="background:var(--bg2);border:2px solid var(--green);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer;position:relative">
+        <div style="position:absolute;top:-10px;left:16px;background:var(--green);color:#fff;font-size:10px;font-weight:700;padding:2px 10px;border-radius:10px">✦ PALING POPULER</div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:15px;font-weight:700;color:var(--text)">Pro</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Semua Basic + AI Chat & Scan Struk ✨</div></div>
+          <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">Rp 129.000</div><div style="font-size:10px;color:var(--text3)">lifetime</div></div>
+        </div>
+      </div>
+      <div onclick="selectPlan('unlimited',139000)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:20px;cursor:pointer">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:15px;font-weight:700;color:var(--text)">Unlimited</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Pro + 5M token AI + Priority support 🚀</div></div>
+          <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">Rp 139.000</div><div style="font-size:10px;color:var(--text3)">lifetime</div></div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:11px;color:var(--text3)">Bayar sekali, pakai selamanya 🔒</div>
+    </div>
+  </div>
+
+  <!-- STEP 2: PEMBAYARAN -->
+  <div id="pay-step2" style="display:none">
+    <div style="background:linear-gradient(160deg,#00B26A,#007A48);padding:40px 24px 24px">
+      <button onclick="showPayStep(1)" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;cursor:pointer">← Kembali</button>
+      <div style="font-size:13px;color:rgba(255,255,255,.7)">Paket yang dipilih</div>
+      <div style="font-size:22px;font-weight:700;color:#fff" id="pay-plan-title">Pro</div>
+      <div style="font-size:32px;font-weight:700;color:#fff;margin-top:2px" id="pay-amount-title">Rp 129.000</div>
+    </div>
+    <div style="padding:20px 16px">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">💳 Transfer Bank</div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="width:42px;height:42px;background:#003087;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0">BCA</div>
+          <div><div style="font-size:13px;font-weight:700">Bank BCA</div><div style="font-size:11px;color:var(--text3)">a.n. Maurizky Fadhillah</div></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <div style="font-size:16px;font-weight:700;letter-spacing:1px">8670497381</div>
+          <button onclick="copyRek('8670497381')" style="background:var(--green);border:none;color:#fff;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer">Salin</button>
+        </div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="width:42px;height:42px;background:#00529B;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0">BRI</div>
+          <div><div style="font-size:13px;font-weight:700">Bank BRI</div><div style="font-size:11px;color:var(--text3)">a.n. Maurizky Fadhillah</div></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <div style="font-size:16px;font-weight:700;letter-spacing:1px">201001016927502</div>
+          <button onclick="copyRek('201001016927502')" style="background:var(--green);border:none;color:#fff;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer">Salin</button>
+        </div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:16px;text-align:center">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">📱 QRIS</div>
+        <div id="qris-container"><div style="background:var(--bg3);border-radius:10px;padding:24px;font-size:12px;color:var(--text3)">QRIS segera tersedia<br><span style="color:var(--green);cursor:pointer" onclick="hubungiCS()">Hubungi admin untuk QRIS</span></div></div>
+      </div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">📎 Upload Bukti Transfer</div>
+      <div id="bukti-prev-wrap" style="display:none;margin-bottom:10px">
+        <img id="bukti-prev" style="width:100%;border-radius:10px;border:1px solid var(--border);max-height:200px;object-fit:cover"/>
+        <button onclick="removeBukti()" style="background:var(--red-bg);border:1px solid var(--red);color:var(--red);padding:5px 12px;border-radius:8px;font-size:11px;margin-top:6px;cursor:pointer">Hapus Foto</button>
+      </div>
+      <label style="display:block;cursor:pointer">
+        <input type="file" id="bukti-input" accept="image/*" style="display:none" onchange="previewBukti(this)"/>
+        <div style="background:var(--bg3);border:2px dashed var(--border2);border-radius:12px;padding:20px;text-align:center;color:var(--text3)">
+          <i class="ti ti-upload" style="font-size:24px;display:block;margin-bottom:6px"></i>
+          <div style="font-size:13px;font-weight:500">Tap untuk upload foto bukti transfer</div>
+          <div style="font-size:11px;margin-top:4px">JPG, PNG — maks 5MB</div>
+        </div>
+      </label>
+      <button id="pay-submit-btn" onclick="submitPayment()" style="width:100%;margin-top:16px;padding:14px;border-radius:13px;background:var(--green);border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        <i class="ti ti-send"></i> Kirim Bukti Pembayaran
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 3: MENUNGGU KONFIRMASI -->
+  <div id="pay-step3" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:48px 24px;text-align:center">
+    <div style="width:84px;height:84px;background:var(--amber-bg);border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:44px;margin-bottom:20px">⏳</div>
+    <div style="font-size:22px;font-weight:700;margin-bottom:10px">Pembayaran Terkirim!</div>
+    <div style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:24px">Bukti transfer kamu sudah kami terima.<br>Admin memverifikasi dalam <strong>1×24 jam</strong>.<br>Notifikasi dikirim via WhatsApp setelah aktif.</div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px;width:100%;text-align:left;margin-bottom:20px">
+      <div style="font-size:11px;color:var(--text3);font-weight:700;margin-bottom:10px">DETAIL PESANAN</div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px"><span style="color:var(--text2)">Paket</span><span id="pay-done-plan" style="font-weight:700;color:var(--green)">—</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px"><span style="color:var(--text2)">Total</span><span id="pay-done-amount" style="font-weight:700">—</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--text2)">Status</span><span style="color:var(--amber);font-weight:700">Menunggu Verifikasi</span></div>
+    </div>
+    <a id="wa-konfirm-link" href="#" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;border-radius:12px;background:#25D366;color:#fff;font-size:14px;font-weight:700;text-decoration:none;margin-bottom:10px">
+      <i class="ti ti-brand-whatsapp"></i> Konfirmasi via WhatsApp
+    </a>
+    <button onclick="hidePaymentFlow()" style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;cursor:pointer">Kembali ke Login</button>
+  </div>
+</div>
+
 <script>
 const SB_URL='https://mchuhgihywnyamurbetz.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jaHVoZ2loeXdueWFtdXJiZXR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNTIyNDIsImV4cCI6MjA5NzcyODI0Mn0.z1ildAJY--ErFoom2d7GIF1TCr3fmaBkCWtwGz4QstI';
@@ -793,7 +899,8 @@ async function doRegister(){
     const h=await hp(pw);const waFull=wa.startsWith('62')?wa:'62'+(wa.startsWith('0')?wa.substring(1):wa);
     const r=await sb('users','POST',{username:un,full_name:name,email,wa_number:waFull,password_hash:h,role:'user',status:'pending',gas_user_id:waFull,plan:'basic',tokens_limit:0,tokens_used:0});
     if(!r||!r.length)throw new Error('Gagal membuat akun');
-    showToast('Akun berhasil dibuat! Menunggu aktivasi admin 🎉','ok');switchTab('login');document.getElementById('l-un').value=un;
+    newUser={id:r[0].id,full_name:name,username:un,email,wa_number:waFull};
+    showPaymentFlow();
   }catch(e){err.textContent=e.message.includes('duplicate')?'Username/WA/email sudah terdaftar!':e.message;err.style.display='block';}
   btn.disabled=false;btn.innerHTML='<i class="ti ti-user-plus"></i> Buat Akun Gratis';
 }
@@ -1067,6 +1174,91 @@ function showWAGuide(){document.getElementById('wa-modal').classList.add('open')
 function hubungiCS(){window.open('https://wa.me/'+CS+'?text='+encodeURIComponent('Hallo Admin Saldoku, saya mau tanya tentang paket Saldoku'),'_blank');}
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dP=e;});
 function installPWA(){if(dP){dP.prompt();dP.userChoice.then(()=>{dP=null;});}else showToast('Di Chrome: ⋮ → Add to homescreen');}
+
+// ========================
+// PAYMENT FLOW
+// ========================
+let newUser=null,selectedPlan=null,selectedAmount=0,buktiBase64='';
+
+function showPaymentFlow(){
+  document.getElementById('login-wrap').style.display='none';
+  document.getElementById('payment-wrap').style.display='block';
+  showPayStep(1);
+}
+function hidePaymentFlow(){
+  document.getElementById('payment-wrap').style.display='none';
+  document.getElementById('login-wrap').style.display='flex';
+  switchTab('login');
+}
+function showPayStep(n){
+  [1,2,3].forEach(i=>{
+    const el=document.getElementById('pay-step'+i);
+    if(el)el.style.display=i===n?(i===3?'flex':'block'):'none';
+  });
+  document.getElementById('payment-wrap').scrollTop=0;
+}
+function selectPlan(plan,amount){
+  selectedPlan=plan;selectedAmount=amount;
+  const names={basic:'Basic',pro:'Pro',unlimited:'Unlimited'};
+  document.getElementById('pay-plan-title').textContent=names[plan];
+  document.getElementById('pay-amount-title').textContent='Rp '+amount.toLocaleString('id-ID');
+  showPayStep(2);
+}
+function copyRek(no){
+  navigator.clipboard?.writeText(no).then(()=>showToast('Nomor rekening disalin ✓','ok')).catch(()=>{});
+}
+function previewBukti(input){
+  if(!input.files||!input.files[0])return;
+  const file=input.files[0];
+  if(file.size>5*1024*1024){showToast('File terlalu besar! Maks 5MB','err');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    buktiBase64=e.target.result;
+    document.getElementById('bukti-prev').src=e.target.result;
+    document.getElementById('bukti-prev-wrap').style.display='block';
+  };
+  reader.readAsDataURL(file);
+}
+function removeBukti(){
+  buktiBase64='';
+  document.getElementById('bukti-input').value='';
+  document.getElementById('bukti-prev-wrap').style.display='none';
+}
+async function submitPayment(){
+  if(!selectedPlan){showToast('Pilih paket dulu!','err');return;}
+  if(!buktiBase64){showToast('Upload bukti transfer dulu!','err');return;}
+  if(!newUser?.id){showToast('Error: data user hilang','err');return;}
+  const btn=document.getElementById('pay-submit-btn');
+  btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Mengirim...';
+  try{
+    // Simpan order ke Supabase
+    await sb('orders','POST',{
+      user_id:newUser.id,
+      plan:selectedPlan,
+      amount:selectedAmount,
+      bukti_url:buktiBase64,
+      status:'pending'
+    });
+    // Update selected_plan di user
+    await sb(`users?id=eq.${newUser.id}`,'PATCH',{plan:selectedPlan});
+    // Notif WA admin via GAS
+    const waMsg=encodeURIComponent(
+      '🔔 *ORDER BARU SALDOKU*\n\n'+
+      '👤 Nama: '+newUser.full_name+'\n'+
+      '📱 WA: '+newUser.wa_number+'\n'+
+      '📦 Paket: '+selectedPlan.toUpperCase()+'\n'+
+      '💰 Total: Rp '+selectedAmount.toLocaleString('id-ID')+'\n\n'+
+      'Cek dashboard admin untuk validasi.'
+    );
+    fetch(GAS+'?action=notifyAdmin&msg='+waMsg).catch(()=>{});
+    // Update UI
+    document.getElementById('pay-done-plan').textContent=selectedPlan.charAt(0).toUpperCase()+selectedPlan.slice(1);
+    document.getElementById('pay-done-amount').textContent='Rp '+selectedAmount.toLocaleString('id-ID');
+    document.getElementById('wa-konfirm-link').href='https://wa.me/'+CS+'?text='+encodeURIComponent('Halo Admin Saldoku, saya '+newUser.full_name+' sudah transfer untuk paket '+selectedPlan+' dan sudah upload bukti di app. Mohon diverifikasi ya 🙏');
+    showPayStep(3);
+  }catch(e){showToast('Gagal: '+e.message,'err');}
+  btn.disabled=false;btn.innerHTML='<i class="ti ti-send"></i> Kirim Bukti Pembayaran';
+}
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 checkSession();
