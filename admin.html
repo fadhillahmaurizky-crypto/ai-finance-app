@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Saldoku Admin Dashboard</title>
+<title>Wangku Admin Dashboard</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
@@ -187,8 +187,8 @@ tbody tr:hover{background:var(--bg3)}
   <div class="login-box">
     <div style="text-align:center;margin-bottom:24px">
       <div style="width:56px;height:56px;background:var(--green);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin:0 auto 14px"><i class="ti ti-chart-pie-2"></i></div>
-      <div style="font-size:20px;font-weight:700">Saldoku Admin</div>
-      <div style="font-size:12px;color:var(--text3);margin-top:4px">Saldoku · Dashboard Admin</div>
+      <div style="font-size:20px;font-weight:700">Wangku Admin</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">Wangku · Dashboard Admin</div>
     </div>
     <div class="l-group">
       <label class="l-label">Password Admin</label>
@@ -202,8 +202,8 @@ tbody tr:hover{background:var(--bg3)}
 <!-- SIDEBAR -->
 <div class="sidebar">
   <div class="sidebar-brand">
-    <div class="brand-ico"><i class="ti ti-chart-pie-2"></i></div>
-    <div><span class="brand-name">Saldoku</span><span class="brand-badge">ADMIN</span></div>
+    <div class="brand-ico" style="background:transparent;padding:0"><img src="logo.png" style="width:36px;height:36px;object-fit:contain;border-radius:8px"/></div>
+    <div><span class="brand-name">Wangku</span><span class="brand-badge">ADMIN</span></div>
   </div>
   <div class="sidebar-nav">
     <div class="nav-group-title">Menu Utama</div>
@@ -229,7 +229,7 @@ tbody tr:hover{background:var(--bg3)}
   <div class="topbar">
     <div>
       <div class="topbar-title" id="page-title">Overview</div>
-      <div class="topbar-sub" id="page-sub">Ringkasan platform Saldoku</div>
+      <div class="topbar-sub" id="page-sub">Ringkasan platform Wangku</div>
     </div>
     <div class="topbar-right">
       <div class="online-badge"><span class="online-dot"></span> Live</div>
@@ -521,8 +521,8 @@ tbody tr:hover{background:var(--bg3)}
 // ========================
 // CONFIG
 // ========================
-const PASS_KEY     = 'saldoku_admin_pass';
-const DEFAULT_PASS = 'saldoku@admin2024';
+const PASS_KEY     = 'wangku_admin_pass';
+const DEFAULT_PASS = 'wangku@admin2024';
 const SUPABASE_URL = 'https://mchuhgihywnyamurbetz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jaHVoZ2loeXdueWFtdXJiZXR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNTIyNDIsImV4cCI6MjA5NzcyODI0Mn0.z1ildAJY--ErFoom2d7GIF1TCr3fmaBkCWtwGz4QstI';
 const GAS_URL      = 'https://script.google.com/macros/s/AKfycbxO5RHZcHojCy-d65QiKDMnk4d-z_d_vCCqAETetTnr0kVqMoRXp6yrep8AuU3mmCtNuw/exec';
@@ -541,7 +541,7 @@ async function sbFetch(path, method='GET', body=null) {
 }
 
 async function hashPass(p) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p+'saldoku_salt_2024'));
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p+'wangku_salt_2024'));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
@@ -549,17 +549,17 @@ async function hashPass(p) {
 // AUTH
 // ========================
 function checkAuth() {
-  if (sessionStorage.getItem('saldoku_admin')!=='ok') return;
+  if (sessionStorage.getItem('wangku_admin')!=='ok') return;
   document.getElementById('login-overlay').style.display='none';
   init();
 }
 function doLogin() {
   const p = document.getElementById('admin-pass').value;
   const saved = localStorage.getItem(PASS_KEY)||DEFAULT_PASS;
-  if (p===saved) { sessionStorage.setItem('saldoku_admin','ok'); document.getElementById('login-overlay').style.display='none'; document.getElementById('login-err').style.display='none'; init(); }
+  if (p===saved) { sessionStorage.setItem('wangku_admin','ok'); document.getElementById('login-overlay').style.display='none'; document.getElementById('login-err').style.display='none'; init(); }
   else { document.getElementById('login-err').style.display='block'; document.getElementById('admin-pass').value=''; document.getElementById('admin-pass').focus(); }
 }
-function doLogout() { sessionStorage.removeItem('saldoku_admin'); location.reload(); }
+function doLogout() { sessionStorage.removeItem('wangku_admin'); location.reload(); }
 document.getElementById('admin-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
 // ========================
@@ -591,8 +591,8 @@ function showToast(msg,type='info') {
 // NAVIGATION
 // ========================
 const PAGE_META = {
-  overview: {title:'Overview',sub:'Ringkasan platform Saldoku'},
-  users:    {title:'Manajemen User',sub:'Kelola semua pengguna Saldoku'},
+  overview: {title:'Overview',sub:'Ringkasan platform Wangku'},
+  users:    {title:'Manajemen User',sub:'Kelola semua pengguna Wangku'},
   transaksi:{title:'Semua Transaksi',sub:'Riwayat transaksi seluruh user'},
   laporan:  {title:'Laporan',sub:'Analisa keuangan platform'},
   settings: {title:'Pengaturan',sub:'Konfigurasi dashboard'}
@@ -1172,7 +1172,7 @@ async function loadPoolKey(){
     }
   }catch(e){
     // fallback localStorage
-    const key=localStorage.getItem('saldoku_pool_key')||'';
+    const key=localStorage.getItem('wangku_pool_key')||'';
     if(inp&&key)inp.value=key;
   }
 }
@@ -1188,7 +1188,7 @@ async function savePoolKey(){
     // Upsert ke Supabase
     await sbFetch('settings?key=eq.groq_api_key','DELETE');
     await sbFetch('settings','POST',{key:'groq_api_key',value:val});
-    localStorage.setItem('saldoku_pool_key',val); // backup
+    localStorage.setItem('wangku_pool_key',val); // backup
     loadPoolKey();
     showToast('API Key Pool tersimpan ✓','ok');
   }catch(e){showToast('Gagal simpan: '+e.message,'err');}

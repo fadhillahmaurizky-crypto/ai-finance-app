@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <meta name="theme-color" content="#00B26A"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<title>Saldoku — AI Finance</title>
+<title>Wangku — AI Finance</title>
 <link rel="manifest" href="manifest.json"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
@@ -312,7 +312,7 @@ input,select{font-family:var(--font)}
 <div class="ob-wrap" id="ob-wrap">
   <div class="ob-slide active" id="ob-1">
     <div class="ob-ilu" style="background:var(--green-bg)">💚</div>
-    <h2 class="ob-title">Selamat datang di<br><span style="color:var(--green)">Saldoku!</span></h2>
+    <h2 class="ob-title">Selamat datang di<br><span style="color:var(--green)">Wangku!</span></h2>
     <p class="ob-desc">Pencatat keuangan paling simpel berbasis AI. Cukup chat WA, semua tercatat otomatis.</p>
     <div class="ob-dots"><div class="ob-dot active"></div><div class="ob-dot"></div><div class="ob-dot"></div></div>
     <button class="ob-btn" onclick="nextOb(2)">Lanjut →</button>
@@ -321,7 +321,7 @@ input,select{font-family:var(--font)}
   <div class="ob-slide" id="ob-2">
     <div class="ob-ilu" style="background:#E8F8EF">📱</div>
     <h2 class="ob-title">Catat semudah<br><span style="color:var(--green)">chat WA</span></h2>
-    <p class="ob-desc">Kirim "makan 35rb" atau foto struk ke bot Saldoku. AI langsung kategorisasi dan simpan otomatis.</p>
+    <p class="ob-desc">Kirim "makan 35rb" atau foto struk ke bot Wangku. AI langsung kategorisasi dan simpan otomatis.</p>
     <div class="ob-dots"><div class="ob-dot"></div><div class="ob-dot active"></div><div class="ob-dot"></div></div>
     <button class="ob-btn" onclick="nextOb(3)">Lanjut →</button>
     <button class="ob-skip" onclick="skipOb()">Lewati</button>
@@ -338,9 +338,9 @@ input,select{font-family:var(--font)}
 <!-- LOGIN -->
 <div class="login-wrap" id="login-wrap">
   <div class="login-hero">
-    <div class="login-logo"><i class="ti ti-coin"></i></div>
-    <div class="login-brand">Saldo<span>ku</span></div>
-    <div class="login-tagline">Keuangan cerdas, hidup tenang.<br>Ditenagai AI, terhubung WhatsApp.</div>
+    <div class="login-logo" style="background:transparent"><img src="logo.png" style="width:72px;height:72px;object-fit:contain;border-radius:16px"/></div>
+    <div class="login-brand">Wang<span>ku</span></div>
+    <div class="login-tagline">Catat keuanganmu lewat WhatsApp.<br>Ditenagai AI, gratis selamanya.</div>
   </div>
   <div class="login-body">
     <div class="login-tab-row">
@@ -353,7 +353,7 @@ input,select{font-family:var(--font)}
       <div class="l-group"><label class="l-label">Username</label><div class="l-wrap"><span class="l-ico"><i class="ti ti-user"></i></span><input class="l-input" id="l-un" type="text" placeholder="Masukkan username..."/></div></div>
       <div class="l-group"><label class="l-label">Password</label><div class="l-wrap"><span class="l-ico"><i class="ti ti-lock"></i></span><input class="l-input" id="l-pw" type="password" placeholder="Masukkan password..."/><button class="l-eye" onclick="togglePwd('l-pw',this)"><i class="ti ti-eye"></i></button></div></div>
       <div class="l-err" id="err-login"></div>
-      <button class="l-btn" id="btn-login" onclick="doLogin()"><i class="ti ti-login"></i> Masuk ke Saldoku</button>
+      <button class="l-btn" id="btn-login" onclick="doLogin()"><i class="ti ti-login"></i> Masuk ke Wangku</button>
       <div class="l-divider">atau</div>
       <button class="bio-btn" id="bio-btn" onclick="doBiometric()" style="display:none"><i class="ti ti-fingerprint"></i> Masuk dengan Fingerprint</button>
       <div class="l-footer"><a onclick="switchTab('forgot')">Lupa password?</a></div>
@@ -542,7 +542,7 @@ input,select{font-family:var(--font)}
           <div class="coming-badge">COMING SOON</div>
           <div style="font-size:22px;margin-bottom:8px">🤝</div>
           <div style="font-size:14px;font-weight:700;color:var(--blue);margin-bottom:6px">Split Bill Bareng Teman</div>
-          <div style="font-size:12px;color:var(--text2);line-height:1.5">Patungan makan, liburan, atau kos bareng? Saldoku akan otomatis hitung dan ingatkan via WA siapa yang belum bayar!</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.5">Patungan makan, liburan, atau kos bareng? Wangku akan otomatis hitung dan ingatkan via WA siapa yang belum bayar!</div>
           <button style="margin-top:12px;padding:9px 20px;border-radius:10px;background:var(--blue);color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer" onclick="showToast('Notifikasi saat fitur siap! 🔔','ok')">Beritahu Saya</button>
         </div>
       </div>
@@ -595,13 +595,13 @@ input,select{font-family:var(--font)}
         <div class="set-section">
           <div class="set-sec-title">Bantuan & Akun</div>
           <div class="set-card">
-            <div class="set-row" onclick="hubungiCS()"><div class="set-ico" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-brand-whatsapp"></i></div><div><div class="set-lbl">Hubungi Saldoku</div><div class="set-sub">Chat via WhatsApp</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
+            <div class="set-row" onclick="hubungiCS()"><div class="set-ico" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-brand-whatsapp"></i></div><div><div class="set-lbl">Hubungi Wangku</div><div class="set-sub">Chat via WhatsApp</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
             <div class="set-row" id="bio-row" onclick="setupBiometric()" style="display:none"><div class="set-ico" style="background:var(--blue-bg);color:var(--blue)"><i class="ti ti-fingerprint"></i></div><div><div class="set-lbl">Aktifkan Fingerprint</div><div class="set-sub" id="bio-status">Login lebih cepat</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
-            <div class="set-row" onclick="installPWA()"><div class="set-ico" style="background:#F3EEFF;color:#7C3AED"><i class="ti ti-download"></i></div><div><div class="set-lbl">Install Saldoku</div><div class="set-sub">Tambahkan ke homescreen</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
+            <div class="set-row" onclick="installPWA()"><div class="set-ico" style="background:#F3EEFF;color:#7C3AED"><i class="ti ti-download"></i></div><div><div class="set-lbl">Install Wangku</div><div class="set-sub">Tambahkan ke homescreen</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
             <div class="set-row" onclick="logout()" style="border-top:1px solid var(--red-bg)"><div class="set-ico" style="background:var(--red-bg);color:var(--red)"><i class="ti ti-logout"></i></div><div><div class="set-lbl" style="color:var(--red)">Keluar</div><div class="set-sub">Ganti akun</div></div></div>
           </div>
         </div>
-        <div style="text-align:center;padding:12px 0;font-size:11px;color:var(--text3)">Saldoku v1.0 · AI Finance Tracker 💚</div>
+        <div style="text-align:center;padding:12px 0;font-size:11px;color:var(--text3)">Wangku v1.0 · AI Finance Tracker 💚</div>
       </div>
     </div>
   </div>
@@ -631,12 +631,12 @@ input,select{font-family:var(--font)}
     <div class="chat-drag"></div>
     <div class="chat-hdr">
       <div class="chat-av"><i class="ti ti-robot"></i></div>
-      <div><div style="font-size:15px;font-weight:700;color:var(--text)">Saldoku AI</div><div style="font-size:11px;color:var(--green);display:flex;align-items:center;gap:4px"><span class="online-dot"></span> Siap membantu</div></div>
+      <div><div style="font-size:15px;font-weight:700;color:var(--text)">Wangku AI</div><div style="font-size:11px;color:var(--green);display:flex;align-items:center;gap:4px"><span class="online-dot"></span> Siap membantu</div></div>
       <button class="chat-close" onclick="closeChat()"><i class="ti ti-x"></i></button>
     </div>
     <div id="ai-notice"></div>
     <div class="chat-msgs" id="chat-msgs">
-      <div class="msg-row"><div class="msg-av"><i class="ti ti-robot"></i></div><div class="bubble ai">Halo! Saya Saldoku AI 👋<br>Tanya apa saja soal keuanganmu!</div></div>
+      <div class="msg-row"><div class="msg-av"><i class="ti ti-robot"></i></div><div class="bubble ai">Halo! Saya Wangku AI 👋<br>Tanya apa saja soal keuanganmu!</div></div>
     </div>
     <div class="chips-row" id="chips">
       <div class="chip" onclick="sendChip('Analisa pengeluaranku bulan ini')">📊 Analisa</div>
@@ -683,9 +683,9 @@ input,select{font-family:var(--font)}
     <div class="modal-drag"></div>
     <div class="modal-title"><i class="ti ti-brand-whatsapp" style="color:#25D366"></i> Cara Catat via WhatsApp</div>
     <div style="background:#E8F8EF;border-radius:14px;padding:14px;margin-bottom:14px">
-      <div style="font-size:11px;color:#1a7a3a;font-weight:600;margin-bottom:4px">Nomor WA Bot Saldoku</div>
+      <div style="font-size:11px;color:#1a7a3a;font-weight:600;margin-bottom:4px">Nomor WA Bot Wangku</div>
       <div style="font-size:16px;font-weight:700;color:#0d5c2a">+62 857-2731-8698</div>
-      <div style="font-size:11px;color:#2a7a3a;margin-top:4px">Simpan di kontak sebagai "Saldoku Bot" 📱</div>
+      <div style="font-size:11px;color:#2a7a3a;margin-top:4px">Simpan di kontak sebagai "Wangku Bot" 📱</div>
     </div>
     <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">Contoh Pesan</div>
     <div style="background:var(--bg3);border-radius:12px;padding:12px;margin-bottom:8px">
@@ -714,35 +714,37 @@ input,select{font-family:var(--font)}
 
   <!-- STEP 1: PILIH PAKET -->
   <div id="pay-step1">
-    <div style="background:linear-gradient(160deg,#00B26A,#007A48);padding:52px 24px 32px;text-align:center;position:relative">
-      <button onclick="hidePaymentFlow()" style="position:absolute;top:20px;left:16px;background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer">← Kembali</button>
-      <div style="width:72px;height:72px;background:rgba(255,255,255,.2);border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:36px;color:#fff"><i class="ti ti-coin"></i></div>
-      <div style="font-size:13px;color:rgba(255,255,255,.75);font-weight:600;letter-spacing:.5px;margin-bottom:4px">SALDOKU</div>
+    <div style="background:linear-gradient(160deg,#00B26A,#007A48);padding:52px 24px 32px;text-align:center">
+      <div style="font-size:13px;color:rgba(255,255,255,.75);font-weight:700;letter-spacing:1px;margin-bottom:6px">WANGKU</div>
       <div style="font-size:22px;font-weight:700;color:#fff">Akun berhasil dibuat! 🎉</div>
-      <div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:6px">Pilih paket untuk mulai menggunakan Saldoku</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:6px">Pilih paket untuk mulai menggunakan Wangku</div>
     </div>
     <div style="padding:20px 16px">
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">Pilih Paket Saldoku</div>
-      <div onclick="selectPlan('basic',79000)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">Pilih Paket Wangku</div>
+      <div id="plan-card-basic" onclick="highlightPlan('basic',79000)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer;transition:all .2s">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div><div style="font-size:15px;font-weight:700;color:var(--text)">Basic</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Catat transaksi · Dashboard · Laporan</div></div>
           <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">Rp 79.000</div><div style="font-size:10px;color:var(--text3)">lifetime</div></div>
         </div>
       </div>
-      <div onclick="selectPlan('pro',129000)" style="background:var(--bg2);border:2px solid var(--green);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer;position:relative">
+      <div id="plan-card-pro" onclick="highlightPlan('pro',129000)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer;transition:all .2s;position:relative">
         <div style="position:absolute;top:-10px;left:16px;background:var(--green);color:#fff;font-size:10px;font-weight:700;padding:2px 10px;border-radius:10px">✦ PALING POPULER</div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div><div style="font-size:15px;font-weight:700;color:var(--text)">Pro</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Semua Basic + AI Chat & Scan Struk ✨</div></div>
           <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">Rp 129.000</div><div style="font-size:10px;color:var(--text3)">lifetime</div></div>
         </div>
       </div>
-      <div onclick="selectPlan('unlimited',139000)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:20px;cursor:pointer">
+      <div id="plan-card-unlimited" onclick="highlightPlan('unlimited',139000)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:20px;cursor:pointer;transition:all .2s">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div><div style="font-size:15px;font-weight:700;color:var(--text)">Unlimited</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Pro + 5M token AI + Priority support 🚀</div></div>
           <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">Rp 139.000</div><div style="font-size:10px;color:var(--text3)">lifetime</div></div>
         </div>
       </div>
-      <div style="text-align:center;font-size:11px;color:var(--text3)">Bayar sekali, pakai selamanya 🔒</div>
+      <div style="text-align:center;font-size:11px;color:var(--text3);margin-bottom:20px">Bayar sekali, pakai selamanya 🔒</div>
+      <div style="display:flex;gap:10px">
+        <button onclick="hidePaymentFlow()" style="flex:1;padding:13px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text2);font-size:14px;font-weight:600;cursor:pointer">← Kembali</button>
+        <button onclick="lanjutkanPembayaran()" style="flex:2;padding:13px;border-radius:12px;background:var(--green);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer">Selanjutnya →</button>
+      </div>
     </div>
   </div>
 
@@ -835,10 +837,10 @@ let poolKey='';
 async function loadPoolKey(){
   try{
     const res=await sb('settings?key=eq.groq_api_key&select=value');
-    poolKey=res?.[0]?.value||localStorage.getItem('saldoku_pool_key')||'';
-  }catch(e){poolKey=localStorage.getItem('saldoku_pool_key')||'';}
+    poolKey=res?.[0]?.value||localStorage.getItem('wangku_pool_key')||'';
+  }catch(e){poolKey=localStorage.getItem('wangku_pool_key')||'';}
 }
-function getKey(){return poolKey||localStorage.getItem('saldoku_pool_key')||'';}
+function getKey(){return poolKey||localStorage.getItem('wangku_pool_key')||'';}
 function getPlan(){if(!user)return'basic';if(user.role==='admin'||user.username===MASTER)return'unlimited';return user.plan||'basic';}
 function canAI(){const p=getPlan();if(p==='basic')return false;if(p==='unlimited'&&user.username===MASTER)return true;return(user.tokens_limit||0)>(user.tokens_used||0);}
 function canScan(){return canAI();}
@@ -880,7 +882,7 @@ async function doLogin(){
     if(window.PublicKeyCredential)localStorage.setItem('sdk_bio_user',un);
     showApp();
   }catch(e){err.textContent=e.message;err.style.display='block';}
-  btn.disabled=false;btn.innerHTML='<i class="ti ti-login"></i> Masuk ke Saldoku';
+  btn.disabled=false;btn.innerHTML='<i class="ti ti-login"></i> Masuk ke Wangku';
 }
 
 async function doRegister(){
@@ -941,7 +943,7 @@ async function resetPW(){
 
 async function doBiometric(){const su=localStorage.getItem('sdk_bio_user');if(!su){showToast('Login manual dulu!','err');return;}try{const a=await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rpId:window.location.hostname,userVerification:'required',timeout:60000}});if(a){const u=await sb(`users?username=eq.${su}&status=eq.active&select=*`);if(!u||!u.length)throw new Error('User tidak ditemukan');user=u[0];localStorage.setItem('sdk_session',JSON.stringify(user));showApp();}}catch(e){if(e.name!=='NotAllowedError')showToast('Fingerprint gagal','err');}}
 
-async function setupBiometric(){if(!user)return;try{const av=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();if(!av){showToast('Perangkat tidak mendukung','err');return;}const c=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:'Saldoku',id:window.location.hostname},user:{id:new TextEncoder().encode(user.id),name:user.username,displayName:user.full_name},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},timeout:60000}});if(c){localStorage.setItem('sdk_bio_user',user.username);localStorage.setItem('sdk_bio_cred',c.id);document.getElementById('bio-status').textContent='Fingerprint aktif ✓';showToast('Fingerprint aktif! 👆','ok');}}catch(e){if(e.name!=='NotAllowedError')showToast('Gagal setup fingerprint','err');}}
+async function setupBiometric(){if(!user)return;try{const av=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();if(!av){showToast('Perangkat tidak mendukung','err');return;}const c=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:'Wangku',id:window.location.hostname},user:{id:new TextEncoder().encode(user.id),name:user.username,displayName:user.full_name},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},timeout:60000}});if(c){localStorage.setItem('sdk_bio_user',user.username);localStorage.setItem('sdk_bio_cred',c.id);document.getElementById('bio-status').textContent='Fingerprint aktif ✓';showToast('Fingerprint aktif! 👆','ok');}}catch(e){if(e.name!=='NotAllowedError')showToast('Gagal setup fingerprint','err');}}
 
 async function checkSession(){const saved=localStorage.getItem('sdk_session');if(!saved){if(!checkOb())showLoginPage();return;}try{user=JSON.parse(saved);const u=await sb(`users?id=eq.${user.id}&status=eq.active&select=*`);if(!u||!u.length){localStorage.removeItem('sdk_session');showLoginPage();return;}user=u[0];showApp();}catch(e){showLoginPage();}}
 
@@ -1110,6 +1112,7 @@ async function scanStrukNav(input){if(!input.files||!input.files[0])return;goPag
 async function scanStruk(input){
   if(!input.files||!input.files[0])return;
   if(!canScan()){showToast('Limit scan habis atau upgrade ke Pro!','warn');return;}
+  if(!getKey()){await loadPoolKey();}
   if(!getKey()){showToast('AI belum aktif','err');return;}
   const file=input.files[0];const reader=new FileReader();reader.onload=e=>{document.getElementById('struk-prev').src=e.target.result;document.getElementById('struk-prev-wrap').style.display='block';};reader.readAsDataURL(file);
   document.getElementById('struk-loading').style.display='block';document.getElementById('struk-result').style.display='none';
@@ -1131,7 +1134,7 @@ function renderLaporan(){if(!sumData)return;const pM=sumData.kategoriPemasukan||
 
 let ctx='';
 function updateCtx(data){if(!data)return;const s=data.summary;ctx=`Data keuangan ${user?.full_name||'user'}:\n- Saldo: ${rpF(s.saldo)}\n- Pemasukan: ${rpF(s.totalMasuk)}\n- Pengeluaran: ${rpF(s.totalKeluar)}\n- Tidak Penting: ${rpF(s.tidakPenting)}\n- Pengeluaran per kategori: ${JSON.stringify(data.kategoriPengeluaran)}\n- Pemasukan per kategori: ${JSON.stringify(data.kategoriPemasukan)}`;}
-const SYS='Kamu adalah Saldoku AI, asisten keuangan pintar. Jawab Bahasa Indonesia, singkat dan ramah (maks 4 kalimat). Panggil user dengan nama depannya. PENTING: Jika user minta catat/simpan transaksi (contoh: "catat makan 15rb", "beli bensin 50000", "gaji masuk 3jt"), balas HANYA dengan JSON ini tanpa teks lain: {"action":"catat","jenis":"pemasukan/pengeluaran","nominal":angka,"kategori":"makanan/transportasi/belanja/tagihan/hiburan/gaji/bonus/lainnya","keterangan":"deskripsi singkat","konfirmasi":"pesan konfirmasi ke user"}. Untuk pertanyaan biasa, jawab teks normal saja.';
+const SYS='Kamu adalah Wangku AI, asisten keuangan pintar. Jawab Bahasa Indonesia, singkat dan ramah (maks 4 kalimat). Panggil user dengan nama depannya. PENTING: Jika user minta catat/simpan transaksi (contoh: "catat makan 15rb", "beli bensin 50000", "gaji masuk 3jt"), balas HANYA dengan JSON ini tanpa teks lain: {"action":"catat","jenis":"pemasukan/pengeluaran","nominal":angka,"kategori":"makanan/transportasi/belanja/tagihan/hiburan/gaji/bonus/lainnya","keterangan":"deskripsi singkat","konfirmasi":"pesan konfirmasi ke user"}. Untuk pertanyaan biasa, jawab teks normal saja.';
 
 function openChat(){document.getElementById('chat-sheet').classList.add('open');renderAINotice();document.getElementById('chat-input').focus();}
 function closeChat(){document.getElementById('chat-sheet').classList.remove('open');}
@@ -1145,7 +1148,8 @@ document.getElementById('chat-input').addEventListener('keydown',e=>{if(e.key===
 async function sendMsg(text){
   if(loading)return;
   if(!canAI()){addMsg(text,'user');const p=getPlan();addMsg(p==='basic'?'🔒 AI tersedia di paket Pro/Unlimited. Hubungi admin untuk upgrade!':'⚠️ Token AI bulan ini habis. Hubungi admin untuk isi ulang!','ai');return;}
-  if(!getKey()){addMsg(text,'user');addMsg('Saldoku AI belum aktif. Hubungi admin untuk aktivasi.','ai');return;}
+  if(!getKey()){await loadPoolKey();}
+  if(!getKey()){addMsg(text,'user');addMsg('Wangku AI belum aktif. Hubungi admin untuk aktivasi.','ai');return;}
   loading=true;document.getElementById('send-btn').disabled=true;addMsg(text,'user');chatHist.push({role:'user',content:text});addTyping();
   try{
     const messages=[{role:'system',content:SYS+'\n\n'+(ctx||'')},...chatHist];
@@ -1170,10 +1174,10 @@ async function sendMsg(text){
   loading=false;document.getElementById('send-btn').disabled=false;
 }
 
-function updateApiStatus(){const key=localStorage.getItem('saldoku_pool_key')||'';const pill=document.getElementById('api-pill');if(pill){pill.textContent=key?'Tersimpan ✓':'Belum diisi';pill.className='pill '+(key?'ok':'no');}const inp=document.getElementById('api-key-input');if(inp&&key)inp.value=key;}
-function saveApiKey(){const v=document.getElementById('api-key-input')?.value.trim();if(!v){showToast('Masukkan API key!','err');return;}localStorage.setItem('saldoku_pool_key',v);updateApiStatus();showToast('API key pool tersimpan ✓','ok');}
+function updateApiStatus(){const key=localStorage.getItem('wangku_pool_key')||'';const pill=document.getElementById('api-pill');if(pill){pill.textContent=key?'Tersimpan ✓':'Belum diisi';pill.className='pill '+(key?'ok':'no');}const inp=document.getElementById('api-key-input');if(inp&&key)inp.value=key;}
+function saveApiKey(){const v=document.getElementById('api-key-input')?.value.trim();if(!v){showToast('Masukkan API key!','err');return;}localStorage.setItem('wangku_pool_key',v);updateApiStatus();showToast('API key pool tersimpan ✓','ok');}
 function showWAGuide(){document.getElementById('wa-modal').classList.add('open');}
-function hubungiCS(){window.open('https://wa.me/'+CS+'?text='+encodeURIComponent('Hallo Admin Saldoku, saya mau tanya tentang paket Saldoku'),'_blank');}
+function hubungiCS(){window.open('https://wa.me/'+CS+'?text='+encodeURIComponent('Hallo Admin Wangku, saya mau tanya tentang paket Wangku'),'_blank');}
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dP=e;});
 function installPWA(){if(dP){dP.prompt();dP.userChoice.then(()=>{dP=null;});}else showToast('Di Chrome: ⋮ → Add to homescreen');}
 
@@ -1245,7 +1249,7 @@ async function submitPayment(){
     await sb(`users?id=eq.${newUser.id}`,'PATCH',{plan:selectedPlan});
     // Notif WA admin via GAS
     const waMsg=encodeURIComponent(
-      '🔔 *ORDER BARU SALDOKU*\n\n'+
+      '🔔 *ORDER BARU WANGKU*\n\n'+
       '👤 Nama: '+newUser.full_name+'\n'+
       '📱 WA: '+newUser.wa_number+'\n'+
       '📦 Paket: '+selectedPlan.toUpperCase()+'\n'+
@@ -1256,7 +1260,7 @@ async function submitPayment(){
     // Update UI
     document.getElementById('pay-done-plan').textContent=selectedPlan.charAt(0).toUpperCase()+selectedPlan.slice(1);
     document.getElementById('pay-done-amount').textContent='Rp '+selectedAmount.toLocaleString('id-ID');
-    document.getElementById('wa-konfirm-link').href='https://wa.me/'+CS+'?text='+encodeURIComponent('Halo Admin Saldoku, saya '+newUser.full_name+' sudah transfer untuk paket '+selectedPlan+' dan sudah upload bukti di app. Mohon diverifikasi ya 🙏');
+    document.getElementById('wa-konfirm-link').href='https://wa.me/'+CS+'?text='+encodeURIComponent('Halo Admin Wangku, saya '+newUser.full_name+' sudah transfer untuk paket '+selectedPlan+' dan sudah upload bukti di app. Mohon diverifikasi ya 🙏');
     showPayStep(3);
   }catch(e){showToast('Gagal: '+e.message,'err');}
   btn.disabled=false;btn.innerHTML='<i class="ti ti-send"></i> Kirim Bukti Pembayaran';
