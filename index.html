@@ -1154,11 +1154,13 @@ async function sendMsg(text){
   try{
     const messages=[{role:'system',content:SYS+'\n\n'+(ctx||'')},...chatHist];
     const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getKey()},body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:400,messages})});
-    const d=await r.json();let reply=d.choices?.[0]?.message?.content||'Maaf ada gangguan.';
+    const d=await r.json();
+    console.log('Groq response status:',r.status,d);
+    if(d.error){throw new Error('Groq error: '+d.error.message);}
+    let reply=d.choices?.[0]?.message?.content||'Maaf ada gangguan.';
     const tokensUsed=d.usage?.total_tokens||0;
     if(tokensUsed>0&&user.username!==MASTER){user.tokens_used=(user.tokens_used||0)+tokensUsed;sb(`users?id=eq.${user.id}`,'PATCH',{tokens_used:user.tokens_used}).catch(()=>{});}
     removeTyping();
-    // Cek apakah AI mau catat transaksi
     const jsonMatch=reply.match(/\{[\s\S]*"action"\s*:\s*"catat"[\s\S]*\}/);
     if(jsonMatch){
       try{
@@ -1170,7 +1172,7 @@ async function sendMsg(text){
     }
     chatHist.push({role:'assistant',content:reply});addMsg(reply,'ai');
     aiChat++;user.ai_chat_count=aiChat;sb(`users?id=eq.${user.id}`,'PATCH',{ai_chat_count:aiChat}).catch(()=>{});renderAINotice();renderPlanCard();
-  }catch(e){removeTyping();addMsg('Koneksi bermasalah!','ai');}
+  }catch(e){removeTyping();console.error('AI error:',e);addMsg('Gagal: '+e.message,'ai');}
   loading=false;document.getElementById('send-btn').disabled=false;
 }
 
