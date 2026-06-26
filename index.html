@@ -714,8 +714,8 @@ input,select{font-family:var(--font)}
 
   <!-- STEP 1: PILIH PAKET -->
   <div id="pay-step1">
-    <div style="background:linear-gradient(160deg,#00B26A,#007A48);padding:52px 24px 32px;text-align:center">
-      <div style="font-size:13px;color:rgba(255,255,255,.75);font-weight:700;letter-spacing:1px;margin-bottom:6px">WANGKU</div>
+    <div style="background:linear-gradient(160deg,#00B26A,#007A48);padding:48px 24px 28px;text-align:center">
+      <img src="logo.png" style="width:72px;height:72px;object-fit:contain;border-radius:20px;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto"/>
       <div style="font-size:22px;font-weight:700;color:#fff">Akun berhasil dibuat! 🎉</div>
       <div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:6px">Pilih paket untuk mulai menggunakan Wangku</div>
     </div>
@@ -1202,6 +1202,25 @@ function showPayStep(n){
     if(el)el.style.display=i===n?(i===3?'flex':'block'):'none';
   });
   document.getElementById('payment-wrap').scrollTop=0;
+}
+function lanjutkanPembayaran(){
+  if(!selectedPlan){showToast('Pilih paket dulu!','err');return;}
+  const names={basic:'Basic',pro:'Pro',unlimited:'Unlimited'};
+  const amounts={basic:79000,pro:129000,unlimited:139000};
+  selectedAmount=amounts[selectedPlan];
+  document.getElementById('pay-plan-title').textContent=names[selectedPlan];
+  document.getElementById('pay-amount-title').textContent='Rp '+selectedAmount.toLocaleString('id-ID');
+  showPayStep(2);
+}
+  selectedPlan=plan;selectedAmount=amount;
+  // Reset semua card
+  ['basic','pro','unlimited'].forEach(p=>{
+    const el=document.getElementById('plan-card-'+p);
+    if(!el)return;
+    el.style.border=p===plan?'2px solid var(--green)':'1.5px solid var(--border)';
+    el.style.background=p===plan?'var(--green-bg)':'var(--bg2)';
+  });
+  showToast('Paket '+plan+' dipilih ✓','ok');
 }
 function selectPlan(plan,amount){
   selectedPlan=plan;selectedAmount=amount;
