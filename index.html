@@ -1212,6 +1212,7 @@ function lanjutkanPembayaran(){
   document.getElementById('pay-amount-title').textContent='Rp '+selectedAmount.toLocaleString('id-ID');
   showPayStep(2);
 }
+function highlightPlan(plan,amount){
   selectedPlan=plan;selectedAmount=amount;
   // Reset semua card
   ['basic','pro','unlimited'].forEach(p=>{
