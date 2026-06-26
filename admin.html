@@ -522,7 +522,9 @@ tbody tr:hover{background:var(--bg3)}
 // CONFIG
 // ========================
 const PASS_KEY     = 'wangku_admin_pass';
-const DEFAULT_PASS = 'wangku@admin2024';
+const DEFAULT_PASS = 'admin123';
+// Force reset ke default baru
+if(localStorage.getItem(PASS_KEY) && localStorage.getItem(PASS_KEY) !== DEFAULT_PASS && localStorage.getItem(PASS_KEY) === 'wangku@admin2024'){localStorage.removeItem(PASS_KEY);}
 const SUPABASE_URL = 'https://mchuhgihywnyamurbetz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jaHVoZ2loeXdueWFtdXJiZXR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNTIyNDIsImV4cCI6MjA5NzcyODI0Mn0.z1ildAJY--ErFoom2d7GIF1TCr3fmaBkCWtwGz4QstI';
 const GAS_URL      = 'https://script.google.com/macros/s/AKfycbxO5RHZcHojCy-d65QiKDMnk4d-z_d_vCCqAETetTnr0kVqMoRXp6yrep8AuU3mmCtNuw/exec';
