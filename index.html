@@ -509,11 +509,15 @@ input,select{font-family:var(--font)}
           <div class="f-group"><label class="f-label">Jenis</label><div class="jenis-row"><button class="jenis-btn in" id="btn-in" onclick="setJenis('pemasukan')">✅ Pemasukan</button><button class="jenis-btn" id="btn-out" onclick="setJenis('pengeluaran')">💸 Pengeluaran</button></div></div>
           <div class="f-group"><label class="f-label">Nominal (Rp)</label><input class="f-input" id="f-nominal" type="number" placeholder="Contoh: 50000" min="0"/></div>
           <div class="f-group"><label class="f-label">Kategori</label>
-            <select class="f-select" id="f-kat">
-              <option value="">-- Pilih Kategori --</option>
-              <optgroup label="Pemasukan"><option value="gaji">Gaji</option><option value="bonus">Bonus</option><option value="arisan">Arisan</option><option value="jualan">Jualan</option><option value="saldo_awal">Saldo Awal</option></optgroup>
-              <optgroup label="Pengeluaran"><option value="makanan">Makanan</option><option value="transportasi">Transportasi</option><option value="hiburan">Hiburan</option><option value="tagihan">Tagihan</option><option value="belanja">Belanja</option><option value="lainnya">Lainnya</option></optgroup>
-            </select>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select class="f-select" id="f-kat" style="flex:1">
+                <option value="">-- Pilih Kategori --</option>
+                <optgroup label="Pemasukan"><option value="gaji">Gaji</option><option value="bonus">Bonus</option><option value="arisan">Arisan</option><option value="jualan">Jualan</option><option value="saldo_awal">Saldo Awal</option></optgroup>
+                <optgroup label="Pengeluaran"><option value="makanan">Makanan</option><option value="transportasi">Transportasi</option><option value="hiburan">Hiburan</option><option value="tagihan">Tagihan</option><option value="belanja">Belanja</option><option value="lainnya">Lainnya</option></optgroup>
+                <optgroup label="Kategori Saya" id="custom-kat-group"></optgroup>
+              </select>
+              <button type="button" onclick="showAddKategori()" style="padding:10px 12px;border-radius:11px;background:var(--green-bg);border:1.5px solid var(--green);color:var(--green);font-size:13px;cursor:pointer;flex-shrink:0;white-space:nowrap"><i class="ti ti-plus"></i></button>
+            </div>
           </div>
           <div class="f-group"><label class="f-label">Prioritas</label><select class="f-select" id="f-pri"><option value="penting">Penting</option><option value="tidak penting">Tidak Penting</option></select></div>
           <div class="f-group"><label class="f-label">Keterangan</label><input class="f-input" id="f-ket" type="text" placeholder="Contoh: makan siang"/></div>
@@ -662,6 +666,23 @@ input,select{font-family:var(--font)}
     <div class="f-group"><label class="f-label">Deadline</label><input class="f-input" id="t-deadline" type="date"/></div>
     <button class="f-submit" onclick="saveTarget()"><i class="ti ti-device-floppy"></i> Simpan Target</button>
     <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('target-modal').classList.remove('open')">Batal</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="add-kat-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title"><i class="ti ti-tag" style="color:var(--green)"></i> Tambah Kategori Baru</div>
+    <div class="f-group"><label class="f-label">Nama Kategori</label><input class="f-input" id="new-kat-nama" placeholder="Contoh: Investasi, Kos, Cicilan..."/></div>
+    <div class="f-group"><label class="f-label">Jenis</label>
+      <select class="f-select" id="new-kat-jenis">
+        <option value="pengeluaran">Pengeluaran</option>
+        <option value="pemasukan">Pemasukan</option>
+      </select>
+    </div>
+    <button class="f-submit" onclick="saveKategori()"><i class="ti ti-device-floppy"></i> Simpan Kategori</button>
+    <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('add-kat-modal').classList.remove('open')">Batal</button>
+    <div style="margin-top:16px" id="custom-kat-list"></div>
   </div>
 </div>
 
@@ -968,7 +989,7 @@ function showApp(){
     renderPlanCard();
     try{PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(av=>{const row=document.getElementById('bio-row');if(row)row.style.display=av?'flex':'none';if(av&&localStorage.getItem('sdk_bio_cred')){const bs=document.getElementById('bio-status');if(bs)bs.textContent='Fingerprint aktif ✓';}});}catch(e){}
   }
-  loadPoolKey();loadSummary();loadTrx('semua','txn-home',4);
+  loadPoolKey();loadSummary();loadTrx('semua','txn-home',4);loadKategori();
 }
 
 function logout(){localStorage.removeItem('sdk_session');user=null;showLoginPage();}
@@ -1058,7 +1079,7 @@ const IM={makanan:'tools-kitchen-2',transportasi:'motorbike',hiburan:'device-gam
 const BG={makanan:'#FFF0F0',transportasi:'#EBF3FF',hiburan:'#F3EEFF',tagihan:'#FEF3C7',belanja:'#FFF0FF',gaji:'var(--green-bg)',bonus:'var(--green-bg)',arisan:'var(--green-bg)',jualan:'var(--green-bg)',saldo_awal:'var(--green-bg)'};
 const CL={makanan:'#EF4444',transportasi:'#2B7EF8',hiburan:'#8B5CF6',tagihan:'#F59E0B',belanja:'#EC4899',gaji:'var(--green)',bonus:'var(--green)',arisan:'var(--green)',jualan:'var(--green)',saldo_awal:'var(--green)'};
 
-function renderTxn(txns,cid){const el=document.getElementById(cid);if(!el)return;if(!txns||!txns.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Belum ada transaksi</div>';return;}el.innerHTML=txns.map(t=>{const k=(t.kategori||'').toLowerCase();const isI=(t.jenis||'').toLowerCase()==='pemasukan';return`<div class="txn-card"><div class="txn-ico" style="background:${BG[k]||'var(--bg3)'};color:${CL[k]||'var(--text3)'}"><i class="ti ti-${IM[k]||'coin'}"></i></div><div class="txn-info"><div class="txn-name">${t.keterangan||t.kategori||'Transaksi'}</div><div class="txn-sub">${t.jenis||''} • ${t.kategori||''}</div></div><div class="txn-right"><div class="txn-amt ${isI?'inc':'exp'}">${isI?'+':'-'}${rpF(t.nominal)}</div><div class="txn-time">${t.tanggal||''}</div></div></div>`;}).join('');}
+function renderTxn(txns,cid){const el=document.getElementById(cid);if(!el)return;if(!txns||!txns.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Belum ada transaksi</div>';return;}el.innerHTML=txns.map(t=>{const k=(t.kategori||'').toLowerCase();const isI=(t.jenis||'').toLowerCase()==='pemasukan';const ico=IM[k]||'coin';const bg=BG[k]||(isI?'var(--green-bg)':'var(--red-bg)');const cl=CL[k]||(isI?'var(--green)':'var(--red)');return`<div class="txn-card"><div class="txn-ico" style="background:${bg};color:${cl}"><i class="ti ti-${ico}"></i></div><div class="txn-info"><div class="txn-name">${t.keterangan||t.kategori||'Transaksi'}</div><div class="txn-sub">${t.jenis||''} • ${t.kategori||''}</div></div><div class="txn-right"><div class="txn-amt ${isI?'inc':'exp'}">${isI?'+':'-'}${rpF(t.nominal)}</div><div class="txn-time">${t.tanggal||''}</div></div></div>`;}).join('');}
 
 function filterHome(btn,f){document.querySelectorAll('#home-tabs .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');loadTrx(f,'txn-home',4);}
 function filterAll(btn,f){btn.closest('.tab-strip').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');loadTrx(f,'txn-all',100);}
@@ -1134,7 +1155,17 @@ function renderLaporan(){if(!sumData)return;const pM=sumData.kategoriPemasukan||
 
 let ctx='';
 function updateCtx(data){if(!data)return;const s=data.summary;ctx=`Data keuangan ${user?.full_name||'user'}:\n- Saldo: ${rpF(s.saldo)}\n- Pemasukan: ${rpF(s.totalMasuk)}\n- Pengeluaran: ${rpF(s.totalKeluar)}\n- Tidak Penting: ${rpF(s.tidakPenting)}\n- Pengeluaran per kategori: ${JSON.stringify(data.kategoriPengeluaran)}\n- Pemasukan per kategori: ${JSON.stringify(data.kategoriPemasukan)}`;}
-const SYS='Kamu adalah Wangku AI, asisten keuangan pintar. Jawab Bahasa Indonesia, singkat dan ramah (maks 4 kalimat). Panggil user dengan nama depannya. PENTING: Jika user minta catat/simpan transaksi (contoh: "catat makan 15rb", "beli bensin 50000", "gaji masuk 3jt"), balas HANYA dengan JSON ini tanpa teks lain: {"action":"catat","jenis":"pemasukan/pengeluaran","nominal":angka,"kategori":"makanan/transportasi/belanja/tagihan/hiburan/gaji/bonus/lainnya","keterangan":"deskripsi singkat","konfirmasi":"pesan konfirmasi ke user"}. Untuk pertanyaan biasa, jawab teks normal saja.';
+const SYS=`Kamu adalah Wangku AI, asisten keuangan pintar. Jawab Bahasa Indonesia, singkat dan ramah. Panggil user dengan nama depannya.
+
+ATURAN KLASIFIKASI WAJIB:
+- PENGELUARAN: makan, beli, jajan, bayar, transportasi, gojek, grab, belanja, tagihan, nonton, dll
+- PEMASUKAN: gaji, dapat uang, terima transfer, bonus, hasil jualan, arisan masuk, dll
+
+JIKA USER MINTA CATAT (contoh: "makan 5000", "beli bensin 20rb", "gaji 3jt", "jajan 15000"):
+Balas HANYA dengan JSON ini, tanpa teks lain:
+{"action":"catat","jenis":"pengeluaran_atau_pemasukan","nominal":angka_saja,"kategori":"makanan/transportasi/belanja/tagihan/hiburan/gaji/bonus/lainnya","keterangan":"deskripsi singkat max 20 kata","konfirmasi":"✅ Tercatat! [jenis] [keterangan] sebesar Rp[nominal] sudah masuk ke dashboard."}
+
+Untuk pertanyaan biasa tentang keuangan, jawab teks normal saja (maks 4 kalimat).`;
 
 function openChat(){document.getElementById('chat-sheet').classList.add('open');renderAINotice();document.getElementById('chat-input').focus();}
 function closeChat(){document.getElementById('chat-sheet').classList.remove('open');}
@@ -1286,6 +1317,84 @@ async function submitPayment(){
     showPayStep(3);
   }catch(e){showToast('Gagal: '+e.message,'err');}
   btn.disabled=false;btn.innerHTML='<i class="ti ti-send"></i> Kirim Bukti Pembayaran';
+}
+
+// ========================
+// CUSTOM KATEGORI
+// ========================
+async function loadKategori(){
+  try{
+    const data=await sb(`user_categories?user_id=eq.${user.id}&order=created_at.asc`);
+    const group=document.getElementById('custom-kat-group');
+    if(group){
+      group.innerHTML=(data||[]).map(k=>`<option value="${k.nama}">${k.nama} (${k.jenis})</option>`).join('');
+    }
+  }catch(e){}
+}
+async function showAddKategori(){
+  document.getElementById('add-kat-modal').classList.add('open');
+  try{
+    const data=await sb(`user_categories?user_id=eq.${user.id}&order=created_at.asc`);
+    const el=document.getElementById('custom-kat-list');
+    if(!data?.length){el.innerHTML='<div style="text-align:center;padding:12px;font-size:12px;color:var(--text3)">Belum ada kategori custom</div>';return;}
+    el.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Kategori Saya</div>'+
+      data.map(k=>`<div id="kat-row-${k.id}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg3);border-radius:10px;margin-bottom:6px">
+        <div style="flex:1">
+          <div id="kat-label-${k.id}" style="font-size:13px;font-weight:600">${k.nama}</div>
+          <div style="font-size:10px;color:var(--text3)">${k.jenis}</div>
+        </div>
+        <button onclick="editKategori('${k.id}','${k.nama}','${k.jenis}')" style="background:var(--blue-bg);border:1px solid var(--blue);color:var(--blue);padding:4px 10px;border-radius:7px;font-size:11px;cursor:pointer"><i class="ti ti-pencil"></i></button>
+        <button onclick="delKategori('${k.id}')" style="background:var(--red-bg);border:1px solid var(--red);color:var(--red);padding:4px 10px;border-radius:7px;font-size:11px;cursor:pointer"><i class="ti ti-trash"></i></button>
+      </div>`).join('');
+  }catch(e){document.getElementById('custom-kat-list').innerHTML='';}
+}
+
+function editKategori(id, namaLama, jenis){
+  const row=document.getElementById('kat-row-'+id);
+  if(!row)return;
+  row.innerHTML=`
+    <input id="edit-kat-${id}" value="${namaLama}" style="flex:1;background:var(--bg2);border:1.5px solid var(--green);border-radius:8px;padding:6px 10px;font-size:13px;color:var(--text);outline:none"/>
+    <select id="edit-jenis-${id}" style="background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;padding:6px 8px;font-size:12px;color:var(--text)">
+      <option value="pengeluaran" ${jenis==='pengeluaran'?'selected':''}>Pengeluaran</option>
+      <option value="pemasukan" ${jenis==='pemasukan'?'selected':''}>Pemasukan</option>
+    </select>
+    <button onclick="simpanEditKategori('${id}')" style="background:var(--green);border:none;color:#fff;padding:5px 10px;border-radius:7px;font-size:11px;cursor:pointer"><i class="ti ti-check"></i></button>
+    <button onclick="showAddKategori()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text3);padding:5px 10px;border-radius:7px;font-size:11px;cursor:pointer"><i class="ti ti-x"></i></button>
+  `;
+  row.style.display='flex';
+  document.getElementById('edit-kat-'+id).focus();
+}
+
+async function simpanEditKategori(id){
+  const nama=document.getElementById('edit-kat-'+id)?.value.trim();
+  const jenis=document.getElementById('edit-jenis-'+id)?.value;
+  if(!nama){showToast('Nama tidak boleh kosong!','err');return;}
+  try{
+    await sb(`user_categories?id=eq.${id}&user_id=eq.${user.id}`,'PATCH',{nama,jenis});
+    showToast('Kategori diupdate ✓','ok');
+    await loadKategori();
+    await showAddKategori();
+  }catch(e){showToast(e.message.includes('unique')?'Nama sudah ada!':'Gagal: '+e.message,'err');}
+}
+async function saveKategori(){
+  const nama=document.getElementById('new-kat-nama').value.trim();
+  const jenis=document.getElementById('new-kat-jenis').value;
+  if(!nama){showToast('Masukkan nama kategori!','err');return;}
+  try{
+    await sb('user_categories','POST',{user_id:user.id,nama,jenis});
+    document.getElementById('new-kat-nama').value='';
+    showToast('Kategori ditambahkan ✓','ok');
+    await loadKategori();
+    await showAddKategori();
+  }catch(e){showToast(e.message.includes('unique')?'Kategori sudah ada!':'Gagal: '+e.message,'err');}
+}
+async function delKategori(id){
+  try{
+    await sb(`user_categories?id=eq.${id}&user_id=eq.${user.id}`,'DELETE');
+    await loadKategori();
+    await showAddKategori();
+    showToast('Kategori dihapus','ok');
+  }catch(e){showToast('Gagal hapus','err');}
 }
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
