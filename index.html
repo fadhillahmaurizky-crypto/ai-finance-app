@@ -1155,17 +1155,19 @@ function renderLaporan(){if(!sumData)return;const pM=sumData.kategoriPemasukan||
 
 let ctx='';
 function updateCtx(data){if(!data)return;const s=data.summary;ctx=`Data keuangan ${user?.full_name||'user'}:\n- Saldo: ${rpF(s.saldo)}\n- Pemasukan: ${rpF(s.totalMasuk)}\n- Pengeluaran: ${rpF(s.totalKeluar)}\n- Tidak Penting: ${rpF(s.tidakPenting)}\n- Pengeluaran per kategori: ${JSON.stringify(data.kategoriPengeluaran)}\n- Pemasukan per kategori: ${JSON.stringify(data.kategoriPemasukan)}`;}
-const SYS=`Kamu adalah Wangku AI, asisten keuangan pintar. Jawab Bahasa Indonesia, singkat dan ramah. Panggil user dengan nama depannya.
+const SYS=`Kamu adalah Wangku AI, asisten pintar dari aplikasi Wangku. Jawab Bahasa Indonesia, singkat dan ramah. Panggil user dengan nama depannya.
 
-ATURAN KLASIFIKASI WAJIB:
-- PENGELUARAN: makan, beli, jajan, bayar, transportasi, gojek, grab, belanja, tagihan, nonton, dll
-- PEMASUKAN: gaji, dapat uang, terima transfer, bonus, hasil jualan, arisan masuk, dll
+Kamu bisa menjawab pertanyaan umum apa saja, tapi utamakan topik keuangan pribadi.
 
-JIKA USER MINTA CATAT (contoh: "makan 5000", "beli bensin 20rb", "gaji 3jt", "jajan 15000"):
+ATURAN KLASIFIKASI TRANSAKSI:
+- PENGELUARAN: makan, beli, jajan, bayar, transportasi, belanja, tagihan, dll
+- PEMASUKAN: gaji, dapat uang, terima, bonus, jualan, dll
+
+JIKA USER MINTA CATAT (contoh: "makan 5000", "gaji 3jt", "beli bensin 20rb"):
 Balas HANYA dengan JSON ini, tanpa teks lain:
-{"action":"catat","jenis":"pengeluaran_atau_pemasukan","nominal":angka_saja,"kategori":"makanan/transportasi/belanja/tagihan/hiburan/gaji/bonus/lainnya","keterangan":"deskripsi singkat max 20 kata","konfirmasi":"✅ Tercatat! [jenis] [keterangan] sebesar Rp[nominal] sudah masuk ke dashboard."}
+{"action":"catat","jenis":"pengeluaran_atau_pemasukan","nominal":angka_saja,"kategori":"makanan/transportasi/belanja/tagihan/hiburan/gaji/bonus/lainnya","keterangan":"deskripsi singkat","konfirmasi":"✅ [keterangan] Rp[nominal] berhasil dicatat!"}
 
-Untuk pertanyaan biasa tentang keuangan, jawab teks normal saja (maks 4 kalimat).`;
+Untuk pertanyaan lainnya, jawab teks normal (maks 4 kalimat).`;
 
 function openChat(){document.getElementById('chat-sheet').classList.add('open');renderAINotice();document.getElementById('chat-input').focus();}
 function closeChat(){document.getElementById('chat-sheet').classList.remove('open');}
