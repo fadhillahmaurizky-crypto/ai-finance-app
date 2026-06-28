@@ -8,6 +8,7 @@
 <title>Wangku — AI Finance</title>
 <link rel="manifest" href="manifest.json"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
 :root{
@@ -304,11 +305,60 @@ input,select{font-family:var(--font)}
 .skeleton{background:linear-gradient(90deg,var(--bg3) 25%,var(--border) 50%,var(--bg3) 75%);background-size:200% 100%;animation:sh 1.5s infinite;border-radius:10px}
 @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes splashPop{0%{transform:scale(.5);opacity:0}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);transition:all .2s}
+.pin-dot.filled{background:var(--green);border-color:var(--green)}
+.pin-dot.error{background:var(--red);border-color:var(--red)}
+.pin-btn{width:80px;height:80px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);font-size:24px;font-weight:600;color:var(--text);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:var(--shadow);transition:all .15s;position:relative}
+.pin-btn:active{transform:scale(.92);background:var(--bg3)}
+.pin-sub-lbl{font-size:9px;color:var(--text3);font-weight:400;letter-spacing:1px;line-height:1}
 </style>
 </head>
 <body>
 
 <!-- ONBOARDING -->
+<!-- SPLASH SCREEN -->
+<div id="splash-screen" style="position:fixed;inset:0;z-index:2000;background:linear-gradient(160deg,#00B26A,#007A48);display:flex;flex-direction:column;align-items:center;justify-content:center;max-width:430px;left:50%;transform:translateX(-50%)">
+  <img src="logo.png" style="width:100px;height:100px;object-fit:contain;border-radius:24px;margin-bottom:20px;animation:splashPop .5s ease-out"/>
+  <div style="font-size:32px;font-weight:800;color:#fff;letter-spacing:-1px">Wang<span style="color:rgba(255,255,255,.65)">ku</span></div>
+  <div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:6px">Catat keuanganmu lewat WhatsApp</div>
+  <div style="position:absolute;bottom:40px;display:flex;flex-direction:column;align-items:center;gap:8px">
+    <div style="width:32px;height:3px;background:rgba(255,255,255,.3);border-radius:2px;overflow:hidden">
+      <div id="splash-bar" style="height:100%;background:#fff;border-radius:2px;width:0;transition:width 2s linear"></div>
+    </div>
+    <div style="font-size:11px;color:rgba(255,255,255,.5)">v1.0</div>
+  </div>
+</div>
+
+<!-- PIN SCREEN -->
+<div id="pin-screen" style="position:fixed;inset:0;z-index:1999;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;max-width:430px;left:50%;transform:translateX(-50%)">
+  <img src="logo.png" style="width:64px;height:64px;object-fit:contain;border-radius:16px;margin-bottom:16px"/>
+  <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px" id="pin-title">Masukkan PIN</div>
+  <div style="font-size:13px;color:var(--text3);margin-bottom:32px" id="pin-sub">Masukkan 6 digit PIN kamu</div>
+  <div style="display:flex;gap:14px;margin-bottom:32px" id="pin-dots">
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+    <div class="pin-dot" id="pd4"></div>
+    <div class="pin-dot" id="pd5"></div>
+    <div class="pin-dot" id="pd6"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,80px);gap:12px">
+    <button class="pin-btn" onclick="pinPress('1')">1</button>
+    <button class="pin-btn" onclick="pinPress('2')">2<div class="pin-sub-lbl">ABC</div></button>
+    <button class="pin-btn" onclick="pinPress('3')">3<div class="pin-sub-lbl">DEF</div></button>
+    <button class="pin-btn" onclick="pinPress('4')">4<div class="pin-sub-lbl">GHI</div></button>
+    <button class="pin-btn" onclick="pinPress('5')">5<div class="pin-sub-lbl">JKL</div></button>
+    <button class="pin-btn" onclick="pinPress('6')">6<div class="pin-sub-lbl">MNO</div></button>
+    <button class="pin-btn" onclick="pinPress('7')">7<div class="pin-sub-lbl">PQRS</div></button>
+    <button class="pin-btn" onclick="pinPress('8')">8<div class="pin-sub-lbl">TUV</div></button>
+    <button class="pin-btn" onclick="pinPress('9')">9<div class="pin-sub-lbl">WXYZ</div></button>
+    <button class="pin-btn" onclick="pinForgot()" style="font-size:11px;color:var(--text3);background:transparent;border-color:transparent">Lupa</button>
+    <button class="pin-btn" onclick="pinPress('0')">0</button>
+    <button class="pin-btn" onclick="pinDelete()"><i class="ti ti-backspace"></i></button>
+  </div>
+</div>
+
 <div class="ob-wrap" id="ob-wrap">
   <div class="ob-slide active" id="ob-1">
     <div class="ob-ilu" style="background:var(--green-bg)">💚</div>
@@ -381,13 +431,13 @@ input,select{font-family:var(--font)}
         </div>
         <div class="l-group"><label class="l-label">Nomor WhatsApp</label><div class="l-wrap"><span class="l-ico" style="font-size:13px">🇮🇩+62</span><input class="l-input" id="fp-phone" type="tel" placeholder="8xxxxxxxxxx"/></div></div>
         <div class="l-err" id="err-fp"></div>
-        <button class="l-btn" id="btn-fp" onclick="sendForgotOTP()"><i class="ti ti-brand-whatsapp"></i> Kirim OTP ke WhatsApp</button>
+        <button class="l-btn" id="btn-fp" onclick="sendForgotOTP()"><i class="ti ti-mail"></i> Kirim OTP ke Email</button>
       </div>
       <div id="fp-s2" style="display:none">
         <div style="text-align:center;margin-bottom:20px">
           <div style="width:56px;height:56px;background:var(--blue-bg);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px"><i class="ti ti-message-2" style="color:var(--blue)"></i></div>
-          <div style="font-size:15px;font-weight:700;margin-bottom:4px">Cek WhatsApp kamu</div>
-          <div style="font-size:12px;color:var(--text3)" id="fp-hint">OTP dikirim ke WA kamu</div>
+          <div style="font-size:15px;font-weight:700;margin-bottom:4px">Cek Email kamu</div>
+          <div style="font-size:12px;color:var(--text3)" id="fp-hint">OTP dikirim ke email kamu</div>
         </div>
         <div class="l-group"><label class="l-label">Kode OTP (6 digit)</label>
           <div class="otp-row">
@@ -846,6 +896,10 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const GAS='https://script.google.com/macros/s/AKfycbxO5RHZcHojCy-d65QiKDMnk4d-z_d_vCCqAETetTnr0kVqMoRXp6yrep8AuU3mmCtNuw/exec';
 const CS='6285727318698';
 const MASTER='maurizky';
+const EJS_SVC='service_wangku';
+const EJS_TPL='template_2c90tho';
+const EJS_KEY='UJrtG5gzUPPDMtuxM';
+emailjs.init(EJS_KEY);
 const PLANS={basic:{label:'Basic',price:'Rp 79.000',ai:false},pro:{label:'Pro',price:'Rp 129.000',ai:true},unlimited:{label:'Unlimited',price:'Rp 139.000',ai:true}};
 const TOKEN_PACKS=[{id:'2M',tokens:2000000,price:'Rp 29.000/bln',label:'2 Juta Token'},{id:'5M',tokens:5000000,price:'Rp 39.000/bln',label:'5 Juta Token'}];
 const LIMITS={free:{ai:0,scan:0,label:'Starter'},pro:{ai:50,scan:20,label:'Pro'},unlimited:{ai:-1,scan:-1,label:'Unlimited'}};
@@ -867,6 +921,81 @@ function canAI(){const p=getPlan();if(p==='basic')return false;if(p==='unlimited
 function canScan(){return canAI();}
 function getMonth(){return new Date().toISOString().substring(0,7);}
 function getNextMonth(){const d=new Date();d.setMonth(d.getMonth()+1);return d.toISOString().substring(0,7);}
+
+// ========================
+// SPLASH SCREEN
+// ========================
+function showSplash(){
+  const splash=document.getElementById('splash-screen');
+  splash.style.display='flex';
+  setTimeout(()=>{document.getElementById('splash-bar').style.width='100%';},100);
+  setTimeout(()=>{
+    splash.style.opacity='0';
+    splash.style.transition='opacity .4s';
+    setTimeout(()=>{splash.style.display='none';checkSession();},400);
+  },2200);
+}
+
+// ========================
+// PIN SECURITY
+// ========================
+let pinInput='',pinMode='verify',pinFirst='';
+const PIN_KEY='wangku_pin';
+
+function showPinScreen(mode='verify'){
+  pinMode=mode;pinInput='';pinFirst='';
+  updatePinDots();
+  const title=document.getElementById('pin-title');
+  const sub=document.getElementById('pin-sub');
+  if(mode==='set'){title.textContent='Buat PIN Baru';sub.textContent='Masukkan 6 digit PIN baru kamu';}
+  else if(mode==='confirm'){title.textContent='Konfirmasi PIN';sub.textContent='Masukkan ulang PIN kamu';}
+  else{title.textContent='Masukkan PIN';sub.textContent='Selamat datang kembali 👋';}
+  document.getElementById('pin-screen').style.display='flex';
+}
+function hidePinScreen(){document.getElementById('pin-screen').style.display='none';}
+
+function pinPress(n){
+  if(pinInput.length>=6)return;
+  pinInput+=n;updatePinDots();
+  if(pinInput.length===6)setTimeout(pinSubmit,200);
+}
+function pinDelete(){pinInput=pinInput.slice(0,-1);updatePinDots();}
+function updatePinDots(){
+  for(let i=1;i<=6;i++){
+    const d=document.getElementById('pd'+i);
+    d.className='pin-dot'+(i<=pinInput.length?' filled':'');
+  }
+}
+function pinError(){
+  for(let i=1;i<=6;i++)document.getElementById('pd'+i).className='pin-dot error';
+  setTimeout(()=>{pinInput='';updatePinDots();},600);
+}
+function pinSubmit(){
+  if(pinMode==='verify'){
+    const saved=localStorage.getItem(PIN_KEY);
+    if(pinInput===saved){hidePinScreen();showApp();}
+    else{showToast('PIN salah!','err');pinError();}
+  } else if(pinMode==='set'){
+    pinFirst=pinInput;pinInput='';updatePinDots();
+    pinMode='confirm';
+    document.getElementById('pin-title').textContent='Konfirmasi PIN';
+    document.getElementById('pin-sub').textContent='Masukkan ulang PIN kamu';
+  } else if(pinMode==='confirm'){
+    if(pinInput===pinFirst){
+      localStorage.setItem(PIN_KEY,pinInput);
+      hidePinScreen();showApp();showToast('PIN berhasil dibuat ✓','ok');
+    } else {
+      showToast('PIN tidak cocok!','err');pinError();
+      setTimeout(()=>{pinMode='set';pinFirst='';document.getElementById('pin-title').textContent='Buat PIN Baru';document.getElementById('pin-sub').textContent='Masukkan 6 digit PIN baru kamu';},700);
+    }
+  }
+}
+function pinForgot(){
+  hidePinScreen();
+  localStorage.removeItem(PIN_KEY);
+  showLoginPage();
+  showToast('Silakan login ulang untuk reset PIN','warn');
+}
 
 function initTheme(){applyTheme(localStorage.getItem('theme')||'light');}
 function applyTheme(t){document.documentElement.setAttribute('data-theme',t);const tr=document.getElementById('toggle-track'),ic=document.getElementById('theme-ico');if(tr)tr.className='toggle-track'+(t==='dark'?' on':'');if(ic)ic.className=t==='dark'?'ti ti-sun':'ti ti-moon';localStorage.setItem('theme',t);}
@@ -901,7 +1030,10 @@ async function doLogin(){
     user=u[0];await sb(`users?id=eq.${user.id}`,'PATCH',{last_login:new Date().toISOString()});
     localStorage.setItem('sdk_session',JSON.stringify(user));
     if(window.PublicKeyCredential)localStorage.setItem('sdk_bio_user',un);
-    showApp();
+    // Cek PIN
+    const hasPIN=localStorage.getItem(PIN_KEY);
+    if(hasPIN){showPinScreen('verify');}
+    else{showPinScreen('set');}// Buat PIN baru
   }catch(e){err.textContent=e.message;err.style.display='block';}
   btn.disabled=false;btn.innerHTML='<i class="ti ti-login"></i> Masuk ke Wangku';
 }
@@ -930,6 +1062,10 @@ async function doRegister(){
   btn.disabled=false;btn.innerHTML='<i class="ti ti-user-plus"></i> Buat Akun Gratis';
 }
 
+async function sendEmailOTP(toEmail, nama, otp){
+  await emailjs.send(EJS_SVC, EJS_TPL, {email:toEmail, nama:nama, otp:otp});
+}
+
 async function sendForgotOTP(){
   const phone=document.getElementById('fp-phone').value.trim().replace(/\D/g,'');
   const err=document.getElementById('err-fp');const btn=document.getElementById('btn-fp');
@@ -938,16 +1074,25 @@ async function sendForgotOTP(){
   let wa=phone.startsWith('62')?phone:'62'+(phone.startsWith('0')?phone.substring(1):phone);
   btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Mencari...';
   try{
-    const u=await sb(`users?wa_number=eq.${wa}&status=eq.active&select=id,username,full_name,wa_number`);
+    const u=await sb(`users?wa_number=eq.${wa}&status=eq.active&select=id,username,full_name,wa_number,email`);
     if(!u||!u.length)throw new Error('Nomor HP tidak terdaftar!');
     fpUser=u[0];fpOTP=String(Math.floor(100000+Math.random()*900000));
-    const r=await fetch(GAS+'?action=sendOTP&wa='+wa+'&otp='+fpOTP+'&nama='+encodeURIComponent(fpUser.full_name));
-    const d=await r.json();if(d.status!=='ok')throw new Error('Gagal kirim OTP');
-    document.getElementById('fp-s1').style.display='none';document.getElementById('fp-s2').style.display='block';
-    document.getElementById('fp-hint').textContent='OTP dikirim ke +'+wa.replace(/(\d{5})\d+(\d{4})/,'$1****$2');
-    initFPOTP();document.getElementById('fp-o1').focus();showToast('OTP terkirim ✓','ok');
+    if(fpUser.email){
+      await sendEmailOTP(fpUser.email, fpUser.full_name, fpOTP);
+      document.getElementById('fp-s1').style.display='none';document.getElementById('fp-s2').style.display='block';
+      document.getElementById('fp-hint').textContent='OTP dikirim ke email '+fpUser.email.replace(/(.{2}).*(@.*)/, '$1***$2');
+      showToast('OTP terkirim ke email ✓','ok');
+    } else {
+      // Fallback ke WA kalau tidak ada email
+      const r=await fetch(GAS+'?action=sendOTP&wa='+wa+'&otp='+fpOTP+'&nama='+encodeURIComponent(fpUser.full_name));
+      const d=await r.json();if(d.status!=='ok')throw new Error('Gagal kirim OTP');
+      document.getElementById('fp-s1').style.display='none';document.getElementById('fp-s2').style.display='block';
+      document.getElementById('fp-hint').textContent='OTP dikirim ke WA +'+wa.replace(/(\d{5})\d+(\d{4})/,'$1****$2');
+      showToast('OTP terkirim ✓','ok');
+    }
+    initFPOTP();document.getElementById('fp-o1').focus();
   }catch(e){err.textContent=e.message;err.style.display='block';}
-  btn.disabled=false;btn.innerHTML='<i class="ti ti-brand-whatsapp"></i> Kirim OTP ke WhatsApp';
+  btn.disabled=false;btn.innerHTML='<i class="ti ti-mail"></i> Kirim OTP ke Email';
 }
 
 function initFPOTP(){for(let i=1;i<=6;i++){const el=document.getElementById('fp-o'+i);if(!el)continue;const nel=el.cloneNode(true);el.parentNode.replaceChild(nel,el);nel.addEventListener('input',function(){this.value=this.value.replace(/[^0-9]/g,'').slice(-1);if(this.value&&i<6)document.getElementById('fp-o'+(i+1)).focus();if(getFPOTP().length===6)verifyFP();});nel.addEventListener('keydown',function(e){if(e.key==='Backspace'){if(this.value)this.value='';else if(i>1){document.getElementById('fp-o'+(i-1)).value='';document.getElementById('fp-o'+(i-1)).focus();}e.preventDefault();}});}}
@@ -966,7 +1111,20 @@ async function doBiometric(){const su=localStorage.getItem('sdk_bio_user');if(!s
 
 async function setupBiometric(){if(!user)return;try{const av=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();if(!av){showToast('Perangkat tidak mendukung','err');return;}const c=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:'Wangku',id:window.location.hostname},user:{id:new TextEncoder().encode(user.id),name:user.username,displayName:user.full_name},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},timeout:60000}});if(c){localStorage.setItem('sdk_bio_user',user.username);localStorage.setItem('sdk_bio_cred',c.id);document.getElementById('bio-status').textContent='Fingerprint aktif ✓';showToast('Fingerprint aktif! 👆','ok');}}catch(e){if(e.name!=='NotAllowedError')showToast('Gagal setup fingerprint','err');}}
 
-async function checkSession(){const saved=localStorage.getItem('sdk_session');if(!saved){if(!checkOb())showLoginPage();return;}try{user=JSON.parse(saved);const u=await sb(`users?id=eq.${user.id}&status=eq.active&select=*`);if(!u||!u.length){localStorage.removeItem('sdk_session');showLoginPage();return;}user=u[0];showApp();}catch(e){showLoginPage();}}
+async function checkSession(){
+  const saved=localStorage.getItem('sdk_session');
+  if(!saved){if(!checkOb())showLoginPage();return;}
+  try{
+    user=JSON.parse(saved);
+    const u=await sb(`users?id=eq.${user.id}&status=eq.active&select=*`);
+    if(!u||!u.length){localStorage.removeItem('sdk_session');showLoginPage();return;}
+    user=u[0];
+    // Cek PIN
+    const hasPIN=localStorage.getItem(PIN_KEY);
+    if(hasPIN){showPinScreen('verify');}
+    else{showPinScreen('set');} // Minta buat PIN baru
+  }catch(e){showLoginPage();}
+}
 
 function showLoginPage(){document.getElementById('login-wrap').style.display='flex';document.getElementById('main-app').style.display='none';try{PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(av=>{const btn=document.getElementById('bio-btn');if(av&&localStorage.getItem('sdk_bio_cred'))btn.style.display='flex';});}catch(e){}}
 
@@ -1400,7 +1558,7 @@ async function delKategori(id){
 }
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-checkSession();
+showSplash();
 </script>
 </body>
 </html>
