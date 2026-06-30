@@ -1,8 +1,8 @@
 {
-  "name": "Wangku — AI Finance",
+  "name": "Wangku",
   "short_name": "Wangku",
-  "description": "Pencatat keuangan berbasis AI via WhatsApp",
-  "start_url": "./",
+  "description": "Catat keuanganmu lewat WhatsApp. Ditenagai AI.",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#00B26A",
   "theme_color": "#00B26A",
