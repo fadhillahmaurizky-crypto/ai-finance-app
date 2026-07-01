@@ -925,24 +925,6 @@ input,select{font-family:var(--font)}
 </div>
 
 <script>
-let statusPollInterval=null;
-function startStatusPoll(userId){
-  if(statusPollInterval)clearInterval(statusPollInterval);
-  statusPollInterval=setInterval(async()=>{
-    try{
-      const u=await sb(`users?id=eq.${userId}&select=status`);
-      if(u?.[0]?.status==='active'){
-        clearInterval(statusPollInterval);
-        document.getElementById('payment-wrap').style.display='none';
-        showToast('Akun kamu sudah aktif! Silakan login 🎉','ok');
-        showLoginPage();
-      }
-    }catch(e){}
-  },10000); // cek tiap 10 detik
-}
-</script>
-
-<script>
 const SB_URL='https://mchuhgihywnyamurbetz.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jaHVoZ2loeXdueWFtdXJiZXR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNTIyNDIsImV4cCI6MjA5NzcyODI0Mn0.z1ildAJY--ErFoom2d7GIF1TCr3fmaBkCWtwGz4QstI';
 const GAS='https://script.google.com/macros/s/AKfycbxO5RHZcHojCy-d65QiKDMnk4d-z_d_vCCqAETetTnr0kVqMoRXp6yrep8AuU3mmCtNuw/exec';
@@ -1658,6 +1640,34 @@ async function delKategori(id){
     await showAddKategori();
     showToast('Kategori dihapus','ok');
   }catch(e){showToast('Gagal hapus','err');}
+}
+
+// ========================
+// STATUS POLLING
+// ========================
+let statusPollInterval=null;
+function startStatusPoll(userId){
+  if(statusPollInterval)clearInterval(statusPollInterval);
+  document.getElementById('pay-step3').style.display='flex';
+  statusPollInterval=setInterval(async()=>{
+    try{
+      const u=await sb(`users?id=eq.${userId}&select=status,plan`);
+      if(u?.[0]?.status==='active'){
+        clearInterval(statusPollInterval);
+        // Update user object dan langsung masuk app
+        const fullUser=await sb(`users?id=eq.${userId}&select=*`);
+        if(fullUser?.[0]){
+          user=fullUser[0];
+          localStorage.setItem('sdk_session',JSON.stringify(user));
+          document.getElementById('payment-wrap').style.display='none';
+          showToast('Akun aktif! Selamat datang di Wangku 🎉','ok');
+          const hasPIN=localStorage.getItem(PIN_KEY);
+          if(hasPIN){showPinScreen('verify');}
+          else{showPinScreen('set');}
+        }
+      }
+    }catch(e){console.log('Poll error:',e);}
+  },5000); // cek tiap 5 detik
 }
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
