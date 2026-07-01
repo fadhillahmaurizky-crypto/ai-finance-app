@@ -328,14 +328,14 @@ input,select{font-family:var(--font)}
 <!-- ONBOARDING -->
 <!-- SPLASH SCREEN -->
 <div id="splash-screen" style="position:fixed;inset:0;z-index:2000;background:linear-gradient(160deg,#00B26A,#007A48);display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;max-width:430px;left:50%;transform:translateX(-50%)">
-  <img src="logo.png" style="width:100px;height:100px;object-fit:contain;border-radius:24px;margin-bottom:20px;animation:splashPop .5s ease-out"/>
-  <div style="font-size:32px;font-weight:800;color:#fff;letter-spacing:-1px">Wang<span style="color:rgba(255,255,255,.65)">ku</span></div>
-  <div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:6px">Catat keuanganmu lewat WhatsApp</div>
-  <div style="position:absolute;bottom:40px;display:flex;flex-direction:column;align-items:center;gap:8px">
-    <div style="width:32px;height:3px;background:rgba(255,255,255,.3);border-radius:2px;overflow:hidden">
+  <div style="animation:splashPop .5s ease-out;text-align:center">
+    <div style="font-size:48px;font-weight:800;color:#fff;letter-spacing:-2px;margin-bottom:6px">Wang<span style="color:rgba(255,255,255,.55)">ku</span></div>
+    <div style="font-size:14px;color:rgba(255,255,255,.75)">Catat keuanganmu lewat WhatsApp</div>
+  </div>
+  <div style="position:absolute;bottom:48px;width:120px">
+    <div style="width:100%;height:3px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden">
       <div id="splash-bar" style="height:100%;background:#fff;border-radius:2px;width:0;transition:width 2s linear"></div>
     </div>
-    <div style="font-size:11px;color:rgba(255,255,255,.5)">v1.0</div>
   </div>
 </div>
 
@@ -420,14 +420,38 @@ input,select{font-family:var(--font)}
 
     <!-- REGISTER -->
     <div id="form-register" style="display:none">
-      <div class="l-group"><label class="l-label">Nama Lengkap</label><div class="l-wrap"><span class="l-ico"><i class="ti ti-id-badge"></i></span><input class="l-input" id="r-name" type="text" placeholder="Nama lengkap kamu"/></div></div>
-      <div class="l-group"><label class="l-label">Username</label><div class="l-wrap"><span class="l-ico"><i class="ti ti-at"></i></span><input class="l-input" id="r-un" type="text" placeholder="Buat username unik..."/></div></div>
-      <div class="l-group"><label class="l-label">Email</label><div class="l-wrap"><span class="l-ico"><i class="ti ti-mail"></i></span><input class="l-input" id="r-email" type="email" placeholder="email@kamu.com"/></div></div>
-      <div class="l-group"><label class="l-label">Nomor WhatsApp</label><div class="l-wrap"><span class="l-ico" style="font-size:13px">🇮🇩+62</span><input class="l-input" id="r-wa" type="tel" placeholder="8xxxxxxxxxx"/></div></div>
-      <div class="l-group"><label class="l-label">Password</label><div class="l-wrap"><span class="l-ico"><i class="ti ti-lock"></i></span><input class="l-input" id="r-pw" type="password" placeholder="Min. 6 karakter..."/><button class="l-eye" onclick="togglePwd('r-pw',this)"><i class="ti ti-eye"></i></button></div></div>
-      <div class="l-err" id="err-register"></div>
-      <button class="l-btn" id="btn-register" onclick="doRegister()"><i class="ti ti-user-plus"></i> Buat Akun Gratis</button>
-      <div class="l-footer">Sudah punya akun? <a onclick="switchTab('login')">Masuk di sini</a></div>
+      <div id="reg-s1">
+        <div class="l-group"><label class="l-label">Nama Lengkap</label><div class="l-wrap"><span class="l-ico"><i class="ti ti-id-badge"></i></span><input class="l-input" id="r-name" type="text" placeholder="Nama lengkap kamu"/></div></div>
+        <div class="l-group"><label class="l-label">Username</label><div class="l-wrap"><span class="l-ico"><i class="ti ti-at"></i></span><input class="l-input" id="r-un" type="text" placeholder="Buat username unik..."/></div></div>
+        <div class="l-group"><label class="l-label">Email</label><div class="l-wrap"><span class="l-ico"><i class="ti ti-mail"></i></span><input class="l-input" id="r-email" type="email" placeholder="email@kamu.com"/></div></div>
+        <div class="l-group"><label class="l-label">Nomor WhatsApp</label><div class="l-wrap"><span class="l-ico" style="font-size:13px">🇮🇩+62</span><input class="l-input" id="r-wa" type="tel" placeholder="8xxxxxxxxxx"/></div></div>
+        <div class="l-group"><label class="l-label">Password</label><div class="l-wrap"><span class="l-ico"><i class="ti ti-lock"></i></span><input class="l-input" id="r-pw" type="password" placeholder="Min. 6 karakter..."/><button class="l-eye" onclick="togglePwd('r-pw',this)"><i class="ti ti-eye"></i></button></div></div>
+        <div class="l-err" id="err-register"></div>
+        <button class="l-btn" id="btn-register" onclick="doRegister()"><i class="ti ti-user-plus"></i> Buat Akun Gratis</button>
+        <div class="l-footer">Sudah punya akun? <a onclick="switchTab('login')">Masuk di sini</a></div>
+      </div>
+      <!-- OTP Verifikasi Email -->
+      <div id="reg-s2" style="display:none">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="width:56px;height:56px;background:var(--blue-bg);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px"><i class="ti ti-mail" style="color:var(--blue)"></i></div>
+          <div style="font-size:15px;font-weight:700;margin-bottom:4px">Verifikasi Email</div>
+          <div style="font-size:12px;color:var(--text3)" id="reg-otp-hint">OTP dikirim ke email kamu</div>
+        </div>
+        <div class="l-group"><label class="l-label">Kode OTP (6 digit)</label>
+          <div class="otp-row">
+            <input class="otp-box" id="ro1" type="text" inputmode="numeric" maxlength="1"/>
+            <input class="otp-box" id="ro2" type="text" inputmode="numeric" maxlength="1"/>
+            <input class="otp-box" id="ro3" type="text" inputmode="numeric" maxlength="1"/>
+            <input class="otp-box" id="ro4" type="text" inputmode="numeric" maxlength="1"/>
+            <input class="otp-box" id="ro5" type="text" inputmode="numeric" maxlength="1"/>
+            <input class="otp-box" id="ro6" type="text" inputmode="numeric" maxlength="1"/>
+          </div>
+          <button style="background:none;border:none;color:var(--green);font-size:12px;font-weight:600;cursor:pointer;width:100%;text-align:center;padding:4px;margin-top:6px" onclick="resendRegOTP()">Kirim ulang OTP</button>
+        </div>
+        <div class="l-err" id="err-reg-otp"></div>
+        <button class="l-btn" onclick="verifyRegOTP()"><i class="ti ti-check"></i> Verifikasi & Lanjutkan</button>
+        <div class="l-footer" style="margin-top:8px"><a onclick="showRegS1()">← Kembali</a></div>
+      </div>
     </div>
 
     <!-- FORGOT -->
@@ -436,9 +460,9 @@ input,select{font-family:var(--font)}
         <div style="text-align:center;margin-bottom:20px">
           <div style="width:56px;height:56px;background:var(--amber-bg);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px"><i class="ti ti-lock-question" style="color:var(--amber)"></i></div>
           <div style="font-size:15px;font-weight:700;margin-bottom:4px">Lupa Password?</div>
-          <div style="font-size:12px;color:var(--text3)">OTP reset dikirim ke WhatsApp kamu</div>
+          <div style="font-size:12px;color:var(--text3)">Masukkan email terdaftar kamu</div>
         </div>
-        <div class="l-group"><label class="l-label">Nomor WhatsApp</label><div class="l-wrap"><span class="l-ico" style="font-size:13px">🇮🇩+62</span><input class="l-input" id="fp-phone" type="tel" placeholder="8xxxxxxxxxx"/></div></div>
+        <div class="l-group"><label class="l-label">Email</label><div class="l-wrap"><span class="l-ico"><i class="ti ti-mail"></i></span><input class="l-input" id="fp-email" type="email" placeholder="email@kamu.com"/></div></div>
         <div class="l-err" id="err-fp"></div>
         <button class="l-btn" id="btn-fp" onclick="sendForgotOTP()"><i class="ti ti-mail"></i> Kirim OTP ke Email</button>
       </div>
@@ -900,6 +924,24 @@ input,select{font-family:var(--font)}
 </div>
 
 <script>
+let statusPollInterval=null;
+function startStatusPoll(userId){
+  if(statusPollInterval)clearInterval(statusPollInterval);
+  statusPollInterval=setInterval(async()=>{
+    try{
+      const u=await sb(`users?id=eq.${userId}&select=status`);
+      if(u?.[0]?.status==='active'){
+        clearInterval(statusPollInterval);
+        document.getElementById('payment-wrap').style.display='none';
+        showToast('Akun kamu sudah aktif! Silakan login 🎉','ok');
+        showLoginPage();
+      }
+    }catch(e){}
+  },10000); // cek tiap 10 detik
+}
+</script>
+
+<script>
 const SB_URL='https://mchuhgihywnyamurbetz.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jaHVoZ2loeXdueWFtdXJiZXR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNTIyNDIsImV4cCI6MjA5NzcyODI0Mn0.z1ildAJY--ErFoom2d7GIF1TCr3fmaBkCWtwGz4QstI';
 const GAS='https://script.google.com/macros/s/AKfycbxO5RHZcHojCy-d65QiKDMnk4d-z_d_vCCqAETetTnr0kVqMoRXp6yrep8AuU3mmCtNuw/exec';
@@ -1047,6 +1089,12 @@ async function doLogin(){
   btn.disabled=false;btn.innerHTML='<i class="ti ti-login"></i> Masuk ke Wangku';
 }
 
+let regOTP=null,regData=null;
+function showRegS1(){document.getElementById('reg-s1').style.display='block';document.getElementById('reg-s2').style.display='none';}
+function initRegOTP(){for(let i=1;i<=6;i++){const el=document.getElementById('ro'+i);if(!el)continue;const nel=el.cloneNode(true);el.parentNode.replaceChild(nel,el);nel.addEventListener('input',function(){this.value=this.value.replace(/[^0-9]/g,'').slice(-1);if(this.value&&i<6)document.getElementById('ro'+(i+1)).focus();if(getRegOTP().length===6)verifyRegOTP();});nel.addEventListener('keydown',function(e){if(e.key==='Backspace'){if(this.value)this.value='';else if(i>1){document.getElementById('ro'+(i-1)).value='';document.getElementById('ro'+(i-1)).focus();}e.preventDefault();}});}}
+function getRegOTP(){let o='';for(let i=1;i<=6;i++)o+=document.getElementById('ro'+i)?.value||'';return o;}
+async function resendRegOTP(){if(!regData?.email)return;regOTP=String(Math.floor(100000+Math.random()*900000));try{await sendEmailOTP(regData.email,regData.name,regOTP);showToast('OTP dikirim ulang ✓','ok');}catch(e){showToast('Gagal: '+e.message,'err');}}
+
 async function doRegister(){
   const name=document.getElementById('r-name').value.trim();
   const un=document.getElementById('r-un').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
@@ -1060,15 +1108,35 @@ async function doRegister(){
   if(!email||!email.includes('@')){err.textContent='Email tidak valid!';err.style.display='block';return;}
   if(!wa||wa.length<9){err.textContent='Nomor WA tidak valid!';err.style.display='block';return;}
   if(!pw||pw.length<6){err.textContent='Password min. 6 karakter!';err.style.display='block';return;}
-  btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Mendaftar...';
+  btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Mengirim OTP...';
   try{
-    const h=await hp(pw);const waFull=wa.startsWith('62')?wa:'62'+(wa.startsWith('0')?wa.substring(1):wa);
-    const r=await sb('users','POST',{username:un,full_name:name,email,wa_number:waFull,password_hash:h,role:'user',status:'pending',gas_user_id:waFull,plan:'basic',tokens_limit:0,tokens_used:0});
-    if(!r||!r.length)throw new Error('Gagal membuat akun');
-    newUser={id:r[0].id,full_name:name,username:un,email,wa_number:waFull};
-    showPaymentFlow();
-  }catch(e){err.textContent=e.message.includes('duplicate')?'Username/WA/email sudah terdaftar!':e.message;err.style.display='block';}
+    const ex=await sb(`users?or=(username.eq.${un},email.eq.${email})&select=id`);
+    if(ex?.length){err.textContent='Username atau email sudah terdaftar!';err.style.display='block';btn.disabled=false;btn.innerHTML='<i class="ti ti-user-plus"></i> Buat Akun Gratis';return;}
+    regOTP=String(Math.floor(100000+Math.random()*900000));
+    regData={name,un,email,wa,pw};
+    await sendEmailOTP(email,name,regOTP);
+    document.getElementById('reg-otp-hint').textContent='OTP dikirim ke '+email.replace(/(.{2}).*(@.*)/,'$1***$2');
+    document.getElementById('reg-s1').style.display='none';
+    document.getElementById('reg-s2').style.display='block';
+    initRegOTP();document.getElementById('ro1').focus();
+    showToast('OTP terkirim ke email ✓','ok');
+  }catch(e){err.textContent='Gagal kirim OTP: '+e.message;err.style.display='block';}
   btn.disabled=false;btn.innerHTML='<i class="ti ti-user-plus"></i> Buat Akun Gratis';
+}
+
+async function verifyRegOTP(){
+  const input=getRegOTP();const err=document.getElementById('err-reg-otp');err.style.display='none';
+  if(input.length!==6){err.textContent='Masukkan 6 digit OTP!';err.style.display='block';return;}
+  if(input!==regOTP){err.textContent='OTP salah! Coba lagi.';err.style.display='block';for(let i=1;i<=6;i++)document.getElementById('ro'+i).value='';document.getElementById('ro1').focus();return;}
+  try{
+    const h=await hp(regData.pw);
+    const waFull=regData.wa.startsWith('62')?regData.wa:'62'+(regData.wa.startsWith('0')?regData.wa.substring(1):regData.wa);
+    const r=await sb('users','POST',{username:regData.un,full_name:regData.name,email:regData.email,wa_number:waFull,password_hash:h,role:'user',status:'pending',gas_user_id:waFull,plan:'basic',tokens_limit:0,tokens_used:0});
+    if(!r||!r.length)throw new Error('Gagal membuat akun');
+    newUser={id:r[0].id,full_name:regData.name,username:regData.un,email:regData.email,wa_number:waFull};
+    regOTP=null;regData=null;
+    showPaymentFlow();
+  }catch(e){err.textContent=e.message.includes('duplicate')?'Username/email sudah terdaftar!':e.message;err.style.display='block';}
 }
 
 async function sendEmailOTP(toEmail, nama, otp){
@@ -1076,30 +1144,20 @@ async function sendEmailOTP(toEmail, nama, otp){
 }
 
 async function sendForgotOTP(){
-  const phone=document.getElementById('fp-phone').value.trim().replace(/\D/g,'');
+  const email=document.getElementById('fp-email').value.trim();
   const err=document.getElementById('err-fp');const btn=document.getElementById('btn-fp');
   err.style.display='none';
-  if(!phone||phone.length<9){err.textContent='Nomor HP tidak valid!';err.style.display='block';return;}
-  let wa=phone.startsWith('62')?phone:'62'+(phone.startsWith('0')?phone.substring(1):phone);
+  if(!email||!email.includes('@')){err.textContent='Email tidak valid!';err.style.display='block';return;}
   btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Mencari...';
   try{
-    const u=await sb(`users?wa_number=eq.${wa}&status=eq.active&select=id,username,full_name,wa_number,email`);
-    if(!u||!u.length)throw new Error('Nomor HP tidak terdaftar!');
+    const u=await sb(`users?email=eq.${encodeURIComponent(email)}&status=eq.active&select=id,username,full_name,email`);
+    if(!u||!u.length)throw new Error('Email tidak terdaftar atau akun belum aktif!');
     fpUser=u[0];fpOTP=String(Math.floor(100000+Math.random()*900000));
-    if(fpUser.email){
-      await sendEmailOTP(fpUser.email, fpUser.full_name, fpOTP);
-      document.getElementById('fp-s1').style.display='none';document.getElementById('fp-s2').style.display='block';
-      document.getElementById('fp-hint').textContent='OTP dikirim ke email '+fpUser.email.replace(/(.{2}).*(@.*)/, '$1***$2');
-      showToast('OTP terkirim ke email ✓','ok');
-    } else {
-      // Fallback ke WA kalau tidak ada email
-      const r=await fetch(GAS+'?action=sendOTP&wa='+wa+'&otp='+fpOTP+'&nama='+encodeURIComponent(fpUser.full_name));
-      const d=await r.json();if(d.status!=='ok')throw new Error('Gagal kirim OTP');
-      document.getElementById('fp-s1').style.display='none';document.getElementById('fp-s2').style.display='block';
-      document.getElementById('fp-hint').textContent='OTP dikirim ke WA +'+wa.replace(/(\d{5})\d+(\d{4})/,'$1****$2');
-      showToast('OTP terkirim ✓','ok');
-    }
+    await sendEmailOTP(email,fpUser.full_name,fpOTP);
+    document.getElementById('fp-s1').style.display='none';document.getElementById('fp-s2').style.display='block';
+    document.getElementById('fp-hint').textContent='OTP dikirim ke '+email.replace(/(.{2}).*(@.*)/,'$1***$2');
     initFPOTP();document.getElementById('fp-o1').focus();
+    showToast('OTP terkirim ke email ✓','ok');
   }catch(e){err.textContent=e.message;err.style.display='block';}
   btn.disabled=false;btn.innerHTML='<i class="ti ti-mail"></i> Kirim OTP ke Email';
 }
@@ -1326,13 +1384,15 @@ const SYS=`Kamu adalah Wangku AI, asisten pintar dari aplikasi Wangku. Jawab Bah
 
 Kamu bisa menjawab pertanyaan umum apa saja, tapi utamakan topik keuangan pribadi.
 
-ATURAN KLASIFIKASI TRANSAKSI:
-- PENGELUARAN: makan, beli, jajan, bayar, transportasi, belanja, tagihan, dll
-- PEMASUKAN: gaji, dapat uang, terima, bonus, jualan, dll
+ATURAN KLASIFIKASI TRANSAKSI (WAJIB DIIKUTI):
+- PENGELUARAN: makan, beli, jajan, bayar, transportasi, belanja, tagihan, buat arisan, bayar arisan, setoran arisan, iuran, ngeluarin, keluar uang
+- PEMASUKAN: gaji, dapat, terima, dapet, bonus, jualan, arisan masuk, dapat arisan, dapet arisan, transfer masuk
 
-JIKA USER MINTA CATAT (contoh: "makan 5000", "gaji 3jt", "beli bensin 20rb"):
+CATATAN PENTING: "buat arisan", "setoran arisan", "bayar arisan" = PENGELUARAN. "dapat arisan", "dapet arisan" = PEMASUKAN.
+
+JIKA USER MINTA CATAT TRANSAKSI (ada angka + kata keuangan):
 Balas HANYA dengan JSON ini, tanpa teks lain:
-{"action":"catat","jenis":"pengeluaran_atau_pemasukan","nominal":angka_saja,"kategori":"makanan/transportasi/belanja/tagihan/hiburan/gaji/bonus/lainnya","keterangan":"deskripsi singkat","konfirmasi":"✅ [keterangan] Rp[nominal] berhasil dicatat!"}
+{"action":"catat","jenis":"pengeluaran_atau_pemasukan","nominal":angka_saja,"kategori":"makanan/transportasi/belanja/tagihan/hiburan/gaji/bonus/arisan/lainnya","keterangan":"deskripsi singkat","konfirmasi":"✅ [keterangan] Rp[nominal] berhasil dicatat!"}
 
 Untuk pertanyaan lainnya, jawab teks normal (maks 4 kalimat).`;
 
@@ -1484,6 +1544,7 @@ async function submitPayment(){
     document.getElementById('pay-done-amount').textContent='Rp '+selectedAmount.toLocaleString('id-ID');
     document.getElementById('wa-konfirm-link').href='https://wa.me/'+CS+'?text='+encodeURIComponent('Halo Admin Wangku, saya '+newUser.full_name+' sudah transfer untuk paket '+selectedPlan+' dan sudah upload bukti di app. Mohon diverifikasi ya 🙏');
     showPayStep(3);
+    if(newUser?.id)startStatusPoll(newUser.id);
   }catch(e){showToast('Gagal: '+e.message,'err');}
   btn.disabled=false;btn.innerHTML='<i class="ti ti-send"></i> Kirim Bukti Pembayaran';
 }
