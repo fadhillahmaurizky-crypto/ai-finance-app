@@ -329,6 +329,7 @@ input,select{font-family:var(--font)}
 <!-- SPLASH SCREEN -->
 <div id="splash-screen" style="position:fixed;inset:0;z-index:2000;background:linear-gradient(160deg,#00B26A,#007A48);display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;max-width:430px;left:50%;transform:translateX(-50%)">
   <div style="animation:splashPop .5s ease-out;text-align:center">
+    <img src="logo.png" style="width:90px;height:90px;object-fit:contain;border-radius:22px;margin-bottom:16px;display:block;margin-left:auto;margin-right:auto"/>
     <div style="font-size:48px;font-weight:800;color:#fff;letter-spacing:-2px;margin-bottom:6px">Wang<span style="color:rgba(255,255,255,.55)">ku</span></div>
     <div style="font-size:14px;color:rgba(255,255,255,.75)">Catat keuanganmu lewat WhatsApp</div>
   </div>
@@ -950,7 +951,13 @@ const MASTER='maurizky';
 const EJS_SVC='service_wangku';
 const EJS_TPL='template_2c90tho';
 const EJS_KEY='UJrtG5gzUPPDMtuxM';
-emailjs.init(EJS_KEY);
+// Init EmailJS setelah DOM ready
+document.addEventListener('DOMContentLoaded',()=>{
+  if(typeof emailjs!=='undefined'){
+    emailjs.init({publicKey:EJS_KEY});
+    console.log('EmailJS initialized');
+  }
+});
 const PLANS={basic:{label:'Basic',price:'Rp 79.000',ai:false},pro:{label:'Pro',price:'Rp 129.000',ai:true},unlimited:{label:'Unlimited',price:'Rp 139.000',ai:true}};
 const TOKEN_PACKS=[{id:'2M',tokens:2000000,price:'Rp 29.000/bln',label:'2 Juta Token'},{id:'5M',tokens:5000000,price:'Rp 39.000/bln',label:'5 Juta Token'}];
 const LIMITS={free:{ai:0,scan:0,label:'Starter'},pro:{ai:50,scan:20,label:'Pro'},unlimited:{ai:-1,scan:-1,label:'Unlimited'}};
@@ -968,7 +975,14 @@ async function loadPoolKey(){
 }
 function getKey(){return poolKey||localStorage.getItem('wangku_pool_key')||'';}
 function getPlan(){if(!user)return'basic';if(user.role==='admin'||user.username===MASTER)return'unlimited';return user.plan||'basic';}
-function canAI(){const p=getPlan();if(p==='basic')return false;if(p==='unlimited'&&user.username===MASTER)return true;return(user.tokens_limit||0)>(user.tokens_used||0);}
+function canAI(){
+  const p=getPlan();
+  if(p==='basic')return false;
+  if(user.username===MASTER)return true;
+  const limit=user.tokens_limit||0;
+  const used=user.tokens_used||0;
+  return limit>0&&limit>used;
+}
 function canScan(){return canAI();}
 function getMonth(){return new Date().toISOString().substring(0,7);}
 function getNextMonth(){const d=new Date();d.setMonth(d.getMonth()+1);return d.toISOString().substring(0,7);}
@@ -1140,7 +1154,25 @@ async function verifyRegOTP(){
 }
 
 async function sendEmailOTP(toEmail, nama, otp){
-  await emailjs.send(EJS_SVC, EJS_TPL, {email:toEmail, nama:nama, otp:otp});
+  try{
+    // Pastikan EmailJS terinit
+    if(typeof emailjs==='undefined') throw new Error('EmailJS belum dimuat');
+    emailjs.init({publicKey:EJS_KEY});
+    const result = await emailjs.send(EJS_SVC, EJS_TPL, {
+      email: toEmail,
+      to_email: toEmail,
+      nama: nama,
+      name: nama,
+      otp: String(otp),
+      otp_code: String(otp),
+      message: 'Kode OTP kamu: '+otp
+    });
+    console.log('EmailJS success:', result.status, result.text);
+    return result;
+  }catch(e){
+    console.error('EmailJS error:', e);
+    throw new Error('Gagal kirim email OTP. Coba lagi atau hubungi admin.');
+  }
 }
 
 async function sendForgotOTP(){
@@ -1380,21 +1412,22 @@ function renderLaporan(){if(!sumData)return;const pM=sumData.kategoriPemasukan||
 
 let ctx='';
 function updateCtx(data){if(!data)return;const s=data.summary;ctx=`Data keuangan ${user?.full_name||'user'}:\n- Saldo: ${rpF(s.saldo)}\n- Pemasukan: ${rpF(s.totalMasuk)}\n- Pengeluaran: ${rpF(s.totalKeluar)}\n- Tidak Penting: ${rpF(s.tidakPenting)}\n- Pengeluaran per kategori: ${JSON.stringify(data.kategoriPengeluaran)}\n- Pemasukan per kategori: ${JSON.stringify(data.kategoriPemasukan)}`;}
-const SYS=`Kamu adalah Wangku AI, asisten pintar dari aplikasi Wangku. Jawab Bahasa Indonesia, singkat dan ramah. Panggil user dengan nama depannya.
+const SYS=`Kamu adalah Wangku AI, asisten keuangan pribadi dari aplikasi Wangku. Jawab Bahasa Indonesia, singkat dan ramah. Panggil user dengan nama depannya.
 
-Kamu bisa menjawab pertanyaan umum apa saja, tapi utamakan topik keuangan pribadi.
+FOKUS: Kamu HANYA membantu topik yang berkaitan dengan keuangan — mencatat transaksi, analisa pengeluaran, tips hemat, budgeting, perencanaan keuangan, investasi, saran keuangan pernikahan/pendidikan/bisnis, dll.
+
+TOLAK dengan ramah jika pertanyaan TIDAK ada hubungannya sama sekali dengan keuangan (contoh: resep masakan, berita politik, hiburan, olahraga). Katakan: "Maaf [nama], saya hanya bisa bantu soal keuangan ya! 😊"
 
 ATURAN KLASIFIKASI TRANSAKSI (WAJIB DIIKUTI):
 - PENGELUARAN: makan, beli, jajan, bayar, transportasi, belanja, tagihan, buat arisan, bayar arisan, setoran arisan, iuran, ngeluarin, keluar uang
 - PEMASUKAN: gaji, dapat, terima, dapet, bonus, jualan, arisan masuk, dapat arisan, dapet arisan, transfer masuk
-
-CATATAN PENTING: "buat arisan", "setoran arisan", "bayar arisan" = PENGELUARAN. "dapat arisan", "dapet arisan" = PEMASUKAN.
+CATATAN: "buat arisan"/"setoran arisan"/"bayar arisan" = PENGELUARAN. "dapat arisan"/"dapet arisan" = PEMASUKAN.
 
 JIKA USER MINTA CATAT TRANSAKSI (ada angka + kata keuangan):
-Balas HANYA dengan JSON ini, tanpa teks lain:
+Balas HANYA dengan JSON ini:
 {"action":"catat","jenis":"pengeluaran_atau_pemasukan","nominal":angka_saja,"kategori":"makanan/transportasi/belanja/tagihan/hiburan/gaji/bonus/arisan/lainnya","keterangan":"deskripsi singkat","konfirmasi":"✅ [keterangan] Rp[nominal] berhasil dicatat!"}
 
-Untuk pertanyaan lainnya, jawab teks normal (maks 4 kalimat).`;
+Untuk pertanyaan keuangan biasa, jawab teks normal (maks 4 kalimat).`;
 
 function openChat(){document.getElementById('chat-sheet').classList.add('open');renderAINotice();document.getElementById('chat-input').focus();}
 function closeChat(){document.getElementById('chat-sheet').classList.remove('open');}
