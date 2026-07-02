@@ -930,7 +930,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const GAS='https://script.google.com/macros/s/AKfycbxO5RHZcHojCy-d65QiKDMnk4d-z_d_vCCqAETetTnr0kVqMoRXp6yrep8AuU3mmCtNuw/exec';
 const CS='6285727318698';
 const MASTER='maurizky';
-const EJS_SVC='service_wangku';
+const EJS_SVC='service_rrsorch';
 const EJS_TPL='template_2c90tho';
 const EJS_KEY='UJrtG5gzUPPDMtuxM';
 // Init EmailJS setelah DOM ready
@@ -1654,17 +1654,9 @@ function startStatusPoll(userId){
       const u=await sb(`users?id=eq.${userId}&select=status,plan`);
       if(u?.[0]?.status==='active'){
         clearInterval(statusPollInterval);
-        // Update user object dan langsung masuk app
-        const fullUser=await sb(`users?id=eq.${userId}&select=*`);
-        if(fullUser?.[0]){
-          user=fullUser[0];
-          localStorage.setItem('sdk_session',JSON.stringify(user));
-          document.getElementById('payment-wrap').style.display='none';
-          showToast('Akun aktif! Selamat datang di Wangku 🎉','ok');
-          const hasPIN=localStorage.getItem(PIN_KEY);
-          if(hasPIN){showPinScreen('verify');}
-          else{showPinScreen('set');}
-        }
+        document.getElementById('payment-wrap').style.display='none';
+        showToast('Akun kamu sudah aktif! Silakan login 🎉','ok');
+        showLoginPage();
       }
     }catch(e){console.log('Poll error:',e);}
   },5000); // cek tiap 5 detik
