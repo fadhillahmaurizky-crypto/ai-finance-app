@@ -1654,8 +1654,13 @@ function startStatusPoll(userId){
       const u=await sb(`users?id=eq.${userId}&select=status,plan`);
       if(u?.[0]?.status==='active'){
         clearInterval(statusPollInterval);
+        // Reset semua form
         document.getElementById('payment-wrap').style.display='none';
+        document.getElementById('reg-s1').style.display='block';
+        document.getElementById('reg-s2').style.display='none';
+        newUser=null;
         showToast('Akun kamu sudah aktif! Silakan login 🎉','ok');
+        switchTab('login');
         showLoginPage();
       }
     }catch(e){console.log('Poll error:',e);}
