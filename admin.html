@@ -479,9 +479,10 @@ tbody tr:hover{background:var(--bg3)}
       <div class="f-group" style="margin-bottom:12px">
         <label class="f-label">Plan</label>
         <select id="aktivasi-plan" style="width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:9px 13px;font-size:13px;color:var(--text);outline:none" onchange="updateTokenOptions()">
-          <option value="basic">Basic — Rp 79.000 (lifetime)</option>
-          <option value="pro">Pro — Rp 129.000 (lifetime)</option>
-          <option value="unlimited">Unlimited — Rp 139.000 (lifetime)</option>
+          <option value="free">Free — Rp 0/bulan</option>
+          <option value="basic">Basic — Rp 19.000/bulan</option>
+          <option value="pro">Pro — Rp 34.000/bulan</option>
+          <option value="unlimited">Ultimate — Rp 49.000/bulan</option>
         </select>
       </div>
 
@@ -731,7 +732,7 @@ function renderUsersTable(users) {
       <td style="font-size:12px;color:var(--text3)">${u.email||'—'}</td>
       <td class="amount-cell ${(gas.saldo||0)>=0?'pos':'neg'}">${rp(gas.saldo||0)}</td>
       <td><span class="badge-pill blue">${gas.totalTrx||0} trx</span></td>
-      <td><span class="badge-pill ${u.plan==='unlimited'?'green':u.plan==='pro'?'blue':'amber'}">${u.plan||'basic'}</span></td>
+      <td><span class="badge-pill ${u.plan==='unlimited'?'green':u.plan==='pro'?'blue':'amber'}">${({free:'free',basic:'basic',pro:'pro',unlimited:'ultimate'})[u.plan||'free']||u.plan}</span></td>
       <td>
         <select class="status-select" onchange="updateStatus('${u.id}',this.value)">
           <option value="active" ${u.status==='active'?'selected':''}>✅ Aktif</option>
@@ -815,16 +816,17 @@ function showDetailUser(userId) {
     <div class="detail-section">
       <div class="detail-section-title">💳 Plan & Token AI</div>
       <div class="detail-grid">
-        <div class="detail-item"><div class="detail-label">Plan Sekarang</div><div class="detail-value" style="text-transform:capitalize;font-weight:700;color:var(--green)">${u.plan||'basic'}</div></div>
+        <div class="detail-item"><div class="detail-label">Plan Sekarang</div><div class="detail-value" style="text-transform:capitalize;font-weight:700;color:var(--green)">${({free:'Free',basic:'Basic',pro:'Pro',unlimited:'Ultimate'})[u.plan||'free']||u.plan}</div></div>
         <div class="detail-item"><div class="detail-label">Token Dipakai</div><div class="detail-value">${((u.tokens_used||0)/1000).toFixed(0)}K / ${((u.tokens_limit||0)/1000).toFixed(0)}K</div></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
         <div>
           <div class="detail-label" style="margin-bottom:6px">Ubah Plan</div>
           <select id="modal-plan-select" style="width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:9px 13px;font-size:13px;color:var(--text);outline:none">
-            <option value="basic" ${(u.plan||'basic')==='basic'?'selected':''}>Basic — Rp 79.000 (tanpa AI)</option>
-            <option value="pro" ${u.plan==='pro'?'selected':''}>Pro — Rp 129.000</option>
-            <option value="unlimited" ${u.plan==='unlimited'?'selected':''}>Unlimited — Rp 139.000</option>
+            <option value="free" ${(u.plan||'free')==='free'?'selected':''}>Free — Rp 0/bulan (tanpa AI)</option>
+            <option value="basic" ${u.plan==='basic'?'selected':''}>Basic — Rp 19.000/bulan (tanpa AI)</option>
+            <option value="pro" ${u.plan==='pro'?'selected':''}>Pro — Rp 34.000/bulan</option>
+            <option value="unlimited" ${u.plan==='unlimited'?'selected':''}>Ultimate — Rp 49.000/bulan</option>
           </select>
         </div>
         <div>
@@ -962,7 +964,7 @@ async function loadPendingUsers() {
         <td style="font-size:12px">${u.wa_number||'—'}</td>
         <td style="font-size:12px;color:var(--text3)">${u.email||'—'}</td>
         <td style="font-size:11px;color:var(--text3)">${tgl}</td>
-        <td><button class="f-btn green" style="padding:6px 14px;font-size:12px;width:auto" onclick="openAktivasiModal('${u.id}','${u.full_name||u.username}','${u.plan||'basic'}')"><i class="ti ti-check"></i> Aktifkan</button></td>
+        <td><button class="f-btn green" style="padding:6px 14px;font-size:12px;width:auto" onclick="openAktivasiModal('${u.id}','${u.full_name||u.username}','${u.plan||'free'}')"><i class="ti ti-check"></i> Aktifkan</button></td>
       </tr>`;
     }).join('');
   } catch(e){document.getElementById('pending-table').innerHTML=`<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--red)">Gagal: ${e.message}</td></tr>`;}
