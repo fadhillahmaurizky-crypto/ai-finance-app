@@ -45,9 +45,94 @@ html,body{height:100%;overflow:hidden;font-family:var(--font);background:var(--b
 button{font-family:var(--font);cursor:pointer}
 input,select{font-family:var(--font)}
 .app{width:100%;max-width:430px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
-@media(max-width:480px){
-  .app,.login-wrap,.ob-wrap{max-width:100%!important;left:0!important;transform:none!important;width:100%!important}
-  #splash-screen,#pin-screen,#payment-wrap{max-width:100%!important;left:0!important;transform:none!important;width:100%!important}
+
+/* ── DESKTOP LAYOUT ── */
+@media(min-width:768px){
+  body{background:var(--bg)}
+  .app-wrapper{display:flex;height:100dvh;max-width:1280px;margin:0 auto;overflow:hidden}
+  .app{max-width:none;width:100%;border-radius:0;margin:0;flex:1;min-width:0}
+
+  /* Desktop sidebar */
+  .desk-sidebar{width:240px;min-width:240px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:24px 0;height:100dvh;overflow-y:auto;flex-shrink:0}
+  .desk-logo{display:flex;align-items:center;gap:10px;padding:0 20px 24px;border-bottom:1px solid var(--border);margin-bottom:16px}
+  .desk-logo img{width:36px;height:36px;object-fit:contain;border-radius:10px}
+  .desk-logo span{font-size:18px;font-weight:800;color:var(--text);letter-spacing:-.3px}
+  .desk-nav-section{padding:0 12px;margin-bottom:8px}
+  .desk-nav-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:0 8px;margin-bottom:6px}
+  .desk-nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:all .2s;color:var(--text2);font-size:13px;font-weight:600;margin-bottom:2px;text-decoration:none}
+  .desk-nav-item:hover{background:var(--bg3);color:var(--text)}
+  .desk-nav-item.active{background:var(--green-bg);color:var(--green)}
+  .desk-nav-item i{font-size:18px;width:20px;text-align:center;flex-shrink:0}
+  .desk-user{margin-top:auto;padding:16px 20px 0;border-top:1px solid var(--border)}
+  .desk-user-info{display:flex;align-items:center;gap:10px}
+  .desk-avatar{width:36px;height:36px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;flex-shrink:0}
+  .desk-user-name{font-size:13px;font-weight:700;color:var(--text)}
+  .desk-user-plan{font-size:10px;color:var(--text3);font-weight:500;text-transform:capitalize}
+
+  /* Hide mobile bottom nav on desktop */
+  .bottom-nav{display:none}
+
+  /* Main content area */
+  .pages{flex:1}
+  .page{padding-bottom:24px}
+  .sp{padding:0 28px}
+  .sec-title{margin:20px 0 12px}
+
+  /* Header adjustments for desktop */
+  .header{padding:20px 28px 20px}
+  .header-top{margin-bottom:20px}
+  .username{font-size:22px}
+
+  /* Balance card wider */
+  .bal-card{padding:24px 28px}
+  .bal-amount{font-size:34px}
+
+  /* Grid layouts for desktop */
+  .desktop-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 28px}
+  .desktop-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:0 28px}
+  .qa-row{grid-template-columns:repeat(4,1fr);gap:12px}
+  .stat-row{gap:12px}
+
+  /* Form wider */
+  .form-card{margin:0 28px 14px}
+  .struk-wrap{margin:0 28px 14px}
+  .plan-card{margin:0 28px 16px}
+  .set-card{margin:0 28px}
+  .set-sec-title{padding:0 28px}
+
+  /* Login page centered on desktop */
+  .login-wrap{border-radius:16px;top:50%;left:50%;bottom:auto;transform:translate(-50%,-50%);height:auto;max-height:90dvh;max-width:480px;box-shadow:var(--shadow-lg)}
+  .login-hero{border-radius:16px 16px 0 0;padding:40px 32px 32px}
+
+  /* Modals centered on desktop */
+  .modal-overlay{align-items:center}
+  .modal-sheet{border-radius:20px;max-height:80dvh;max-width:480px;padding:28px 28px 40px}
+  .modal-drag{display:none}
+
+  /* Chat panel desktop */
+  .chat-panel{max-width:480px;height:85dvh;border-radius:20px;bottom:auto;top:50%;transform:translateX(-50%) translateY(-50%)}
+  .chat-sheet.open .chat-panel{transform:translateX(-50%) translateY(-50%)}
+
+  /* Payment wrap desktop */
+  #payment-wrap{max-width:480px;border-radius:16px;top:50%;left:50%;bottom:auto;transform:translate(-50%,-50%)!important;height:auto;max-height:90dvh;box-shadow:var(--shadow-lg)}
+
+  /* Pin & splash desktop */
+  #splash-screen,#pin-screen{max-width:480px;border-radius:16px;top:50%;left:50%;transform:translate(-50%,-50%)!important;min-height:auto;padding:48px 40px;height:auto;bottom:auto}
+}
+
+@media(min-width:1024px){
+  .app-wrapper{max-width:1440px}
+  .desk-sidebar{width:260px;min-width:260px}
+  .desktop-two-col{display:grid;grid-template-columns:1fr 380px;gap:0;flex:1;overflow:hidden}
+  .col-main{overflow-y:auto;padding-bottom:24px}
+  .col-side{border-left:1px solid var(--border);overflow-y:auto;background:var(--bg2);padding:24px}
+  .col-side-title{font-size:15px;font-weight:800;color:var(--text);margin-bottom:16px;letter-spacing:-.3px}
+}
+
+@media(max-width:767px){
+  .desk-sidebar{display:none}
+  .app-wrapper{display:block;height:100dvh}
+  .app{max-width:100%;border-radius:0}
 }
 .ob-wrap{position:fixed;inset:0;z-index:1000;background:var(--bg2);display:none;flex-direction:column;width:100%;max-width:430px;left:50%;transform:translateX(-50%)}
 .ob-slide{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;text-align:center}
@@ -466,6 +551,36 @@ input,select{font-family:var(--font)}
     </div>
   </div>
 </div>
+
+<!-- APP WRAPPER FOR DESKTOP -->
+<div class="app-wrapper" id="app-wrapper">
+
+<!-- DESKTOP SIDEBAR -->
+<aside class="desk-sidebar" id="desk-sidebar" style="display:none">
+  <div class="desk-logo">
+    <img src="logo.png" alt="Wangku"/>
+    <span>Wangku</span>
+  </div>
+  <div class="desk-nav-section">
+    <div class="desk-nav-label">Menu Utama</div>
+    <a class="desk-nav-item active" id="dnav-home" onclick="goPage('home')"><i class="ti ti-home-2"></i> Beranda</a>
+    <a class="desk-nav-item" id="dnav-transaksi" onclick="goPage('transaksi')"><i class="ti ti-list"></i> Transaksi</a>
+    <a class="desk-nav-item" id="dnav-form" onclick="goPage('form')"><i class="ti ti-circle-plus"></i> Catat</a>
+    <a class="desk-nav-item" id="dnav-ai" onclick="openChatSheet()"><i class="ti ti-robot"></i> Wangku AI</a>
+    <div class="desk-nav-label" style="margin-top:16px">Lainnya</div>
+    <a class="desk-nav-item" id="dnav-setting" onclick="goPage('setting')"><i class="ti ti-settings"></i> Pengaturan</a>
+    <a class="desk-nav-item" onclick="logout()" style="color:var(--red)"><i class="ti ti-logout"></i> Keluar</a>
+  </div>
+  <div class="desk-user">
+    <div class="desk-user-info">
+      <div class="desk-avatar" id="desk-avatar">W</div>
+      <div>
+        <div class="desk-user-name" id="desk-user-name">—</div>
+        <div class="desk-user-plan" id="desk-user-plan">—</div>
+      </div>
+    </div>
+  </div>
+</aside>
 
 <!-- MAIN APP -->
 <div class="app" id="main-app" style="display:none">
@@ -934,6 +1049,8 @@ input,select{font-family:var(--font)}
   </div>
 </div>
 
+</div><!-- end app-wrapper -->
+
 <script>
 const SB_URL='https://mchuhgihywnyamurbetz.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jaHVoZ2loeXdueWFtdXJiZXR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNTIyNDIsImV4cCI6MjA5NzcyODI0Mn0.z1ildAJY--ErFoom2d7GIF1TCr3fmaBkCWtwGz4QstI';
@@ -1219,6 +1336,30 @@ async function checkSession(){
 
 function showLoginPage(){document.getElementById('login-wrap').style.display='flex';document.getElementById('main-app').style.display='none';try{PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(av=>{const btn=document.getElementById('bio-btn');if(av&&localStorage.getItem('sdk_bio_cred'))btn.style.display='flex';});}catch(e){}}
 
+// ========================
+// DESKTOP SIDEBAR
+// ========================
+function initDesktop(){
+  const isDesktop=window.innerWidth>=768;
+  const sidebar=document.getElementById('desk-sidebar');
+  if(sidebar)sidebar.style.display=isDesktop?'flex':'none';
+}
+function updateDeskSidebar(){
+  if(!user)return;
+  const el=document.getElementById('desk-user-name');
+  const pl=document.getElementById('desk-user-plan');
+  const av=document.getElementById('desk-avatar');
+  if(el)el.textContent=user.full_name||user.username;
+  if(pl)pl.textContent=(user.plan||'basic').charAt(0).toUpperCase()+(user.plan||'basic').slice(1)+' · '+( user.role==='admin'?'Admin':'User');
+  if(av)av.textContent=(user.full_name||user.username||'W').charAt(0).toUpperCase();
+}
+function updateDeskNav(page){
+  document.querySelectorAll('.desk-nav-item').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('dnav-'+page);
+  if(el)el.classList.add('active');
+}
+window.addEventListener('resize',initDesktop);
+
 function showApp(){
   document.getElementById('login-wrap').style.display='none';document.getElementById('main-app').style.display='flex';
   if(user){
@@ -1239,6 +1380,7 @@ function showApp(){
     try{PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(av=>{const row=document.getElementById('bio-row');if(row)row.style.display=av?'flex':'none';if(av&&localStorage.getItem('sdk_bio_cred')){const bs=document.getElementById('bio-status');if(bs)bs.textContent='Fingerprint aktif ✓';}});}catch(e){}
   }
   loadPoolKey();loadSummary();loadTrx('semua','txn-home',4);loadKategori();
+  initDesktop();updateDeskSidebar();
 }
 
 function logout(){localStorage.removeItem('sdk_session');user=null;showLoginPage();}
@@ -1267,7 +1409,8 @@ function renderPlanCard(){
 }
 
 const PAGES=['home','catat','transaksi','target','laporan','settings'];
-function goPage(n){PAGES.forEach(p=>{document.getElementById('page-'+p)?.classList.remove('active');document.getElementById('ni-'+p)?.classList.remove('active');document.getElementById('nl-'+p)?.classList.remove('active');document.getElementById('nd-'+p)?.classList.remove('show');});document.getElementById('page-'+n)?.classList.add('active');document.getElementById('ni-'+n)?.classList.add('active');document.getElementById('nl-'+n)?.classList.add('active');document.getElementById('nd-'+n)?.classList.add('show');if(n==='transaksi')loadTrx('semua','txn-all',100);if(n==='laporan')renderLaporan();if(n==='target')renderTargets();}
+function goPage(n){
+  updateDeskNav(n);PAGES.forEach(p=>{document.getElementById('page-'+p)?.classList.remove('active');document.getElementById('ni-'+p)?.classList.remove('active');document.getElementById('nl-'+p)?.classList.remove('active');document.getElementById('nd-'+p)?.classList.remove('show');});document.getElementById('page-'+n)?.classList.add('active');document.getElementById('ni-'+n)?.classList.add('active');document.getElementById('nl-'+n)?.classList.add('active');document.getElementById('nd-'+n)?.classList.add('show');if(n==='transaksi')loadTrx('semua','txn-all',100);if(n==='laporan')renderLaporan();if(n==='target')renderTargets();}
 
 function rp(n){if(!n&&n!==0)return'—';const a=Math.abs(n);const s=a>=1e9?(a/1e9).toFixed(1)+'M':a>=1e6?(a/1e6).toFixed(1)+'jt':a>=1e3?(a/1e3).toFixed(0)+'rb':a.toString();return(n<0?'-':'')+'Rp '+s;}
 function rpF(n){return'Rp '+Number(n||0).toLocaleString('id-ID');}
