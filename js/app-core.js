@@ -35,6 +35,7 @@ function showApp(){
     document.getElementById('uname').textContent=user.full_name||user.username;
     document.getElementById('set-nama').textContent=user.full_name;
     document.getElementById('set-sub').textContent='@'+user.username+(user.email?' · '+user.email:'');
+    renderSetAvatar();
     const isMaster=user.role==='admin'||user.username===MASTER;
     document.getElementById('master-section').style.display=isMaster?'block':'none';
     document.getElementById('nav-admin').style.display=isMaster?'flex':'none';
@@ -46,9 +47,22 @@ function showApp(){
     }
     aiChat=user.ai_chat_count||0;aiScan=user.ai_scan_count||0;
     renderPlanCard();
+    if(typeof renderSettingsExtras==='function')renderSettingsExtras();
     try{PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(av=>{const row=document.getElementById('bio-row');if(row)row.style.display=av?'flex':'none';if(av&&localStorage.getItem('sdk_bio_cred')){const bs=document.getElementById('bio-status');if(bs)bs.textContent='Fingerprint aktif ✓';}});}catch(e){}
   }
-  loadPoolKey();loadSummary();loadTrx('semua','txn-home',4);loadKategori();
+  loadPoolKey();loadSummary();loadTrx('semua','txn-home',4);
+  (async()=>{
+    if(typeof ensureDefaultAccount==='function')await ensureDefaultAccount();
+    if(typeof loadAccounts==='function')await loadAccounts();
+    if(typeof seedDefaultCategories==='function')await seedDefaultCategories();
+    loadKategori();
+    if(typeof seedDefaultPriorities==='function')await seedDefaultPriorities();
+    if(typeof loadPrioritas==='function')loadPrioritas();
+  })();
+  if(typeof initNotifSettings==='function')initNotifSettings();
+  if(typeof initAutosync==='function')initAutosync();
+  if(typeof initAutoDetect==='function')initAutoDetect();
+  if(typeof refreshBadge==='function')refreshBadge();
 }
 
 function logout(){localStorage.removeItem('sdk_session');user=null;showLoginPage();}
@@ -79,5 +93,5 @@ function renderPlanCard(){
 }
 
 const PAGES=['home','catat','transaksi','target','laporan','settings'];
-function goPage(n){PAGES.forEach(p=>{document.getElementById('page-'+p)?.classList.remove('active');document.getElementById('ni-'+p)?.classList.remove('active');document.getElementById('nl-'+p)?.classList.remove('active');document.getElementById('nd-'+p)?.classList.remove('show');});document.getElementById('page-'+n)?.classList.add('active');document.getElementById('ni-'+n)?.classList.add('active');document.getElementById('nl-'+n)?.classList.add('active');document.getElementById('nd-'+n)?.classList.add('show');if(n==='transaksi')loadTrx('semua','txn-all',100);if(n==='laporan')renderLaporan();if(n==='target')renderTargets();}
+function goPage(n){PAGES.forEach(p=>{document.getElementById('page-'+p)?.classList.remove('active');document.getElementById('ni-'+p)?.classList.remove('active');document.getElementById('nl-'+p)?.classList.remove('active');document.getElementById('nd-'+p)?.classList.remove('show');});document.getElementById('page-'+n)?.classList.add('active');document.getElementById('ni-'+n)?.classList.add('active');document.getElementById('nl-'+n)?.classList.add('active');document.getElementById('nd-'+n)?.classList.add('show');document.querySelector('.header')?.classList.toggle('compact',n!=='home');if(n==='transaksi')loadTrx('semua','txn-all',100);if(n==='laporan')renderLaporan();if(n==='target')renderTargets();if(n==='settings')renderSettingsExtras();if(n==='catat'){if(typeof renderAccountSelects==='function')renderAccountSelects();if(typeof renderKategoriSelect==='function')renderKategoriSelect();if(typeof renderPrioritasSelect==='function')renderPrioritasSelect();}}
 
