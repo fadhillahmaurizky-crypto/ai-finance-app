@@ -28,20 +28,20 @@
     <!-- Value from default config. -->
     <string name="fallbackType" translatable="false">customtabs</string>
     <!-- Value from default config. -->
-    <string name="fullScopeUrl" translatable="false">https://ai-finance-app-gamma.vercel.app/</string>
+    <string name="fullScopeUrl" translatable="false">https://ai-finance-app-murex.vercel.app/</string>
     <!-- Value from default config. -->
     <string name="generatorApp" translatable="false">bubblewrap-cli</string>
     <!-- Value from default config. -->
-    <string name="hostName" translatable="false">ai-finance-app-gamma.vercel.app</string>
+    <string name="hostName" translatable="false">ai-finance-app-murex.vercel.app</string>
     <!-- Value from default config. -->
-    <string name="launchUrl" translatable="false">https://ai-finance-app-gamma.vercel.app/index.html</string>
+    <string name="launchUrl" translatable="false">https://ai-finance-app-murex.vercel.app/index.html</string>
     <!-- Value from default config. -->
     <string name="launcherName" translatable="false">Wangku</string>
     <!-- Value from default config. -->
     <string name="orientation" translatable="false">portrait</string>
     <!-- Value from default config. -->
-    <string name="providerAuthority" translatable="false">app.vercel.ai_finance_app_gamma.twa.fileprovider</string>
+    <string name="providerAuthority" translatable="false">app.vercel.ai_finance_app_murex.twa.fileprovider</string>
     <!-- Value from default config. -->
-    <string name="webManifestUrl" translatable="false">https://ai-finance-app-gamma.vercel.app/manifest.json</string>
+    <string name="webManifestUrl" translatable="false">https://ai-finance-app-murex.vercel.app/manifest.json</string>
 
 </resources>
