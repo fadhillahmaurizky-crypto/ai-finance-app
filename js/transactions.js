@@ -1,18 +1,17 @@
-async function loadTrx(filter='semua',cid='txn-home',limit=4){
+async function loadTrx(filter='semua',cid='txn-home',limit=5){
   const el=document.getElementById(cid);if(!el)return;
   el.innerHTML='<div class="skeleton" style="height:60px;margin-bottom:6px"></div><div class="skeleton" style="height:60px;margin-bottom:6px"></div><div class="skeleton" style="height:60px"></div>';
   try{
     let q=`transactions?user_id=eq.${user.id}&order=tanggal.desc,created_at.desc&limit=${limit||100}`;
-    if(filter==='pemasukan')q+=`&jenis=eq.pemasukan`;
-    else if(filter==='pengeluaran')q+=`&jenis=eq.pengeluaran`;
+    if(filter==='pemasukan'||filter==='pengeluaran'||filter==='transfer')q+=`&jenis=eq.${filter}`;
     const data=await sb(q);
     renderTxn(data,cid);
   }catch(e){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Gagal memuat</div>';}
 }
 
-const IM={makanan:'tools-kitchen-2',transportasi:'motorbike',hiburan:'device-gamepad-2',tagihan:'receipt',belanja:'shopping-bag',gaji:'wallet',bonus:'gift',arisan:'users',jualan:'shopping-cart',saldo_awal:'piggy-bank'};
-const BG={makanan:'#FFF0F0',transportasi:'#EBF3FF',hiburan:'#F3EEFF',tagihan:'#FEF3C7',belanja:'#FFF0FF',gaji:'var(--green-bg)',bonus:'var(--green-bg)',arisan:'var(--green-bg)',jualan:'var(--green-bg)',saldo_awal:'var(--green-bg)'};
-const CL={makanan:'#EF4444',transportasi:'#2B7EF8',hiburan:'#8B5CF6',tagihan:'#F59E0B',belanja:'#EC4899',gaji:'var(--green)',bonus:'var(--green)',arisan:'var(--green)',jualan:'var(--green)',saldo_awal:'var(--green)'};
+const IM={makan:'tools-kitchen-2',makanan:'tools-kitchen-2',belanja:'shopping-bag',elektronik:'device-laptop',pulsa:'device-mobile',paket_data:'wifi',transportasi:'motorbike',hiburan:'device-gamepad-2',tagihan:'receipt',gaji:'wallet',bonus:'gift',arisan:'users',jualan:'shopping-cart',saldo_awal:'piggy-bank',lainnya:'coin'};
+const BG={makan:'#FFF0F0',makanan:'#FFF0F0',belanja:'#FFF0FF',elektronik:'#EBF3FF',pulsa:'#F3EEFF',paket_data:'#EBF9FF',transportasi:'#EBF3FF',hiburan:'#F3EEFF',tagihan:'#FEF3C7',gaji:'var(--green-bg)',bonus:'var(--green-bg)',arisan:'var(--green-bg)',jualan:'var(--green-bg)',saldo_awal:'var(--green-bg)'};
+const CL={makan:'#EF4444',makanan:'#EF4444',belanja:'#EC4899',elektronik:'#2B7EF8',pulsa:'#8B5CF6',paket_data:'#06B6D4',transportasi:'#2B7EF8',hiburan:'#8B5CF6',tagihan:'#F59E0B',gaji:'var(--green)',bonus:'var(--green)',arisan:'var(--green)',jualan:'var(--green)',saldo_awal:'var(--green)'};
 
 let txnCache={};
 function renderTxn(txns,cid){
@@ -30,8 +29,28 @@ function renderTxn(txns,cid){
   }).join('');
 }
 
-function filterHome(btn,f){document.querySelectorAll('#home-tabs .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');loadTrx(f,'txn-home',4);}
-function filterAll(btn,f){btn.closest('.tab-strip').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');loadTrx(f,'txn-all',100);}
+function filterHome(btn,f){document.querySelectorAll('#home-tabs .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');loadTrx(f,'txn-home',5);}
+
+let txAllFilter={jenis:'semua',range:'7d'};
+function setTxFilterJenis(btn,f){document.querySelectorAll('#txn-jenis-filter .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');txAllFilter.jenis=f;applyTransaksiFilter();}
+function setTxFilterRange(btn,r){document.querySelectorAll('#txn-range-filter .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');txAllFilter.range=r;applyTransaksiFilter();}
+function renderTransaksiFilters(){
+  document.querySelectorAll('#txn-jenis-filter .tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.f===txAllFilter.jenis));
+  document.querySelectorAll('#txn-range-filter .tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.r===txAllFilter.range));
+}
+async function applyTransaksiFilter(){
+  const el=document.getElementById('txn-all');if(!el)return;
+  el.innerHTML='<div class="skeleton" style="height:60px;margin-bottom:6px"></div><div class="skeleton" style="height:60px;margin-bottom:6px"></div><div class="skeleton" style="height:60px"></div>';
+  try{
+    let q=`transactions?user_id=eq.${user.id}&order=tanggal.desc,created_at.desc&limit=300`;
+    if(txAllFilter.jenis!=='semua')q+=`&jenis=eq.${txAllFilter.jenis}`;
+    if(txAllFilter.range==='7d'){const d=new Date();d.setDate(d.getDate()-6);q+=`&tanggal=gte.${d.toISOString().substring(0,10)}`;}
+    else if(txAllFilter.range==='30d'){const d=new Date();d.setDate(d.getDate()-29);q+=`&tanggal=gte.${d.toISOString().substring(0,10)}`;}
+    else if(txAllFilter.range==='bulan'){const month=getMonth(),nextMonth=getNextMonth();q+=`&tanggal=gte.${month}-01&tanggal=lt.${nextMonth}-01`;}
+    const data=await sb(q);
+    renderTxn(data,'txn-all');
+  }catch(e){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Gagal memuat</div>';}
+}
 
 async function loadTargets(){try{const data=await sb(`targets?user_id=eq.${user.id}&order=created_at.asc`);targets=data||[];}catch(e){targets=[];}}
 async function renderTargets(){
@@ -71,6 +90,8 @@ function setJenis(j){
   const isTransfer=j==='transfer';
   const katPri=document.getElementById('kat-pri-wrap');if(katPri)katPri.style.display=isTransfer?'none':'block';
   const trWrap=document.getElementById('transfer-wrap');if(trWrap)trWrap.style.display=isTransfer?'block':'none';
+  if(!isTransfer&&typeof renderKategoriSelect==='function')renderKategoriSelect();
+  const akunLbl=document.getElementById('akun-label');if(akunLbl)akunLbl.textContent=isTransfer?'Dari Akun':'Akun';
 }
 function resetTrxForm(){
   ['f-nominal','f-ket'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -88,7 +109,7 @@ async function submitTrx(){
   if(!nom||nom<=0){showToast('Masukkan nominal!','err');return;}
   const payload={user_id:user.id,jenis,nominal:parseFloat(nom),tanggal:new Date().toISOString().substring(0,10)};
   if(jenis==='transfer'){
-    const dari=document.getElementById('f-akun-dari')?.value;
+    const dari=document.getElementById('f-akun')?.value;
     const tujuan=document.getElementById('f-akun-tujuan')?.value;
     if(!dari||!tujuan){showToast('Pilih akun asal dan tujuan!','err');return;}
     if(dari===tujuan){showToast('Akun asal dan tujuan harus berbeda!','err');return;}
@@ -114,8 +135,8 @@ async function submitTrx(){
     resetTrxForm();
     if(typeof markTransactedToday==='function')markTransactedToday();
     if(typeof runAutosync==='function')await runAutosync();
-    else{await loadSummary();await loadTrx('semua','txn-home',4);}
-    if(document.getElementById('page-transaksi')?.classList.contains('active'))await loadTrx('semua','txn-all',100);
+    else{await loadSummary();await loadTrx('semua','txn-home',5);}
+    if(document.getElementById('page-transaksi')?.classList.contains('active'))await applyTransaksiFilter();
     goPage(wasEdit?'transaksi':'home');
   }
   catch(e){showToast('Gagal: '+e.message,'err');}
@@ -133,7 +154,7 @@ async function editTrx(id){
     document.getElementById('f-nominal').value=t.nominal;
     document.getElementById('f-ket').value=t.keterangan||'';
     if(t.jenis==='transfer'){
-      if(document.getElementById('f-akun-dari'))document.getElementById('f-akun-dari').value=t.account_id||'';
+      if(document.getElementById('f-akun'))document.getElementById('f-akun').value=t.account_id||'';
       if(document.getElementById('f-akun-tujuan'))document.getElementById('f-akun-tujuan').value=t.to_account_id||'';
     }else{
       if(document.getElementById('f-akun'))document.getElementById('f-akun').value=t.account_id||(typeof getDefaultAccountId==='function'?getDefaultAccountId():'');
@@ -151,7 +172,7 @@ async function deleteTrx(id){
     document.getElementById('trx-detail-modal').classList.remove('open');
     showToast('Transaksi dihapus','ok');
     if(typeof runAutosync==='function')await runAutosync();
-    if(document.getElementById('page-transaksi')?.classList.contains('active'))await loadTrx('semua','txn-all',100);
+    if(document.getElementById('page-transaksi')?.classList.contains('active'))await applyTransaksiFilter();
   }catch(e){showToast('Gagal hapus','err');}
 }
 function openTrxDetailById(id){
@@ -178,7 +199,7 @@ async function scanStruk(input){
   document.getElementById('struk-loading').style.display='block';document.getElementById('struk-result').style.display='none';
   try{
     const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=()=>rej(new Error('Gagal'));r.readAsDataURL(file);});
-    const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getKey()},body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:400,messages:[{role:'user',content:[{type:'image_url',image_url:{url:`data:${file.type||'image/jpeg'};base64,${b64}`}},{type:'text',text:'Baca struk ini. Kembalikan JSON saja tanpa penjelasan: {"toko":"nama toko","total":angka,"kategori":"makanan/belanja/transportasi/tagihan/hiburan/lainnya","prioritas":"penting/tidak penting","keterangan":"deskripsi max 30 karakter"}. Jika bukan struk: {"error":"Bukan struk"}'}]}]})});
+    const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getKey()},body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:400,messages:[{role:'user',content:[{type:'image_url',image_url:{url:`data:${file.type||'image/jpeg'};base64,${b64}`}},{type:'text',text:'Baca struk ini. Kembalikan JSON saja tanpa penjelasan: {"toko":"nama toko","total":angka,"kategori":"makan/belanja/elektronik/pulsa/paket_data","prioritas":"penting/tidak_penting","keterangan":"deskripsi max 30 karakter"}. Jika bukan struk: {"error":"Bukan struk"}'}]}]})});
     const d=await resp.json();const m=(d.choices?.[0]?.message?.content||'').match(/\{[\s\S]*\}/);if(!m)throw new Error('Format tidak valid');
     const h=JSON.parse(m[0]);if(h.error)throw new Error(h.error);
     setJenis('pengeluaran');document.getElementById('f-nominal').value=h.total||'';document.getElementById('f-ket').value=h.keterangan||h.toko||'';

@@ -234,17 +234,27 @@
           <div class="stat-card"><div class="stat-top"><i class="ti ti-trending-down" style="font-size:15px;color:var(--red)"></i><span class="stat-lbl">Pengeluaran</span></div><div class="stat-val" id="stat-keluar" style="color:var(--red)">—</div><div class="stat-badge" style="background:var(--red-bg);color:var(--red)" id="stat-keluar-b">—</div></div>
         </div>
         <div class="sec-title">Kategori Pengeluaran</div>
-        <div class="chart-card" style="margin-bottom:4px">
+        <div class="chart-card" style="margin-bottom:12px">
           <div class="donut-row">
             <svg id="pie-svg" width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="30" fill="none" stroke="var(--bg3)" stroke-width="14"/></svg>
             <div class="leg-wrap" id="pie-legend"><div style="font-size:11px;color:var(--text3)">Memuat...</div></div>
           </div>
+          <div id="pie-empty" style="display:none;text-align:center;padding:8px 0;font-size:12px;color:var(--text3)">Belum ada pengeluaran bulan ini</div>
+        </div>
+        <div class="sec-title">Kategori Pemasukan</div>
+        <div class="chart-card" style="margin-bottom:4px">
+          <div class="donut-row">
+            <svg id="pie-svg-in" width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="30" fill="none" stroke="var(--bg3)" stroke-width="14"/></svg>
+            <div class="leg-wrap" id="pie-legend-in"><div style="font-size:11px;color:var(--text3)">Memuat...</div></div>
+          </div>
+          <div id="pie-empty-in" style="display:none;text-align:center;padding:8px 0;font-size:12px;color:var(--text3)">Belum ada pemasukan bulan ini</div>
         </div>
         <div class="sec-title">Transaksi Terakhir <span class="see-all" onclick="goPage('transaksi')">Lihat semua</span></div>
         <div class="tab-strip" id="home-tabs">
           <button class="tab-btn active" onclick="filterHome(this,'semua')">Semua</button>
           <button class="tab-btn" onclick="filterHome(this,'pemasukan')">Pemasukan</button>
           <button class="tab-btn" onclick="filterHome(this,'pengeluaran')">Pengeluaran</button>
+          <button class="tab-btn" onclick="filterHome(this,'transfer')">Transfer</button>
         </div>
         <div class="txn-list" id="txn-home"><div class="skeleton" style="height:60px"></div><div class="skeleton" style="height:60px;margin-top:6px"></div><div class="skeleton" style="height:60px;margin-top:6px"></div></div>
       </div>
@@ -284,14 +294,13 @@
           <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px"><i class="ti ti-edit" style="color:var(--green)"></i> <span id="form-title">Transaksi Baru</span></div>
           <div class="f-group"><label class="f-label">Jenis</label><div class="jenis-row"><button class="jenis-btn in" id="btn-in" onclick="setJenis('pemasukan')">✅ Pemasukan</button><button class="jenis-btn" id="btn-out" onclick="setJenis('pengeluaran')">💸 Pengeluaran</button><button class="jenis-btn" id="btn-transfer" onclick="setJenis('transfer')">🔁 Transfer</button></div></div>
           <div class="f-group"><label class="f-label">Nominal (Rp)</label><input class="f-input" id="f-nominal" type="number" placeholder="Contoh: 50000" min="0"/></div>
-          <div class="f-group" id="akun-wrap"><label class="f-label">Akun</label>
+          <div class="f-group" id="akun-wrap"><label class="f-label" id="akun-label">Akun</label>
             <div style="display:flex;gap:8px;align-items:center">
               <select class="f-select" id="f-akun" style="flex:1"></select>
               <button type="button" onclick="openAccountAdd()" style="padding:10px 12px;border-radius:11px;background:var(--green-bg);border:1.5px solid var(--green);color:var(--green);font-size:13px;cursor:pointer;flex-shrink:0;white-space:nowrap"><i class="ti ti-plus"></i></button>
             </div>
           </div>
           <div id="transfer-wrap" style="display:none">
-            <div class="f-group"><label class="f-label">Dari Akun</label><select class="f-select" id="f-akun-dari"></select></div>
             <div class="f-group"><label class="f-label">Ke Akun</label><select class="f-select" id="f-akun-tujuan"></select></div>
           </div>
           <div id="kat-pri-wrap">
@@ -318,8 +327,19 @@
     <div class="page" id="page-transaksi">
       <div class="sp" style="padding-top:14px">
         <div class="sec-title">Semua Transaksi</div>
-        <div class="tab-strip"><button class="tab-btn active" onclick="filterAll(this,'semua')">Semua</button><button class="tab-btn" onclick="filterAll(this,'pemasukan')">Pemasukan</button><button class="tab-btn" onclick="filterAll(this,'pengeluaran')">Pengeluaran</button></div>
-        <div class="txn-list" id="txn-all"></div>
+        <div class="tab-strip" id="txn-jenis-filter">
+          <button class="tab-btn active" data-f="semua" onclick="setTxFilterJenis(this,'semua')">Semua</button>
+          <button class="tab-btn" data-f="pemasukan" onclick="setTxFilterJenis(this,'pemasukan')">Pemasukan</button>
+          <button class="tab-btn" data-f="pengeluaran" onclick="setTxFilterJenis(this,'pengeluaran')">Pengeluaran</button>
+          <button class="tab-btn" data-f="transfer" onclick="setTxFilterJenis(this,'transfer')">Transfer</button>
+        </div>
+        <div class="tab-strip" id="txn-range-filter" style="margin-top:6px">
+          <button class="tab-btn active" data-r="7d" onclick="setTxFilterRange(this,'7d')">7 Hari</button>
+          <button class="tab-btn" data-r="30d" onclick="setTxFilterRange(this,'30d')">30 Hari</button>
+          <button class="tab-btn" data-r="bulan" onclick="setTxFilterRange(this,'bulan')">Bulan Ini</button>
+          <button class="tab-btn" data-r="semua" onclick="setTxFilterRange(this,'semua')">Semua</button>
+        </div>
+        <div class="txn-list" id="txn-all" style="margin-top:10px"></div>
       </div>
       <div class="fab-wrap"><button class="fab-btn" onclick="resetTrxForm();goPage('catat')" aria-label="Tambah Transaksi"><i class="ti ti-plus"></i></button></div>
     </div>
@@ -357,9 +377,8 @@
         <div class="set-sec-title">Paket Saya</div>
         <div id="plan-card"></div>
 
-        <div class="set-section">
-          <div class="set-sec-title">Ganti Paket</div>
-          <div class="set-card" id="plan-options"></div>
+        <div class="set-section" id="ganti-paket-wrap">
+          <button class="add-target-btn" onclick="openPlanOptions()"><i class="ti ti-arrows-right-left"></i> Ganti Paket</button>
         </div>
 
         <div class="set-section">
@@ -383,8 +402,8 @@
         <div class="set-section">
           <div class="set-sec-title">Kategori & Prioritas</div>
           <div class="set-card">
-            <div class="set-row" onclick="showAddKategori()"><div class="set-ico" style="background:#F3EEFF;color:#7C3AED"><i class="ti ti-tags"></i></div><div><div class="set-lbl">Kelola Kategori</div><div class="set-sub">Ubah atau hapus semua kategori (termasuk bawaan)</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
-            <div class="set-row" onclick="showAddPrioritas()"><div class="set-ico" style="background:var(--amber-bg);color:var(--amber)"><i class="ti ti-flag"></i></div><div><div class="set-lbl">Kelola Prioritas</div><div class="set-sub">Ubah atau hapus semua prioritas (termasuk bawaan)</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
+            <div class="set-row" onclick="goPage('kategori')"><div class="set-ico" style="background:#F3EEFF;color:#7C3AED"><i class="ti ti-tags"></i></div><div><div class="set-lbl">Kelola Kategori</div><div class="set-sub">Ubah atau hapus semua kategori (termasuk bawaan)</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
+            <div class="set-row" onclick="goPage('prioritas')"><div class="set-ico" style="background:var(--amber-bg);color:var(--amber)"><i class="ti ti-flag"></i></div><div><div class="set-lbl">Kelola Prioritas</div><div class="set-sub">Ubah atau hapus semua prioritas (termasuk bawaan)</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
           </div>
         </div>
 
@@ -453,6 +472,15 @@
         </div>
 
         <div class="set-section">
+          <div class="set-sec-title">Data</div>
+          <div class="set-card">
+            <div class="set-row" onclick="backupDataManual()"><div class="set-ico" style="background:var(--blue-bg);color:var(--blue)"><i class="ti ti-download"></i></div><div><div class="set-lbl">Backup Data (Manual)</div><div class="set-sub">Unduh semua data sebagai file JSON</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
+            <div class="set-row" onclick="backupToDrive()"><div class="set-ico" style="background:#E8F5E9;color:#2E7D32"><i class="ti ti-brand-google-drive"></i></div><div><div class="set-lbl">Backup ke Google Drive</div><div class="set-sub">Kirim salinan data ke Google Drive kamu</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
+            <div class="set-row" onclick="openResetModal()" style="border-top:1px solid var(--red-bg)"><div class="set-ico" style="background:var(--red-bg);color:var(--red)"><i class="ti ti-alert-triangle"></i></div><div><div class="set-lbl" style="color:var(--red)">Reset Data</div><div class="set-sub">Hapus semua transaksi & target secara permanen</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
+          </div>
+        </div>
+
+        <div class="set-section">
           <div class="set-sec-title">Tampilan</div>
           <div class="set-card">
             <div style="display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer" onclick="toggleTheme()">
@@ -474,17 +502,50 @@
         <div style="text-align:center;padding:12px 0;font-size:11px;color:var(--text3)">Wangku v1.0 · AI Finance Tracker 💚</div>
       </div>
     </div>
+
+    <!-- KELOLA KATEGORI (full page) -->
+    <div class="page" id="page-kategori">
+      <div class="page-back-hdr">
+        <div class="page-back-btn" onclick="goPage('settings')"><i class="ti ti-arrow-left"></i></div>
+        <div class="page-back-title">Kelola Kategori</div>
+      </div>
+      <div class="sp" style="padding-top:2px">
+        <div class="form-card" style="margin:0 16px 16px">
+          <div class="f-group"><label class="f-label">Nama Kategori Baru</label><input class="f-input" id="kat-full-nama" placeholder="Contoh: Investasi, Kos, Cicilan..."/></div>
+          <div class="f-group"><label class="f-label">Jenis</label><select class="f-select" id="kat-full-jenis"><option value="pengeluaran">Pengeluaran</option><option value="pemasukan">Pemasukan</option></select></div>
+          <button class="f-submit" onclick="saveKategoriFull()"><i class="ti ti-plus"></i> Tambah Kategori</button>
+        </div>
+        <div style="padding:0 16px" id="kategori-full-list"></div>
+      </div>
+    </div>
+
+    <!-- KELOLA PRIORITAS (full page) -->
+    <div class="page" id="page-prioritas">
+      <div class="page-back-hdr">
+        <div class="page-back-btn" onclick="goPage('settings')"><i class="ti ti-arrow-left"></i></div>
+        <div class="page-back-title">Kelola Prioritas</div>
+      </div>
+      <div class="sp" style="padding-top:2px">
+        <div class="form-card" style="margin:0 16px 16px">
+          <div class="f-group"><label class="f-label">Nama Prioritas Baru</label><input class="f-input" id="pri-full-nama" placeholder="Contoh: Mendesak, Nice to Have..."/></div>
+          <button class="f-submit" onclick="savePrioritasFull()"><i class="ti ti-plus"></i> Tambah Prioritas</button>
+        </div>
+        <div style="padding:0 16px" id="prioritas-full-list"></div>
+      </div>
+    </div>
   </div>
 
   <!-- BOTTOM NAV -->
   <div class="bottom-nav">
     <div class="nav-item" onclick="goPage('home')"><i class="ti ti-home nav-ico act" id="ni-home"></i><div class="nav-lbl act" id="nl-home">Beranda</div><div class="nav-dot show" id="nd-home"></div></div>
     <div class="nav-item" onclick="goPage('transaksi')"><i class="ti ti-list nav-ico" id="ni-transaksi"></i><div class="nav-lbl" id="nl-transaksi">Transaksi</div><div class="nav-dot" id="nd-transaksi"></div></div>
+    <div class="nav-item" onclick="goPage('target')"><i class="ti ti-target nav-ico" id="ni-target"></i><div class="nav-lbl" id="nl-target">Target</div><div class="nav-dot" id="nd-target"></div></div>
     <div class="nav-item" onclick="triggerCam()">
       <div style="position:relative;width:52px;height:52px;background:linear-gradient(135deg,#00B26A,#007A48);border-radius:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,178,106,.4);margin-top:-20px;border:3px solid var(--bg2)"><i class="ti ti-camera" style="font-size:24px;color:#fff"></i><span class="nav-badge-dot" id="foto-badge"></span></div>
       <div class="nav-lbl" style="color:var(--green);margin-top:2px">Foto</div>
       <input type="file" id="nav-cam" accept="image/*" capture="environment" style="display:none" onchange="scanStrukNav(this)"/>
     </div>
+    <div class="nav-item" onclick="goPage('laporan')"><i class="ti ti-chart-bar nav-ico" id="ni-laporan"></i><div class="nav-lbl" id="nl-laporan">Laporan</div><div class="nav-dot" id="nd-laporan"></div></div>
     <div class="nav-item" onclick="openChat()">
       <div style="position:relative"><i class="ti ti-robot nav-ico" style="color:var(--blue)"></i><span style="position:absolute;top:-2px;right:-4px;width:8px;height:8px;background:#FF5757;border-radius:50%;border:1.5px solid var(--bg);animation:pd 2s infinite"></span></div>
       <div class="nav-lbl" style="color:var(--blue)">AI</div>
@@ -546,9 +607,17 @@
         <option value="pemasukan">Pemasukan</option>
       </select>
     </div>
-    <button class="f-submit" onclick="saveKategori()"><i class="ti ti-device-floppy"></i> Simpan Kategori</button>
+    <button class="f-submit" onclick="saveKategoriQuick()"><i class="ti ti-device-floppy"></i> Simpan Kategori</button>
     <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('add-kat-modal').classList.remove('open')">Batal</button>
-    <div style="margin-top:16px" id="custom-kat-list"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="plan-options-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title"><i class="ti ti-arrows-right-left" style="color:var(--green)"></i> Ganti Paket</div>
+    <div id="plan-options"></div>
+    <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('plan-options-modal').classList.remove('open')">Tutup</button>
   </div>
 </div>
 
@@ -557,9 +626,8 @@
     <div class="modal-drag"></div>
     <div class="modal-title"><i class="ti ti-flag" style="color:var(--amber)"></i> Tambah Prioritas Baru</div>
     <div class="f-group"><label class="f-label">Nama Prioritas</label><input class="f-input" id="new-pri-nama" placeholder="Contoh: Mendesak, Nice to Have..."/></div>
-    <button class="f-submit" onclick="savePrioritas()"><i class="ti ti-device-floppy"></i> Simpan Prioritas</button>
+    <button class="f-submit" onclick="savePrioritasQuick()"><i class="ti ti-device-floppy"></i> Simpan Prioritas</button>
     <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('add-pri-modal').classList.remove('open')">Batal</button>
-    <div style="margin-top:16px" id="pri-list"></div>
   </div>
 </div>
 
@@ -628,6 +696,21 @@
     <div class="f-group"><label class="f-label">Username</label><input class="f-input" id="pe-username" disabled style="opacity:.6"/></div>
     <button class="f-submit" id="pe-save-btn" onclick="saveProfile()"><i class="ti ti-device-floppy"></i> Simpan Profil</button>
     <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('profile-edit-modal').classList.remove('open')">Batal</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="reset-data-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title" style="color:var(--red)"><i class="ti ti-alert-triangle"></i> Reset Data</div>
+    <div style="background:var(--red-bg);border:1px solid var(--red);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--red);line-height:1.5">⚠️ Ini akan menghapus SEMUA transaksi, target, dan riwayat deteksi otomatis secara PERMANEN. Akun, kategori, prioritas, dan profil TIDAK akan dihapus. Tindakan ini tidak bisa dibatalkan.</div>
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px">
+      <input type="checkbox" id="reset-confirm-check" style="width:18px;height:18px;margin-top:1px;accent-color:var(--red)" onchange="updateResetBtnState()"/>
+      <label for="reset-confirm-check" style="font-size:12px;color:var(--text2)">Saya paham tindakan ini permanen dan tidak bisa dibatalkan</label>
+    </div>
+    <div class="f-group"><label class="f-label">Ketik <b>HAPUS DATA</b> untuk konfirmasi</label><input class="f-input" id="reset-confirm-text" placeholder="HAPUS DATA" oninput="updateResetBtnState()"/></div>
+    <button class="f-submit" id="reset-confirm-btn" style="background:var(--red)" disabled onclick="doResetData()"><i class="ti ti-trash"></i> Hapus Semua Data</button>
+    <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="closeResetModal()">Batal</button>
   </div>
 </div>
 

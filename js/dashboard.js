@@ -34,13 +34,31 @@ async function loadSummary(){
     const p=totalMasuk>0?((totalKeluar/totalMasuk)*100).toFixed(1):0;
     document.getElementById('stat-masuk-b').textContent='Total pemasukan';
     document.getElementById('stat-keluar-b').textContent=p+'% dari pemasukan';
-    renderPie(kategoriPengeluaran);updateCtx(sumData);checkAlerts(sumData);
+    renderPie(kategoriPengeluaran,'pie-svg','pie-legend','pie-empty');
+    renderPie(kategoriPemasukan,'pie-svg-in','pie-legend-in','pie-empty-in');
+    updateCtx(sumData);checkAlerts(sumData);
     if(typeof checkOverspendNotif==='function')checkOverspendNotif(totalMasuk,totalKeluar);
   }catch(e){document.getElementById('saldo').innerHTML='Gagal memuat';}
 }
 
 const PC=['#00B26A','#2B7EF8','#F59E0B','#EF4444','#8B5CF6','#EC4899'];
-function renderPie(kat){if(!kat||!Object.keys(kat).length)return;const e=Object.entries(kat).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);const tot=e.reduce((s,[,v])=>s+v,0);let off=0;const c=2*Math.PI*30;const svg=document.getElementById('pie-svg');svg.innerHTML='<circle cx="40" cy="40" r="30" fill="none" stroke="var(--bg3)" stroke-width="14"/>';e.forEach(([k,v],i)=>{const d=(v/tot)*c;const col=PC[i%PC.length];svg.innerHTML+=`<circle cx="40" cy="40" r="30" fill="none" stroke="${col}" stroke-width="14" stroke-dasharray="${d.toFixed(1)} ${(c-d).toFixed(1)}" stroke-dashoffset="${-off.toFixed(1)}" transform="rotate(-90 40 40)"/>`;off+=d;});svg.innerHTML+=`<text x="40" y="44" text-anchor="middle" font-size="11" fill="var(--text)" font-weight="700">${((e[0][1]/tot)*100).toFixed(0)}%</text>`;document.getElementById('pie-legend').innerHTML=e.slice(0,5).map(([k,v],i)=>`<div class="leg-item"><div class="leg-dot" style="background:${PC[i%PC.length]}"></div>${k.charAt(0).toUpperCase()+k.slice(1)}<span class="leg-pct">${((v/tot)*100).toFixed(1)}%</span></div>`).join('');}
+function renderPie(kat,svgId,legendId,emptyId){
+  const svg=document.getElementById(svgId);const legend=document.getElementById(legendId);const emptyEl=emptyId?document.getElementById(emptyId):null;
+  if(!svg||!legend)return;
+  const e=kat?Object.entries(kat).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]):[];
+  if(!e.length){
+    svg.innerHTML='<circle cx="40" cy="40" r="30" fill="none" stroke="var(--bg3)" stroke-width="14"/>';
+    legend.innerHTML='';
+    if(emptyEl)emptyEl.style.display='block';
+    return;
+  }
+  if(emptyEl)emptyEl.style.display='none';
+  const tot=e.reduce((s,[,v])=>s+v,0);let off=0;const c=2*Math.PI*30;
+  svg.innerHTML='<circle cx="40" cy="40" r="30" fill="none" stroke="var(--bg3)" stroke-width="14"/>';
+  e.forEach(([k,v],i)=>{const d=(v/tot)*c;const col=PC[i%PC.length];svg.innerHTML+=`<circle cx="40" cy="40" r="30" fill="none" stroke="${col}" stroke-width="14" stroke-dasharray="${d.toFixed(1)} ${(c-d).toFixed(1)}" stroke-dashoffset="${-off.toFixed(1)}" transform="rotate(-90 40 40)"/>`;off+=d;});
+  svg.innerHTML+=`<text x="40" y="44" text-anchor="middle" font-size="11" fill="var(--text)" font-weight="700">${((e[0][1]/tot)*100).toFixed(0)}%</text>`;
+  legend.innerHTML=e.slice(0,5).map(([k,v],i)=>`<div class="leg-item"><div class="leg-dot" style="background:${PC[i%PC.length]}"></div><span style="flex:1">${k.charAt(0).toUpperCase()+k.slice(1).replace(/_/g,' ')}</span><span style="color:var(--text3);margin-right:6px">${rpF(v)}</span><span class="leg-pct">${((v/tot)*100).toFixed(1)}%</span></div>`).join('');
+}
 
 function renderLaporan(){if(!sumData)return;const pM=sumData.kategoriPemasukan||{},pK=sumData.kategoriPengeluaran||{};const tM=Object.values(pM).reduce((a,b)=>a+b,0),tK=Object.values(pK).reduce((a,b)=>a+b,0);document.getElementById('rin-masuk').innerHTML=`<div class="rin-hdr"><i class="ti ti-arrow-down-circle" style="font-size:17px;color:var(--green)"></i><span style="font-size:13px;font-weight:700;color:var(--green)">Rincian Pemasukan</span></div><div class="tbl-hdr"><span>Kategori</span><span>Jumlah</span></div>${Object.entries(pM).map(([k,v])=>`<div class="tbl-row"><span class="tc">${k}</span><span class="tv">${rpF(v)}</span></div>`).join('')}<div class="tbl-row tot"><span class="tc g">Total</span><span class="tv g">${rpF(tM)}</span></div>`;document.getElementById('rin-keluar').innerHTML=`<div class="rin-hdr"><i class="ti ti-arrow-up-circle" style="font-size:17px;color:var(--red)"></i><span style="font-size:13px;font-weight:700;color:var(--red)">Rincian Pengeluaran</span></div><div class="tbl-hdr"><span>Kategori</span><span>Jumlah</span></div>${Object.entries(pK).map(([k,v])=>`<div class="tbl-row"><span class="tc">${k}</span><span class="tv">${rpF(v)}</span></div>`).join('')}<div class="tbl-row tot"><span class="tc r">Total</span><span class="tv r">${rpF(tK)}</span></div>`;}
 
