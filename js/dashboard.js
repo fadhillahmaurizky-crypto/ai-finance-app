@@ -8,7 +8,7 @@ function checkAlerts(data){
 }
 
 async function loadSummary(){
-  document.getElementById('saldo').innerHTML='Memuat...<button class="bal-refresh" onclick="event.stopPropagation();loadSummary()"><i class="ti ti-refresh"></i></button>';
+  document.getElementById('saldo').innerHTML='Memuat...';
   try{
     const month=getMonth(),nextMonth=getNextMonth();
     const data=await sb(`transactions?user_id=eq.${user.id}&tanggal=gte.${month}-01&tanggal=lt.${nextMonth}-01&select=*&order=tanggal.desc`);
@@ -17,13 +17,16 @@ async function loadSummary(){
     (data||[]).forEach(t=>{
       const n=Number(t.nominal);
       if(t.jenis==='pemasukan'){totalMasuk+=n;kategoriPemasukan[t.kategori]=(kategoriPemasukan[t.kategori]||0)+n;}
-      else{totalKeluar+=n;kategoriPengeluaran[t.kategori]=(kategoriPengeluaran[t.kategori]||0)+n;if(t.prioritas==='tidak_penting')tidakPenting+=n;}
+      else if(t.jenis==='pengeluaran'){totalKeluar+=n;kategoriPengeluaran[t.kategori]=(kategoriPengeluaran[t.kategori]||0)+n;if(t.prioritas==='tidak_penting')tidakPenting+=n;}
+      // jenis 'transfer' dilewati — perpindahan antar akun, bukan pemasukan/pengeluaran riil
     });
     const saldo=totalMasuk-totalKeluar;
     sumData={summary:{saldo,totalMasuk,totalKeluar,tidakPenting},kategoriPengeluaran,kategoriPemasukan};
     const sEl=document.getElementById('saldo');
-    sEl.innerHTML=rpF(saldo)+' <button class="bal-refresh" onclick="event.stopPropagation();loadSummary()"><i class="ti ti-refresh"></i></button>';
+    sEl.innerHTML=rpF(saldo);
     sEl.className='bal-amount'+(saldo<0?' neg':'');
+    const mEl=document.getElementById('mini-bal');
+    if(mEl){mEl.textContent=rpF(saldo);mEl.className='mini-bal-amt'+(saldo<0?' neg':'');}
     document.getElementById('tot-masuk').textContent=rpF(totalMasuk);
     document.getElementById('tot-keluar').textContent=rpF(totalKeluar);
     document.getElementById('stat-masuk').textContent=rp(totalMasuk);
@@ -32,7 +35,8 @@ async function loadSummary(){
     document.getElementById('stat-masuk-b').textContent='Total pemasukan';
     document.getElementById('stat-keluar-b').textContent=p+'% dari pemasukan';
     renderPie(kategoriPengeluaran);updateCtx(sumData);checkAlerts(sumData);
-  }catch(e){document.getElementById('saldo').innerHTML='Gagal <button class="bal-refresh" onclick="loadSummary()"><i class="ti ti-refresh"></i></button>';}
+    if(typeof checkOverspendNotif==='function')checkOverspendNotif(totalMasuk,totalKeluar);
+  }catch(e){document.getElementById('saldo').innerHTML='Gagal memuat';}
 }
 
 const PC=['#00B26A','#2B7EF8','#F59E0B','#EF4444','#8B5CF6','#EC4899'];
