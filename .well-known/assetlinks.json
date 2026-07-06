@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.ai_finance_app_murex.twa",
+      "sha256_cert_fingerprints": [
+        "CC:78:1C:8B:2E:8C:2D:A3:68:69:78:A2:FA:7F:EC:B7:37:95:DB:CF:CA:09:6D:25:57:73:B4:4F:67:34:79:58"
+      ]
+    }
+  }
+]
