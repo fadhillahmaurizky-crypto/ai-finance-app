@@ -10,7 +10,367 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/app.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+:root{
+  --bg:#F2F4F7;--bg2:#FFFFFF;--bg3:#F7F8FA;
+  --border:#EAECF0;--border2:#D0D5DD;
+  --text:#101828;--text2:#344054;--text3:#98A2B3;
+  --green:#00A85A;--green2:#00C96D;--green-bg:#ECFDF3;--green-dk:#027A48;
+  --red:#F04438;--red-bg:#FEF3F2;
+  --blue:#2970FF;--blue-bg:#EFF4FF;
+  --amber:#F79009;--amber-bg:#FFFAEB;
+  --purple:#7F56D9;--purple-bg:#F9F5FF;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.05);
+  --shadow:0 4px 6px -2px rgba(16,24,40,.03),0 12px 16px -4px rgba(16,24,40,.08);
+  --shadow-lg:0 8px 24px -4px rgba(16,24,40,.08),0 20px 40px -8px rgba(16,24,40,.12);
+  --radius:16px;--radius-sm:10px;--radius-xs:8px;
+  --font:'Inter',sans-serif;--nav-h:80px;
+}
+[data-theme="dark"]{
+  --bg:#0C0E12;--bg2:#161B22;--bg3:#1C2230;
+  --border:#21293A;--border2:#2D3B50;
+  --text:#F0F4F8;--text2:#A8B4C4;--text3:#4E5A6B;
+  --green:#00C878;--green2:#00E088;--green-bg:#0A2A1A;--green-dk:#00A85A;
+  --red:#F97066;--red-bg:#2A0D0D;
+  --blue:#528BFF;--blue-bg:#0D1E3A;
+  --amber:#FDB022;--amber-bg:#2A1E06;
+  --purple:#9E77ED;--purple-bg:#1E1438;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.2);
+  --shadow:0 4px 16px rgba(0,0,0,.3);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;font-family:var(--font);background:var(--bg);color:var(--text)}
+button{font-family:var(--font);cursor:pointer}
+input,select{font-family:var(--font)}
+.app{width:100%;max-width:430px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+
+/* ── DESKTOP LAYOUT ── */
+@media(min-width:768px){
+  body{background:var(--bg)}
+  .app-wrapper{display:flex;height:100dvh;max-width:1280px;margin:0 auto;overflow:hidden}
+  .app{max-width:none;width:100%;border-radius:0;margin:0;flex:1;min-width:0}
+
+  /* Desktop sidebar */
+  .desk-sidebar{width:240px;min-width:240px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:24px 0;height:100dvh;overflow-y:auto;flex-shrink:0}
+  .desk-logo{display:flex;align-items:center;gap:10px;padding:0 20px 24px;border-bottom:1px solid var(--border);margin-bottom:16px}
+  .desk-logo img{width:36px;height:36px;object-fit:contain;border-radius:10px}
+  .desk-logo span{font-size:18px;font-weight:800;color:var(--text);letter-spacing:-.3px}
+  .desk-nav-section{padding:0 12px;margin-bottom:8px}
+  .desk-nav-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:0 8px;margin-bottom:6px}
+  .desk-nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:all .2s;color:var(--text2);font-size:13px;font-weight:600;margin-bottom:2px;text-decoration:none}
+  .desk-nav-item:hover{background:var(--bg3);color:var(--text)}
+  .desk-nav-item.active{background:var(--green-bg);color:var(--green)}
+  .desk-nav-item i{font-size:18px;width:20px;text-align:center;flex-shrink:0}
+  .desk-user{margin-top:auto;padding:16px 20px 0;border-top:1px solid var(--border)}
+  .desk-user-info{display:flex;align-items:center;gap:10px}
+  .desk-avatar{width:36px;height:36px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;flex-shrink:0}
+  .desk-user-name{font-size:13px;font-weight:700;color:var(--text)}
+  .desk-user-plan{font-size:10px;color:var(--text3);font-weight:500;text-transform:capitalize}
+
+  /* Hide mobile bottom nav on desktop */
+  .bottom-nav{display:none}
+
+  /* Main content area */
+  .pages{flex:1}
+  .page{padding-bottom:24px}
+  .sp{padding:0 28px}
+  .sec-title{margin:20px 0 12px}
+
+  /* Header adjustments for desktop */
+  .header{padding:20px 28px 20px}
+  .header-top{margin-bottom:20px}
+  .username{font-size:22px}
+
+  /* Balance card wider */
+  .bal-card{padding:24px 28px}
+  .bal-amount{font-size:34px}
+
+  /* Grid layouts for desktop */
+  .desktop-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 28px}
+  .desktop-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:0 28px}
+  .qa-row{grid-template-columns:repeat(4,1fr);gap:12px}
+  .stat-row{gap:12px}
+
+  /* Form wider */
+  .form-card{margin:0 28px 14px}
+  .struk-wrap{margin:0 28px 14px}
+  .plan-card{margin:0 28px 16px}
+  .set-card{margin:0 28px}
+  .set-sec-title{padding:0 28px}
+
+  /* Login page centered on desktop */
+  .login-wrap{border-radius:16px;top:50%;left:50%;bottom:auto;transform:translate(-50%,-50%);height:auto;max-height:90dvh;max-width:480px;box-shadow:var(--shadow-lg)}
+  .login-hero{border-radius:16px 16px 0 0;padding:40px 32px 32px}
+
+  /* Modals centered on desktop */
+  .modal-overlay{align-items:center}
+  .modal-sheet{border-radius:20px;max-height:80dvh;max-width:480px;padding:28px 28px 40px}
+  .modal-drag{display:none}
+
+  /* Chat panel desktop */
+  .chat-panel{max-width:480px;height:85dvh;border-radius:20px;bottom:auto;top:50%;transform:translateX(-50%) translateY(-50%)}
+  .chat-sheet.open .chat-panel{transform:translateX(-50%) translateY(-50%)}
+
+  /* Payment wrap desktop */
+  #payment-wrap{max-width:480px;border-radius:16px;top:50%;left:50%;bottom:auto;transform:translate(-50%,-50%)!important;height:auto;max-height:90dvh;box-shadow:var(--shadow-lg)}
+
+  /* Pin & splash desktop */
+  #splash-screen,#pin-screen{max-width:480px;border-radius:16px;top:50%;left:50%;transform:translate(-50%,-50%)!important;min-height:auto;padding:48px 40px;height:auto;bottom:auto}
+}
+
+@media(min-width:1024px){
+  .app-wrapper{max-width:1440px}
+  .desk-sidebar{width:260px;min-width:260px}
+  .desktop-two-col{display:grid;grid-template-columns:1fr 380px;gap:0;flex:1;overflow:hidden}
+  .col-main{overflow-y:auto;padding-bottom:24px}
+  .col-side{border-left:1px solid var(--border);overflow-y:auto;background:var(--bg2);padding:24px}
+  .col-side-title{font-size:15px;font-weight:800;color:var(--text);margin-bottom:16px;letter-spacing:-.3px}
+}
+
+@media(max-width:767px){
+  .desk-sidebar{display:none}
+  .app-wrapper{display:block;height:100dvh}
+  .app{max-width:100%;border-radius:0}
+}
+.ob-wrap{position:fixed;inset:0;z-index:1000;background:var(--bg2);display:none;flex-direction:column;width:100%;max-width:430px;left:50%;transform:translateX(-50%)}
+.ob-slide{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;text-align:center}
+.ob-slide.active{display:flex}
+.ob-ilu{width:120px;height:120px;border-radius:32px;display:flex;align-items:center;justify-content:center;font-size:56px;margin-bottom:24px}
+.ob-title{font-size:26px;font-weight:800;color:var(--text);margin-bottom:10px;letter-spacing:-.5px}
+.ob-desc{font-size:15px;color:var(--text2);line-height:1.7;margin-bottom:24px}
+.ob-dots{display:flex;gap:6px;margin-bottom:20px}
+.ob-dot{width:6px;height:6px;border-radius:50%;background:var(--border2);transition:all .3s}
+.ob-dot.active{width:20px;border-radius:3px;background:var(--green)}
+.ob-btn{width:100%;padding:15px;border-radius:14px;background:var(--green);border:none;color:#fff;font-size:15px;font-weight:700;margin-bottom:8px}
+.ob-skip{background:none;border:none;color:var(--text3);font-size:13px;padding:8px}
+.login-wrap{position:fixed;inset:0;z-index:999;background:var(--bg);display:none;flex-direction:column;overflow-y:auto;width:100%;max-width:430px;left:50%;transform:translateX(-50%)}
+.login-wrap::-webkit-scrollbar{display:none}
+.login-hero{background:linear-gradient(145deg,#00A85A 0%,#007A42 60%,#005C32 100%);padding:56px 28px 44px;text-align:center;position:relative;overflow:hidden;flex-shrink:0}
+.login-hero::before{content:\'\';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:rgba(255,255,255,.06);border-radius:50%;z-index:0}
+.login-hero::after{content:\'\';position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;background:rgba(255,255,255,.04);border-radius:50%;z-index:0}
+.login-logo{width:80px;height:80px;background:rgba(255,255,255,.15);backdrop-filter:blur(10px);border-radius:24px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;position:relative;z-index:1;border:1.5px solid rgba(255,255,255,.2)}
+.login-brand{font-size:32px;font-weight:800;color:#fff;letter-spacing:-1px;margin-bottom:6px;position:relative;z-index:1}
+.login-brand span{color:rgba(255,255,255,.5)}
+.login-tagline{font-size:13px;color:rgba(255,255,255,.75);line-height:1.6;position:relative;z-index:1}
+.login-body{padding:28px 24px 48px;background:var(--bg)}
+.login-tab-row{display:flex;background:var(--bg3);border-radius:12px;padding:4px;gap:4px;margin-bottom:24px}
+.login-tab{flex:1;padding:9px;border-radius:9px;font-size:13px;font-weight:600;text-align:center;cursor:pointer;color:var(--text3);border:none;background:transparent;transition:all .2s}
+.login-tab.active{background:var(--bg2);color:var(--text);box-shadow:var(--shadow-sm)}
+.l-group{margin-bottom:14px}
+.l-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px;display:block}
+.l-wrap{display:flex;align-items:center;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;overflow:hidden;transition:all .2s;box-shadow:var(--shadow-sm)}
+.l-wrap:focus-within{border-color:var(--green);box-shadow:0 0 0 4px rgba(0,168,90,.1)}
+.l-ico{padding:13px 14px;color:var(--text3);font-size:17px;flex-shrink:0}
+.l-input{flex:1;background:transparent;border:none;padding:13px 14px 13px 0;font-size:14px;color:var(--text);outline:none}
+.l-input::placeholder{color:var(--text3)}
+.l-eye{padding:13px 14px;color:var(--text3);font-size:17px;cursor:pointer;flex-shrink:0;border:none;background:transparent}
+.l-btn{width:100%;padding:15px;border-radius:12px;background:linear-gradient(135deg,var(--green),var(--green-dk));border:none;color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;box-shadow:0 4px 12px rgba(0,168,90,.3)}
+.l-btn:active{opacity:.88;transform:scale(.99)}
+.l-btn:disabled{opacity:.45;cursor:not-allowed}
+.l-divider{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--text3);font-size:12px}
+.l-divider::before,.l-divider::after{content:\'\';flex:1;height:1px;background:var(--border)}
+.bio-btn{width:100%;padding:13px;border-radius:12px;background:var(--bg3);border:1.5px solid var(--border);color:var(--text2);font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+.l-err{font-size:12px;color:var(--red);margin-top:8px;padding:10px 14px;background:var(--red-bg);border-radius:10px;display:none;border:1px solid rgba(240,68,56,.15)}
+.l-footer{text-align:center;font-size:12px;color:var(--text3);margin-top:16px}
+.l-footer a{color:var(--green);font-weight:600;cursor:pointer}
+.otp-row{display:flex;gap:8px;justify-content:center;margin-bottom:8px}
+.otp-box{width:46px;height:54px;background:var(--bg3);border:2px solid var(--border);border-radius:12px;text-align:center;font-size:22px;font-weight:700;color:var(--text);outline:none;transition:all .2s}
+.otp-box:focus{border-color:var(--green);background:var(--bg2);box-shadow:0 0 0 4px rgba(0,168,90,.1)}
+.statusbar{display:flex;justify-content:space-between;padding:10px 20px 4px;font-size:11px;color:var(--text3);font-family:monospace;flex-shrink:0;background:var(--bg2)}
+.header{background:var(--bg2);padding:14px 20px 20px;flex-shrink:0;box-shadow:0 1px 0 var(--border)}
+.header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.greeting{font-size:12px;color:var(--text3);font-weight:500}
+.username{font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.3px}
+.hdr-actions{display:flex;gap:8px}
+.hdr-btn{width:38px;height:38px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:17px;cursor:pointer;transition:all .15s}
+.hdr-btn:active{background:var(--border)}
+.bal-card{background:linear-gradient(145deg,#00A85A 0%,#006B3A 100%);border-radius:20px;padding:20px 22px;position:relative;overflow:hidden;cursor:pointer}
+.bal-label{font-size:11px;color:rgba(255,255,255,.65);margin-bottom:4px;font-weight:500;letter-spacing:.3px;position:relative;z-index:1}
+.bal-amount{font-size:30px;font-weight:800;color:#fff;letter-spacing:-1px;position:relative;z-index:1}
+.bal-amount.neg{color:#FFCDD2}
+.bal-refresh{background:none;border:none;color:rgba(255,255,255,.5);font-size:14px;cursor:pointer;margin-left:6px;vertical-align:middle}
+.bal-row{display:flex;gap:8px;margin-top:16px;position:relative;z-index:1}
+.bal-pill{flex:1;background:rgba(0,0,0,.15);backdrop-filter:blur(4px);border-radius:12px;padding:9px 12px;border:1px solid rgba(255,255,255,.1)}
+.bal-pill-lbl{font-size:10px;color:rgba(255,255,255,.6);margin-bottom:2px;font-weight:500}
+.bal-pill-val{font-size:14px;font-weight:700;color:#fff}
+.pages{flex:1;overflow:hidden;position:relative}
+.page{position:absolute;inset:0;overflow-y:auto;opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .25s,transform .25s;padding-bottom:calc(var(--nav-h)+20px)}
+.page.active{opacity:1;pointer-events:all;transform:translateY(0)}
+.page::-webkit-scrollbar{width:2px}
+.page::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.sp{padding:0 18px}
+.sec-title{font-size:13px;font-weight:700;color:var(--text2);margin:18px 0 10px;display:flex;justify-content:space-between;align-items:center;letter-spacing:-.1px}
+.see-all{font-size:12px;color:var(--green);cursor:pointer;font-weight:600}
+.qa-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.qa-item{background:var(--bg2);border-radius:var(--radius);padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;box-shadow:var(--shadow-sm);transition:all .2s;border:1px solid var(--border)}
+.qa-item:active{transform:scale(.95);box-shadow:none}
+.qa-ico{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px}
+.qa-lbl{font-size:10px;color:var(--text2);font-weight:600;text-align:center}
+.stat-row{display:flex;gap:10px}
+.stat-card{flex:1;background:var(--bg2);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow-sm);border:1px solid var(--border)}
+.stat-top{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.stat-lbl{font-size:11px;color:var(--text3);font-weight:500}
+.stat-val{font-size:17px;font-weight:800;letter-spacing:-.3px}
+.stat-badge{display:inline-block;font-size:10px;padding:3px 8px;border-radius:8px;margin-top:5px;font-weight:600}
+.chart-card{background:var(--bg2);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow-sm);border:1px solid var(--border)}
+.donut-row{display:flex;align-items:center;gap:16px}
+.leg-wrap{flex:1;display:flex;flex-direction:column;gap:6px}
+.leg-item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text2)}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.leg-pct{margin-left:auto;font-weight:700;font-size:11px;color:var(--text)}
+.tab-strip{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto}
+.tab-strip::-webkit-scrollbar{display:none}
+.tab-btn{padding:7px 16px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--text3);white-space:nowrap;transition:all .2s}
+.tab-btn.active{background:var(--green);color:#fff;border-color:var(--green);box-shadow:0 2px 8px rgba(0,168,90,.25)}
+.txn-list{display:flex;flex-direction:column;gap:8px}
+.txn-card{display:flex;align-items:center;gap:12px;background:var(--bg2);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow-sm);border:1px solid var(--border);transition:all .2s}
+.txn-card:active{transform:scale(.98)}
+.txn-ico{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.txn-info{flex:1;min-width:0}
+.txn-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.txn-sub{font-size:11px;color:var(--text3);margin-top:2px;font-weight:500}
+.txn-right{text-align:right;flex-shrink:0}
+.txn-amt{font-size:14px;font-weight:700}
+.txn-amt.inc{color:var(--green)}
+.txn-amt.exp{color:var(--red)}
+.txn-time{font-size:10px;color:var(--text3);margin-top:2px}
+.alert-card{background:var(--amber-bg);border:1px solid rgba(247,144,9,.2);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.alert-card.danger{background:var(--red-bg);border-color:rgba(240,68,56,.2)}
+.alert-ico{font-size:20px;flex-shrink:0}
+.alert-title{font-size:12px;font-weight:700;color:var(--amber)}
+.alert-card.danger .alert-title{color:var(--red)}
+.alert-desc{font-size:11px;color:var(--text2);margin-top:2px}
+.target-card{background:var(--bg2);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow-sm);border:1px solid var(--border);margin-bottom:10px}
+.target-progress{height:7px;background:var(--bg3);border-radius:4px;overflow:hidden;margin:10px 0}
+.target-fill{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.add-target-btn{width:100%;padding:13px;border-radius:14px;background:var(--green-bg);border:1.5px dashed rgba(0,168,90,.4);color:var(--green);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:4px;transition:all .2s}
+.add-target-btn:active{background:rgba(0,168,90,.15)}
+.tambah-dana-btn{flex:1;padding:8px;border-radius:10px;background:var(--green-bg);border:1.5px solid rgba(0,168,90,.3);color:var(--green);font-size:11px;font-weight:700;cursor:pointer;transition:all .2s}
+.tambah-dana-btn:active{background:rgba(0,168,90,.2)}
+.coming-card{background:linear-gradient(135deg,var(--blue-bg),#F5F3FF);border:1px solid rgba(41,112,255,.15);border-radius:var(--radius);padding:20px;margin-top:12px;text-align:center}
+.coming-badge{display:inline-block;background:var(--blue);color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:10px;letter-spacing:.3px}
+.form-card{background:var(--bg2);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm);border:1px solid var(--border);margin:0 18px 12px}
+.f-group{margin-bottom:14px}
+.f-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;display:block}
+.f-input{width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:12px;padding:12px 15px;font-size:14px;color:var(--text);outline:none;transition:all .2s}
+.f-input:focus{border-color:var(--green);background:var(--bg2);box-shadow:0 0 0 4px rgba(0,168,90,.08)}
+.f-input::placeholder{color:var(--text3)}
+.f-select{width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:12px;padding:12px 15px;font-size:14px;color:var(--text);outline:none;-webkit-appearance:none;transition:all .2s}
+.jenis-row{display:flex;gap:8px}
+.jenis-btn{flex:1;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text3);font-size:13px;font-weight:600;transition:all .2s}
+.jenis-btn.in{background:var(--green-bg);color:var(--green);border-color:rgba(0,168,90,.3)}
+.jenis-btn.out{background:var(--red-bg);color:var(--red);border-color:rgba(240,68,56,.3)}
+.f-submit{width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,var(--green),var(--green-dk));border:none;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 4px 12px rgba(0,168,90,.25)}
+.f-submit:active{opacity:.88}
+.f-submit:disabled{opacity:.4;cursor:not-allowed}
+.struk-wrap{background:var(--bg2);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow-sm);border:1px solid var(--border);margin:0 18px 12px}
+.struk-btns{display:flex;gap:8px;margin-top:12px}
+.struk-btn{flex:1;padding:11px;border-radius:12px;background:var(--green-bg);border:1.5px solid rgba(0,168,90,.3);color:var(--green);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px}
+.struk-btn.blue{background:var(--blue-bg);border-color:rgba(41,112,255,.3);color:var(--blue)}
+.rin-table{background:var(--bg2);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm);border:1px solid var(--border);margin-bottom:10px}
+.rin-hdr{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border)}
+.tbl-hdr{display:grid;grid-template-columns:1fr 1fr;background:var(--bg3);padding:8px 16px;border-bottom:1px solid var(--border)}
+.tbl-hdr span{font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.5px}
+.tbl-hdr span:last-child{text-align:right}
+.tbl-row{display:grid;grid-template-columns:1fr 1fr;padding:10px 16px;border-bottom:1px solid var(--bg3)}
+.tbl-row:last-child{border-bottom:none}
+.tbl-row.tot{background:var(--bg3)}
+.tc{font-size:12px;color:var(--text2);text-transform:capitalize;font-weight:500}
+.tc.g{font-weight:700;color:var(--green)}
+.tc.r{font-weight:700;color:var(--red)}
+.tv{font-size:12px;text-align:right;color:var(--text2);font-weight:500}
+.tv.g{color:var(--green);font-weight:700}
+.tv.r{color:var(--red);font-weight:700}
+.chat-sheet{position:fixed;inset:0;z-index:80;pointer-events:none}
+.chat-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.5);opacity:0;transition:opacity .3s;cursor:pointer;backdrop-filter:blur(2px)}
+.chat-panel{position:absolute;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);width:100%;max-width:430px;height:90dvh;background:var(--bg2);border-radius:24px 24px 0 0;display:flex;flex-direction:column;transition:transform .35s cubic-bezier(.32,.72,0,1);box-shadow:var(--shadow-lg)}
+.chat-sheet.open{pointer-events:all}
+.chat-sheet.open .chat-backdrop{opacity:1}
+.chat-sheet.open .chat-panel{transform:translateX(-50%) translateY(0)}
+.chat-drag{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 0;flex-shrink:0}
+.chat-hdr{display:flex;align-items:center;gap:12px;padding:14px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.chat-av{width:40px;height:40px;background:linear-gradient(135deg,var(--green),var(--green-dk));border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0}
+.online-dot{width:6px;height:6px;border-radius:50%;background:var(--green2);animation:pd 2s infinite}
+@keyframes pd{0%,100%{opacity:1}50%{opacity:.3}}
+.chat-close{margin-left:auto;width:32px;height:32px;border-radius:50%;background:var(--bg3);border:none;color:var(--text2);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.chat-msgs{flex:1;overflow-y:auto;padding:16px 16px 8px;display:flex;flex-direction:column;gap:12px}
+.msg-row{display:flex;align-items:flex-end;gap:8px}
+.msg-row.user{flex-direction:row-reverse}
+.msg-av{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--green-dk));display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;flex-shrink:0}
+.bubble{max-width:78%;padding:10px 14px;font-size:13px;line-height:1.6;border-radius:18px}
+.bubble.ai{background:var(--bg3);color:var(--text);border-radius:4px 18px 18px 18px;border:1px solid var(--border)}
+.bubble.user{background:linear-gradient(135deg,var(--green),var(--green-dk));color:#fff;border-radius:18px 18px 4px 18px}
+.typing-dots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--text3);margin:0 1px;animation:bk 1.2s infinite}
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes bk{0%,80%,100%{opacity:.2}40%{opacity:1}}
+.chips-row{display:flex;gap:6px;padding:8px 16px 0;overflow-x:auto;flex-shrink:0}
+.chips-row::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid rgba(0,168,90,.2);background:var(--green-bg);color:var(--green);cursor:pointer;transition:all .2s}
+.chip:active{background:rgba(0,168,90,.2)}
+.chat-input-row{display:flex;align-items:center;gap:10px;padding:10px 16px 20px;border-top:1px solid var(--border);flex-shrink:0}
+.chat-input{flex:1;background:var(--bg3);border:1.5px solid var(--border);border-radius:24px;padding:11px 18px;font-size:13px;color:var(--text);outline:none;transition:all .2s}
+.chat-input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(0,168,90,.08)}
+.chat-input::placeholder{color:var(--text3)}
+.chat-send{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--green-dk));border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 10px rgba(0,168,90,.3)}
+.chat-send:disabled{opacity:.4}
+.plan-notice{background:var(--amber-bg);border:1px solid rgba(247,144,9,.2);border-radius:10px;padding:8px 14px;margin:8px 16px 0;font-size:11px;color:var(--amber);text-align:center;flex-shrink:0;font-weight:600}
+.plan-notice.pro{background:var(--green-bg);border-color:rgba(0,168,90,.2);color:var(--green-dk)}
+.set-section{margin-bottom:20px}
+.set-sec-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:0 18px;margin-bottom:8px}
+.set-card{background:var(--bg2);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm);border:1px solid var(--border);margin:0 18px}
+.set-row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.set-row:last-child{border-bottom:none}
+.set-row:active{background:var(--bg3)}
+.set-ico{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.set-lbl{flex:1;font-size:13px;font-weight:600;color:var(--text)}
+.set-sub{font-size:11px;color:var(--text3);margin-top:1px;font-weight:400}
+.pill{font-size:10px;padding:3px 10px;border-radius:10px;font-weight:700}
+.pill.ok{background:var(--green-bg);color:var(--green)}
+.pill.no{background:var(--red-bg);color:var(--red)}
+.toggle-track{width:44px;height:24px;background:var(--border2);border-radius:12px;position:relative;transition:background .25s;flex-shrink:0}
+.toggle-track.on{background:var(--green)}
+.toggle-thumb{position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .25s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.toggle-track.on .toggle-thumb{transform:translateX(20px)}
+.plan-card{margin:0 18px 16px;border-radius:var(--radius);padding:18px;border:1.5px solid var(--border);background:var(--bg2);box-shadow:var(--shadow-sm)}
+.plan-card.pro{background:linear-gradient(145deg,#0A1628,#0D2137);border-color:rgba(0,200,120,.3)}
+.plan-badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:8px;letter-spacing:.3px}
+.plan-name{font-size:16px;font-weight:800;margin-bottom:4px;letter-spacing:-.3px}
+.plan-feature{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;margin-top:7px;font-weight:500}
+.plan-feature::before{content:\"✓\";color:var(--green);font-weight:800;flex-shrink:0}
+.upgrade-btn{width:100%;padding:12px;border-radius:12px;background:linear-gradient(135deg,var(--green),var(--green-dk));border:none;color:#fff;font-size:13px;font-weight:700;margin-top:14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,168,90,.25)}
+.bottom-nav{display:flex;background:var(--bg2);border-top:1px solid var(--border);padding:8px 0 12px;height:var(--nav-h);flex-shrink:0;position:relative;z-index:40}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;transition:all .2s}
+.nav-item:active{opacity:.7}
+.nav-ico{font-size:22px;color:var(--text3);transition:all .2s}
+.nav-ico.act{color:var(--green)}
+.nav-lbl{font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;transition:all .2s}
+.nav-lbl.act{color:var(--green)}
+.nav-dot{width:4px;height:4px;border-radius:50%;background:var(--green);margin:0 auto;opacity:0;transition:opacity .2s}
+.nav-dot.show{opacity:1}
+.modal-overlay{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal-sheet{background:var(--bg2);border-radius:24px 24px 0 0;padding:20px 20px 36px;width:100%;max-width:430px;max-height:90dvh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-drag{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 20px}
+.modal-title{font-size:17px;font-weight:800;color:var(--text);margin-bottom:20px;display:flex;align-items:center;gap:8px;letter-spacing:-.3px}
+.toast{position:fixed;bottom:calc(var(--nav-h)+16px);left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:var(--bg2);padding:11px 22px;border-radius:24px;font-size:13px;font-weight:600;opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;z-index:200;white-space:nowrap;max-width:calc(100% - 40px);box-shadow:var(--shadow-lg)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--red);color:#fff}
+.toast.ok{background:var(--green);color:#fff}
+.toast.warn{background:var(--amber);color:#fff}
+.skeleton{background:linear-gradient(90deg,var(--bg3) 25%,var(--border) 50%,var(--bg3) 75%);background-size:200% 100%;animation:sh 1.5s infinite;border-radius:var(--radius-sm)}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes splashPop{0%{transform:scale(.6) translateY(10px);opacity:0}60%{transform:scale(1.05) translateY(-2px)}100%{transform:scale(1) translateY(0);opacity:1}}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);transition:all .2s}
+.pin-dot.filled{background:var(--green);border-color:var(--green);transform:scale(1.1)}
+.pin-dot.error{background:var(--red);border-color:var(--red)}
+.pin-btn{width:78px;height:78px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);font-size:24px;font-weight:700;color:var(--text);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);transition:all .15s}
+.pin-btn:active{transform:scale(.92);background:var(--bg3);box-shadow:none}
+.pin-sub-lbl{font-size:9px;color:var(--text3);font-weight:500;letter-spacing:1px;line-height:1;margin-top:1px}
+</style>
 </head>
 <body>
 
@@ -191,6 +551,36 @@
     </div>
   </div>
 </div>
+
+<!-- APP WRAPPER FOR DESKTOP -->
+<div class="app-wrapper" id="app-wrapper">
+
+<!-- DESKTOP SIDEBAR -->
+<aside class="desk-sidebar" id="desk-sidebar" style="display:none">
+  <div class="desk-logo">
+    <img src="logo.png" alt="Wangku"/>
+    <span>Wangku</span>
+  </div>
+  <div class="desk-nav-section">
+    <div class="desk-nav-label">Menu Utama</div>
+    <a class="desk-nav-item active" id="dnav-home" onclick="goPage('home')"><i class="ti ti-home-2"></i> Beranda</a>
+    <a class="desk-nav-item" id="dnav-transaksi" onclick="goPage('transaksi')"><i class="ti ti-list"></i> Transaksi</a>
+    <a class="desk-nav-item" id="dnav-form" onclick="goPage('form')"><i class="ti ti-circle-plus"></i> Catat</a>
+    <a class="desk-nav-item" id="dnav-ai" onclick="openChatSheet()"><i class="ti ti-robot"></i> Wangku AI</a>
+    <div class="desk-nav-label" style="margin-top:16px">Lainnya</div>
+    <a class="desk-nav-item" id="dnav-setting" onclick="goPage('setting')"><i class="ti ti-settings"></i> Pengaturan</a>
+    <a class="desk-nav-item" onclick="logout()" style="color:var(--red)"><i class="ti ti-logout"></i> Keluar</a>
+  </div>
+  <div class="desk-user">
+    <div class="desk-user-info">
+      <div class="desk-avatar" id="desk-avatar">W</div>
+      <div>
+        <div class="desk-user-name" id="desk-user-name">—</div>
+        <div class="desk-user-plan" id="desk-user-plan">—</div>
+      </div>
+    </div>
+  </div>
+</aside>
 
 <!-- MAIN APP -->
 <div class="app" id="main-app" style="display:none">
@@ -522,6 +912,52 @@
 </div>
 
 <!-- MODALS -->
+<div class="modal-overlay" id="tambah-dana-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title"><i class="ti ti-piggy-bank" style="color:var(--green)"></i> Tambah Dana</div>
+    <div id="tambah-dana-info" style="background:var(--green-bg);border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--green-dk);font-weight:600"></div>
+    <div class="f-group">
+      <label class="f-label">Jumlah Dana</label>
+      <div class="l-wrap"><span class="l-ico" style="font-size:12px;font-weight:700;color:var(--text3)">Rp</span><input class="l-input" id="tambah-dana-input" type="number" placeholder="0" inputmode="numeric"/></div>
+    </div>
+    <button class="f-submit" onclick="saveTambahDana()"><i class="ti ti-piggy-bank"></i> Simpan Dana</button>
+    <button onclick="document.getElementById('tambah-dana-modal').classList.remove('open')" style="width:100%;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer">Batal</button>
+  </div>
+</div>
+
+<!-- TAMBAH DANA MODAL -->
+<div class="modal-overlay" id="tambah-dana-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title"><i class="ti ti-piggy-bank" style="color:var(--green)"></i> Tambah Dana</div>
+    <div id="td-target-name" style="font-size:13px;color:var(--text3);margin-bottom:16px;font-weight:500"></div>
+    <div id="td-progress-wrap" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+        <span style="color:var(--text3)">Terkumpul</span>
+        <span id="td-pct" style="font-weight:700;color:var(--green)">0%</span>
+      </div>
+      <div class="target-progress"><div class="target-fill" id="td-bar" style="width:0%;background:var(--green)"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px">
+        <span id="td-terkumpul" style="color:var(--green);font-weight:700">Rp 0</span>
+        <span id="td-nominal" style="color:var(--text3)">Rp 0</span>
+      </div>
+    </div>
+    <div class="f-group">
+      <label class="f-label">Jumlah Dana yang Ditambahkan</label>
+      <input class="f-input" id="td-amount" type="number" placeholder="Contoh: 500000" inputmode="numeric"/>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <button onclick="setTDAmount(50000)" style="padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg3);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer">+50rb</button>
+      <button onclick="setTDAmount(100000)" style="padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg3);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer">+100rb</button>
+      <button onclick="setTDAmount(500000)" style="padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg3);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer">+500rb</button>
+      <button onclick="setTDAmount(1000000)" style="padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg3);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer">+1jt</button>
+    </div>
+    <button class="f-submit" onclick="simpanTambahDana()"><i class="ti ti-check"></i> Simpan</button>
+    <button onclick="document.getElementById('tambah-dana-modal').classList.remove('open')" style="width:100%;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;font-weight:600;margin-top:8px;cursor:pointer">Batal</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="target-modal">
   <div class="modal-sheet">
     <div class="modal-drag"></div>
@@ -687,32 +1123,26 @@
     </div>
     <div style="padding:20px 16px">
       <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">Pilih Paket Wangku</div>
-      <div id="plan-card-free" onclick="highlightPlan('free',0)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer;transition:all .2s">
+      <div id="plan-card-basic" onclick="highlightPlan('basic',79000)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer;transition:all .2s">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><div style="font-size:15px;font-weight:700;color:var(--text)">Free</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Coba gratis 1 bulan · fitur dasar setelahnya</div></div>
-          <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">Gratis</div></div>
+          <div><div style="font-size:15px;font-weight:700;color:var(--text)">Basic</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Catat transaksi · Dashboard · Laporan</div></div>
+          <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">Rp 79.000</div><div style="font-size:10px;color:var(--text3)">lifetime</div></div>
         </div>
       </div>
-      <div id="plan-card-basic" onclick="highlightPlan('basic',19000)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer;transition:all .2s">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><div style="font-size:15px;font-weight:700;color:var(--text)">Basic</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Catat transaksi · Dashboard · Laporan · WhatsApp Bot</div></div>
-          <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">Rp 19.000</div><div style="font-size:10px;color:var(--text3)">/bulan</div></div>
-        </div>
-      </div>
-      <div id="plan-card-pro" onclick="highlightPlan('pro',34000)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer;transition:all .2s;position:relative">
+      <div id="plan-card-pro" onclick="highlightPlan('pro',129000)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer;transition:all .2s;position:relative">
         <div style="position:absolute;top:-10px;left:16px;background:var(--green);color:#fff;font-size:10px;font-weight:700;padding:2px 10px;border-radius:10px">✦ PALING POPULER</div>
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><div style="font-size:15px;font-weight:700;color:var(--text)">Pro</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Semua Basic + AI Chat & Scan Struk (token terbatas) ✨</div></div>
-          <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">Rp 34.000</div><div style="font-size:10px;color:var(--text3)">/bulan</div></div>
+          <div><div style="font-size:15px;font-weight:700;color:var(--text)">Pro</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Semua Basic + AI Chat & Scan Struk ✨</div></div>
+          <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">Rp 129.000</div><div style="font-size:10px;color:var(--text3)">lifetime</div></div>
         </div>
       </div>
-      <div id="plan-card-unlimited" onclick="highlightPlan('unlimited',49000)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:20px;cursor:pointer;transition:all .2s">
+      <div id="plan-card-unlimited" onclick="highlightPlan('unlimited',139000)" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:14px;padding:16px;margin-bottom:20px;cursor:pointer;transition:all .2s">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><div style="font-size:15px;font-weight:700;color:var(--text)">Ultimate</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Pro + token AI unlimited + Priority support 🚀</div></div>
-          <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">Rp 49.000</div><div style="font-size:10px;color:var(--text3)">/bulan</div></div>
+          <div><div style="font-size:15px;font-weight:700;color:var(--text)">Unlimited</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Pro + 5M token AI + Priority support 🚀</div></div>
+          <div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">Rp 139.000</div><div style="font-size:10px;color:var(--text3)">lifetime</div></div>
         </div>
       </div>
-      <div style="text-align:center;font-size:11px;color:var(--text3);margin-bottom:20px">Tagihan bulanan, bisa batal kapan saja 🔒</div>
+      <div style="text-align:center;font-size:11px;color:var(--text3);margin-bottom:20px">Bayar sekali, pakai selamanya 🔒</div>
       <div style="display:flex;gap:10px">
         <button onclick="hidePaymentFlow()" style="flex:1;padding:13px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text2);font-size:14px;font-weight:600;cursor:pointer">← Kembali</button>
         <button onclick="lanjutkanPembayaran()" style="flex:2;padding:13px;border-radius:12px;background:var(--green);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer">Selanjutnya →</button>
@@ -726,7 +1156,7 @@
       <button onclick="showPayStep(1)" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;cursor:pointer">← Kembali</button>
       <div style="font-size:13px;color:rgba(255,255,255,.7)">Paket yang dipilih</div>
       <div style="font-size:22px;font-weight:700;color:#fff" id="pay-plan-title">Pro</div>
-      <div style="font-size:32px;font-weight:700;color:#fff;margin-top:2px" id="pay-amount-title">Rp 34.000 /bulan</div>
+      <div style="font-size:32px;font-weight:700;color:#fff;margin-top:2px" id="pay-amount-title">Rp 129.000</div>
     </div>
     <div style="padding:20px 16px">
       <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">💳 Transfer Bank</div>
