@@ -110,6 +110,8 @@ function renderAccountManageSection(){
 }
 function openAccountAdd(){
   editingAccountId=null;
+  document.getElementById('acc-form-view').style.display='block';
+  document.getElementById('acc-success-view').style.display='none';
   document.getElementById('acc-modal-title').textContent='Tambah Akun';
   document.getElementById('acc-nama').value='';
   document.getElementById('acc-saldo').value='0';
@@ -119,6 +121,8 @@ function openAccountAdd(){
 function openAccountEdit(id){
   const a=accountsList.find(x=>x.id===id);if(!a)return;
   editingAccountId=id;
+  document.getElementById('acc-form-view').style.display='block';
+  document.getElementById('acc-success-view').style.display='none';
   document.getElementById('acc-modal-title').textContent='Edit Akun';
   document.getElementById('acc-nama').value=a.nama;
   document.getElementById('acc-saldo').value=a.saldo_awal;
@@ -132,6 +136,7 @@ async function saveAccount(){
   if(!nama){showToast('Nama akun wajib diisi!','err');return;}
   try{
     let accId=editingAccountId;
+    const wasEdit=!!accId;
     if(accId){
       await sb(`accounts?id=eq.${accId}&user_id=eq.${user.id}`,'PATCH',{nama,saldo_awal:saldo});
     }else{
@@ -142,9 +147,12 @@ async function saveAccount(){
       await sb(`accounts?user_id=eq.${user.id}`,'PATCH',{is_default:false});
       await sb(`accounts?id=eq.${accId}`,'PATCH',{is_default:true});
     }
-    document.getElementById('account-modal').classList.remove('open');
     editingAccountId=null;
     await loadAccounts();
+    if(typeof loadSummary==='function')await loadSummary();
+    document.getElementById('acc-form-view').style.display='none';
+    document.getElementById('acc-success-msg').textContent=wasEdit?'Akun berhasil diupdate!':'Akun berhasil ditambahkan!';
+    document.getElementById('acc-success-view').style.display='block';
     showToast('Akun disimpan ✓','ok');
   }catch(e){showToast(e.message.includes('unique')?'Nama akun sudah ada!':'Gagal: '+e.message,'err');}
 }

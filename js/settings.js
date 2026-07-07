@@ -8,6 +8,7 @@ function renderSettingsExtras(){
   renderSetAvatar();
   syncNotifToggleUI();
   syncAutoDetectUI();
+  syncCountTargetUI();
   if(typeof renderAccountManageSection==='function')renderAccountManageSection();
   const track=document.getElementById('autosync-track');
   if(track)track.className='toggle-track'+(autosyncEnabled()?' on':'');
@@ -76,6 +77,8 @@ function renderSetAvatar(){
 function openProfileEdit(){
   if(!user)return;
   pendingAvatarBase64=null;
+  document.getElementById('pe-form-view').style.display='block';
+  document.getElementById('pe-success-view').style.display='none';
   document.getElementById('pe-nama').value=user.full_name||'';
   document.getElementById('pe-username').value=user.username||'';
   renderAvatarEditPreview(user.avatar_url);
@@ -109,10 +112,26 @@ async function saveProfile(){
     document.getElementById('set-nama').textContent=user.full_name;
     renderSetAvatar();
     localStorage.setItem('sdk_session',JSON.stringify(user));
-    document.getElementById('profile-edit-modal').classList.remove('open');
+    document.getElementById('pe-form-view').style.display='none';
+    document.getElementById('pe-success-view').style.display='block';
     showToast('Profil diperbarui ✓','ok');
   }catch(e){showToast('Gagal: '+e.message,'err');}
   btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> Simpan Profil';
+}
+
+// ========================
+// PERHITUNGAN SALDO (apakah saldo target ikut dihitung ke Saldo Sekarang)
+// ========================
+function syncCountTargetUI(){
+  const t=document.getElementById('count-target-track');
+  if(t)t.className='toggle-track'+(countTargetInBalance()?' on':'');
+}
+async function toggleCountTargetBalance(){
+  const enabled=!countTargetInBalance();
+  localStorage.setItem('wangku_count_target_balance',enabled?'1':'0');
+  syncCountTargetUI();
+  showToast(enabled?'Saldo target ikut dihitung ✓':'Saldo target tidak dihitung','ok');
+  if(typeof loadSummary==='function')await loadSummary();
 }
 
 // ========================

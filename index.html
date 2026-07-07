@@ -233,22 +233,6 @@
           <div class="stat-card"><div class="stat-top"><i class="ti ti-trending-up" style="font-size:15px;color:var(--green)"></i><span class="stat-lbl">Pemasukan</span></div><div class="stat-val" id="stat-masuk" style="color:var(--green)">—</div><div class="stat-badge" style="background:var(--green-bg);color:var(--green)" id="stat-masuk-b">—</div></div>
           <div class="stat-card"><div class="stat-top"><i class="ti ti-trending-down" style="font-size:15px;color:var(--red)"></i><span class="stat-lbl">Pengeluaran</span></div><div class="stat-val" id="stat-keluar" style="color:var(--red)">—</div><div class="stat-badge" style="background:var(--red-bg);color:var(--red)" id="stat-keluar-b">—</div></div>
         </div>
-        <div class="sec-title">Kategori Pengeluaran</div>
-        <div class="chart-card" style="margin-bottom:12px">
-          <div class="donut-row">
-            <svg id="pie-svg" width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="30" fill="none" stroke="var(--bg3)" stroke-width="14"/></svg>
-            <div class="leg-wrap" id="pie-legend"><div style="font-size:11px;color:var(--text3)">Memuat...</div></div>
-          </div>
-          <div id="pie-empty" style="display:none;text-align:center;padding:8px 0;font-size:12px;color:var(--text3)">Belum ada pengeluaran bulan ini</div>
-        </div>
-        <div class="sec-title">Kategori Pemasukan</div>
-        <div class="chart-card" style="margin-bottom:4px">
-          <div class="donut-row">
-            <svg id="pie-svg-in" width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="30" fill="none" stroke="var(--bg3)" stroke-width="14"/></svg>
-            <div class="leg-wrap" id="pie-legend-in"><div style="font-size:11px;color:var(--text3)">Memuat...</div></div>
-          </div>
-          <div id="pie-empty-in" style="display:none;text-align:center;padding:8px 0;font-size:12px;color:var(--text3)">Belum ada pemasukan bulan ini</div>
-        </div>
         <div class="sec-title">Transaksi Terakhir <span class="see-all" onclick="goPage('transaksi')">Lihat semua</span></div>
         <div class="tab-strip" id="home-tabs">
           <button class="tab-btn active" onclick="filterHome(this,'semua')">Semua</button>
@@ -349,7 +333,7 @@
       <div class="sp" style="padding-top:14px">
         <div class="sec-title">Target Tabungan</div>
         <div id="target-list"></div>
-        <button class="add-target-btn" onclick="document.getElementById('target-modal').classList.add('open')"><i class="ti ti-plus"></i> Tambah Target Baru</button>
+        <button class="add-target-btn" onclick="openTargetAdd()"><i class="ti ti-plus"></i> Tambah Target Baru</button>
         <div class="sec-title" style="margin-top:20px">Split Bill <span style="font-size:10px;background:var(--blue);color:#fff;padding:2px 8px;border-radius:10px;margin-left:4px">Segera Hadir</span></div>
         <div class="coming-card">
           <div class="coming-badge">COMING SOON</div>
@@ -365,6 +349,32 @@
     <div class="page" id="page-laporan">
       <div class="sp" style="padding-top:14px">
         <div class="sec-title">Laporan Keuangan</div>
+        <div id="lap-exec"></div>
+
+        <div class="sec-title">Kategori Pengeluaran</div>
+        <div class="chart-card" style="margin-bottom:12px">
+          <div class="donut-row">
+            <svg id="pie-svg" width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="30" fill="none" stroke="var(--bg3)" stroke-width="14"/></svg>
+            <div class="leg-wrap" id="pie-legend"><div style="font-size:11px;color:var(--text3)">Memuat...</div></div>
+          </div>
+          <div id="pie-empty" style="display:none;text-align:center;padding:8px 0;font-size:12px;color:var(--text3)">Belum ada pengeluaran bulan ini</div>
+        </div>
+        <div class="sec-title">Kategori Pemasukan</div>
+        <div class="chart-card" style="margin-bottom:12px">
+          <div class="donut-row">
+            <svg id="pie-svg-in" width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="30" fill="none" stroke="var(--bg3)" stroke-width="14"/></svg>
+            <div class="leg-wrap" id="pie-legend-in"><div style="font-size:11px;color:var(--text3)">Memuat...</div></div>
+          </div>
+          <div id="pie-empty-in" style="display:none;text-align:center;padding:8px 0;font-size:12px;color:var(--text3)">Belum ada pemasukan bulan ini</div>
+        </div>
+
+        <div class="sec-title">Analisis Prioritas</div>
+        <div class="chart-card" style="margin-bottom:12px" id="lap-prioritas"></div>
+
+        <div class="sec-title">Rekomendasi Keuangan</div>
+        <div class="chart-card" style="margin-bottom:12px;display:flex;flex-direction:column;gap:10px" id="lap-tips"></div>
+
+        <div class="sec-title">Rincian per Kategori</div>
         <div class="rin-table" id="rin-masuk"></div>
         <div class="rin-table" id="rin-keluar" style="margin-bottom:20px"></div>
       </div>
@@ -425,6 +435,17 @@
             <div class="set-card">
               <div class="set-row" onclick="loadSummary()"><div class="set-ico" style="background:#E8F5E9;color:#2E7D32"><i class="ti ti-brand-google"></i></div><div><div class="set-lbl">Google Sheets</div><div class="set-sub" id="sheets-status">Tap refresh</div></div><span class="pill ok">Aktif</span></div>
               <div class="set-row"><div class="set-ico" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-brand-whatsapp"></i></div><div><div class="set-lbl">WhatsApp Bot</div><div class="set-sub">Fonnte Webhook</div></div><span class="pill ok">Aktif</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="set-section">
+          <div class="set-sec-title">Perhitungan Saldo</div>
+          <div class="set-card">
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer" onclick="toggleCountTargetBalance()">
+              <div class="set-ico" style="background:#F3EEFF;color:#7C3AED"><i class="ti ti-target"></i></div>
+              <div style="flex:1"><div class="set-lbl">Hitung Saldo Target</div><div class="set-sub">Tambahkan saldo target tabungan ke Saldo Sekarang</div></div>
+              <div class="toggle-track" id="count-target-track"><div class="toggle-thumb"></div></div>
             </div>
           </div>
         </div>
@@ -586,13 +607,39 @@
 <div class="modal-overlay" id="target-modal">
   <div class="modal-sheet">
     <div class="modal-drag"></div>
-    <div class="modal-title"><i class="ti ti-target" style="color:var(--amber)"></i> Target Tabungan Baru</div>
-    <div class="f-group"><label class="f-label">Nama Target</label><input class="f-input" id="t-nama" placeholder="Contoh: Beli HP baru"/></div>
-    <div class="f-group"><label class="f-label">Nominal Target (Rp)</label><input class="f-input" id="t-nominal" type="number" placeholder="5000000"/></div>
-    <div class="f-group"><label class="f-label">Sudah Terkumpul (Rp)</label><input class="f-input" id="t-terkumpul" type="number" placeholder="0"/></div>
-    <div class="f-group"><label class="f-label">Deadline</label><input class="f-input" id="t-deadline" type="date"/></div>
-    <button class="f-submit" onclick="saveTarget()"><i class="ti ti-device-floppy"></i> Simpan Target</button>
-    <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('target-modal').classList.remove('open')">Batal</button>
+    <div id="target-form-view">
+      <div class="modal-title"><i class="ti ti-target" style="color:var(--amber)"></i> <span id="target-modal-title">Target Tabungan Baru</span></div>
+      <div class="f-group"><label class="f-label">Nama Target</label><input class="f-input" id="t-nama" placeholder="Contoh: Beli HP baru"/></div>
+      <div class="f-group"><label class="f-label">Nominal Target (Rp)</label><input class="f-input" id="t-nominal" type="number" placeholder="5000000"/></div>
+      <div class="f-group"><label class="f-label">Sudah Terkumpul (Rp)</label><input class="f-input" id="t-terkumpul" type="number" placeholder="0"/></div>
+      <div class="f-group"><label class="f-label">Deadline</label><input class="f-input" id="t-deadline" type="date"/></div>
+      <button class="f-submit" id="target-save-btn" onclick="saveTarget()"><i class="ti ti-device-floppy"></i> Simpan Target</button>
+      <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('target-modal').classList.remove('open')">Batal</button>
+    </div>
+    <div id="target-success-view" style="display:none;text-align:center;padding:16px 0">
+      <i class="ti ti-circle-check" style="font-size:48px;color:var(--green)"></i>
+      <div style="margin-top:10px;font-weight:700;color:var(--text)" id="target-success-msg">Target berhasil disimpan!</div>
+      <button class="f-submit" style="margin-top:16px" onclick="document.getElementById('target-modal').classList.remove('open')">Selesai</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="target-contribute-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div id="contrib-form-view">
+      <div class="modal-title"><i class="ti ti-piggy-bank" style="color:var(--green)"></i> Tambah Tabungan</div>
+      <div style="background:var(--bg3);border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:13px;font-weight:600;color:var(--text)" id="contrib-target-name">—</div>
+      <div class="f-group"><label class="f-label">Nominal (Rp)</label><input class="f-input" id="contrib-nominal" type="number" placeholder="100000"/></div>
+      <div class="f-group"><label class="f-label">Dari Akun</label><select class="f-select" id="contrib-akun"></select></div>
+      <button class="f-submit" onclick="submitContribution()"><i class="ti ti-device-floppy"></i> Simpan</button>
+      <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('target-contribute-modal').classList.remove('open')">Batal</button>
+    </div>
+    <div id="contrib-success-view" style="display:none;text-align:center;padding:16px 0">
+      <i class="ti ti-circle-check" style="font-size:48px;color:var(--green)"></i>
+      <div style="margin-top:10px;font-weight:700;color:var(--text)" id="contrib-success-msg">Tabungan berhasil ditambahkan!</div>
+      <button class="f-submit" style="margin-top:16px" onclick="document.getElementById('target-contribute-modal').classList.remove('open')">Selesai</button>
+    </div>
   </div>
 </div>
 
@@ -634,15 +681,22 @@
 <div class="modal-overlay" id="account-modal">
   <div class="modal-sheet">
     <div class="modal-drag"></div>
-    <div class="modal-title"><i class="ti ti-wallet" style="color:var(--green)"></i> <span id="acc-modal-title">Tambah Akun</span></div>
-    <div class="f-group"><label class="f-label">Nama Akun</label><input class="f-input" id="acc-nama" placeholder="Contoh: Cash, BCA, GoPay..."/></div>
-    <div class="f-group"><label class="f-label">Saldo Awal (Rp)</label><input class="f-input" id="acc-saldo" type="number" placeholder="0"/></div>
-    <div style="display:flex;align-items:center;gap:10px;padding:4px 2px 14px">
-      <input type="checkbox" id="acc-default" style="width:18px;height:18px;accent-color:var(--green)"/>
-      <label for="acc-default" style="font-size:12px;color:var(--text2)">Jadikan akun default</label>
+    <div id="acc-form-view">
+      <div class="modal-title"><i class="ti ti-wallet" style="color:var(--green)"></i> <span id="acc-modal-title">Tambah Akun</span></div>
+      <div class="f-group"><label class="f-label">Nama Akun</label><input class="f-input" id="acc-nama" placeholder="Contoh: Cash, BCA, GoPay..."/></div>
+      <div class="f-group"><label class="f-label">Saldo Awal (Rp)</label><input class="f-input" id="acc-saldo" type="number" placeholder="0"/></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:4px 2px 14px">
+        <input type="checkbox" id="acc-default" style="width:18px;height:18px;accent-color:var(--green)"/>
+        <label for="acc-default" style="font-size:12px;color:var(--text2)">Jadikan akun default</label>
+      </div>
+      <button class="f-submit" onclick="saveAccount()"><i class="ti ti-device-floppy"></i> Simpan Akun</button>
+      <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('account-modal').classList.remove('open')">Batal</button>
     </div>
-    <button class="f-submit" onclick="saveAccount()"><i class="ti ti-device-floppy"></i> Simpan Akun</button>
-    <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('account-modal').classList.remove('open')">Batal</button>
+    <div id="acc-success-view" style="display:none;text-align:center;padding:16px 0">
+      <i class="ti ti-circle-check" style="font-size:48px;color:var(--green)"></i>
+      <div style="margin-top:10px;font-weight:700;color:var(--text)" id="acc-success-msg">Akun berhasil disimpan!</div>
+      <button class="f-submit" style="margin-top:16px" onclick="document.getElementById('account-modal').classList.remove('open')">Selesai</button>
+    </div>
   </div>
 </div>
 
@@ -687,15 +741,22 @@
 <div class="modal-overlay" id="profile-edit-modal">
   <div class="modal-sheet">
     <div class="modal-drag"></div>
-    <div class="modal-title"><i class="ti ti-user" style="color:var(--green)"></i> Edit Profil</div>
-    <div class="avatar-upload-wrap">
-      <div id="avatar-edit-preview"></div>
-      <label class="avatar-edit-btn"><input type="file" id="avatar-file" accept="image/*" style="display:none" onchange="previewAvatar(this)"/><i class="ti ti-camera"></i></label>
+    <div id="pe-form-view">
+      <div class="modal-title"><i class="ti ti-user" style="color:var(--green)"></i> Edit Profil</div>
+      <div class="avatar-upload-wrap">
+        <div id="avatar-edit-preview"></div>
+        <label class="avatar-edit-btn"><input type="file" id="avatar-file" accept="image/*" style="display:none" onchange="previewAvatar(this)"/><i class="ti ti-camera"></i></label>
+      </div>
+      <div class="f-group"><label class="f-label">Nama Lengkap</label><input class="f-input" id="pe-nama" placeholder="Nama lengkap kamu"/></div>
+      <div class="f-group"><label class="f-label">Username</label><input class="f-input" id="pe-username" disabled style="opacity:.6"/></div>
+      <button class="f-submit" id="pe-save-btn" onclick="saveProfile()"><i class="ti ti-device-floppy"></i> Simpan Profil</button>
+      <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('profile-edit-modal').classList.remove('open')">Batal</button>
     </div>
-    <div class="f-group"><label class="f-label">Nama Lengkap</label><input class="f-input" id="pe-nama" placeholder="Nama lengkap kamu"/></div>
-    <div class="f-group"><label class="f-label">Username</label><input class="f-input" id="pe-username" disabled style="opacity:.6"/></div>
-    <button class="f-submit" id="pe-save-btn" onclick="saveProfile()"><i class="ti ti-device-floppy"></i> Simpan Profil</button>
-    <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('profile-edit-modal').classList.remove('open')">Batal</button>
+    <div id="pe-success-view" style="display:none;text-align:center;padding:16px 0">
+      <i class="ti ti-circle-check" style="font-size:48px;color:var(--green)"></i>
+      <div style="margin-top:10px;font-weight:700;color:var(--text)">Profil berhasil diperbarui!</div>
+      <button class="f-submit" style="margin-top:16px" onclick="document.getElementById('profile-edit-modal').classList.remove('open')">Selesai</button>
+    </div>
   </div>
 </div>
 

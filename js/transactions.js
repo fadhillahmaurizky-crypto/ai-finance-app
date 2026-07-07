@@ -9,9 +9,9 @@ async function loadTrx(filter='semua',cid='txn-home',limit=5){
   }catch(e){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Gagal memuat</div>';}
 }
 
-const IM={makan:'tools-kitchen-2',makanan:'tools-kitchen-2',belanja:'shopping-bag',elektronik:'device-laptop',pulsa:'device-mobile',paket_data:'wifi',transportasi:'motorbike',hiburan:'device-gamepad-2',tagihan:'receipt',gaji:'wallet',bonus:'gift',arisan:'users',jualan:'shopping-cart',saldo_awal:'piggy-bank',lainnya:'coin'};
-const BG={makan:'#FFF0F0',makanan:'#FFF0F0',belanja:'#FFF0FF',elektronik:'#EBF3FF',pulsa:'#F3EEFF',paket_data:'#EBF9FF',transportasi:'#EBF3FF',hiburan:'#F3EEFF',tagihan:'#FEF3C7',gaji:'var(--green-bg)',bonus:'var(--green-bg)',arisan:'var(--green-bg)',jualan:'var(--green-bg)',saldo_awal:'var(--green-bg)'};
-const CL={makan:'#EF4444',makanan:'#EF4444',belanja:'#EC4899',elektronik:'#2B7EF8',pulsa:'#8B5CF6',paket_data:'#06B6D4',transportasi:'#2B7EF8',hiburan:'#8B5CF6',tagihan:'#F59E0B',gaji:'var(--green)',bonus:'var(--green)',arisan:'var(--green)',jualan:'var(--green)',saldo_awal:'var(--green)'};
+const IM={makan:'tools-kitchen-2',makanan:'tools-kitchen-2',belanja:'shopping-bag',elektronik:'device-laptop',pulsa:'device-mobile',paket_data:'wifi',transportasi:'motorbike',hiburan:'device-gamepad-2',tagihan:'receipt',tabungan:'piggy-bank',gaji:'wallet',bonus:'gift',arisan:'users',jualan:'shopping-cart',saldo_awal:'piggy-bank',lainnya:'coin'};
+const BG={makan:'#FFF0F0',makanan:'#FFF0F0',belanja:'#FFF0FF',elektronik:'#EBF3FF',pulsa:'#F3EEFF',paket_data:'#EBF9FF',transportasi:'#EBF3FF',hiburan:'#F3EEFF',tagihan:'#FEF3C7',tabungan:'var(--amber-bg)',gaji:'var(--green-bg)',bonus:'var(--green-bg)',arisan:'var(--green-bg)',jualan:'var(--green-bg)',saldo_awal:'var(--green-bg)'};
+const CL={makan:'#EF4444',makanan:'#EF4444',belanja:'#EC4899',elektronik:'#2B7EF8',pulsa:'#8B5CF6',paket_data:'#06B6D4',transportasi:'#2B7EF8',hiburan:'#8B5CF6',tagihan:'#F59E0B',tabungan:'var(--amber)',gaji:'var(--green)',bonus:'var(--green)',arisan:'var(--green)',jualan:'var(--green)',saldo_awal:'var(--green)'};
 
 let txnCache={};
 function renderTxn(txns,cid){
@@ -60,23 +60,98 @@ async function renderTargets(){
   if(typeof checkTargetNotif==='function')checkTargetNotif(targets);
   if(!targets.length){el.innerHTML='<div style="text-align:center;padding:24px 0;color:var(--text3);font-size:13px">Belum ada target. Buat yang pertama! 🎯</div>';return;}
   const IC=['🏠','✈️','📱','🚗','💍','💻','🎓','💰'];const CO=['var(--green)','var(--blue)','var(--amber)','#8B5CF6','#EC4899'];
-  el.innerHTML=targets.map((t,i)=>{const pct=Math.min(100,Math.round((t.terkumpul/t.nominal)*100));const col=CO[i%CO.length];const dl=t.deadline?new Date(t.deadline).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'Tanpa deadline';return`<div class="target-card"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:38px;height:38px;border-radius:12px;background:${col}20;color:${col};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${IC[i%IC.length]}</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">${t.nama}</div><div style="font-size:10px;color:var(--text3)">🗓️ ${dl}</div></div><div style="font-size:12px;font-weight:700;color:${col}">${pct}%</div><button onclick="delTarget('${t.id}')" style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:4px"><i class="ti ti-trash"></i></button></div><div class="target-progress"><div class="target-fill" style="width:${pct}%;background:${col}"></div></div><div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:${col};font-weight:600">${rpF(t.terkumpul)}</span><span style="color:var(--text3)">Target: ${rpF(t.nominal)}</span></div>${pct>=100?'<div style="margin-top:6px;font-size:11px;color:var(--green);font-weight:600">🎉 Target tercapai!</div>':'<div style="margin-top:6px;font-size:11px;color:var(--text3)">Sisa: '+rpF(t.nominal-t.terkumpul)+'</div>'}</div>`;}).join('');
+  el.innerHTML=targets.map((t,i)=>{const pct=Math.min(100,Math.round((t.terkumpul/t.nominal)*100));const col=CO[i%CO.length];const dl=t.deadline?new Date(t.deadline).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'Tanpa deadline';return`<div class="target-card"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:38px;height:38px;border-radius:12px;background:${col}20;color:${col};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${IC[i%IC.length]}</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">${t.nama}</div><div style="font-size:10px;color:var(--text3)">🗓️ ${dl}</div></div><div style="font-size:12px;font-weight:700;color:${col}">${pct}%</div><button onclick="openTargetEdit('${t.id}')" style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:4px"><i class="ti ti-pencil"></i></button><button onclick="delTarget('${t.id}')" style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:4px"><i class="ti ti-trash"></i></button></div><div class="target-progress"><div class="target-fill" style="width:${pct}%;background:${col}"></div></div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:10px"><span style="color:${col};font-weight:600">${rpF(t.terkumpul)}</span><span style="color:var(--text3)">Target: ${rpF(t.nominal)}</span></div>${pct>=100?'<div style="margin-bottom:10px;font-size:11px;color:var(--green);font-weight:600">🎉 Target tercapai!</div>':'<div style="margin-bottom:10px;font-size:11px;color:var(--text3)">Sisa: '+rpF(t.nominal-t.terkumpul)+'</div>'}<button onclick="openContribute('${t.id}')" style="width:100%;padding:9px;border-radius:10px;background:${col}15;border:1.5px dashed ${col};color:${col};font-size:12px;font-weight:600;cursor:pointer"><i class="ti ti-piggy-bank"></i> Tambah Tabungan</button></div>`;}).join('');
+}
+
+let editingTargetId=null;
+function resetTargetModalView(){
+  document.getElementById('target-form-view').style.display='block';
+  document.getElementById('target-success-view').style.display='none';
+}
+function openTargetAdd(){
+  editingTargetId=null;
+  resetTargetModalView();
+  document.getElementById('target-modal-title').textContent='Target Tabungan Baru';
+  ['t-nama','t-nominal','t-terkumpul','t-deadline'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('target-save-btn').innerHTML='<i class="ti ti-device-floppy"></i> Simpan Target';
+  document.getElementById('target-modal').classList.add('open');
+}
+function openTargetEdit(id){
+  const t=targets.find(x=>x.id===id);if(!t)return;
+  editingTargetId=id;
+  resetTargetModalView();
+  document.getElementById('target-modal-title').textContent='Edit Target';
+  document.getElementById('t-nama').value=t.nama;
+  document.getElementById('t-nominal').value=t.nominal;
+  document.getElementById('t-terkumpul').value=t.terkumpul;
+  document.getElementById('t-deadline').value=t.deadline||'';
+  document.getElementById('target-save-btn').innerHTML='<i class="ti ti-device-floppy"></i> Update Target';
+  document.getElementById('target-modal').classList.add('open');
 }
 async function saveTarget(){
   const n=document.getElementById('t-nama').value.trim();const nom=parseFloat(document.getElementById('t-nominal').value);const terk=parseFloat(document.getElementById('t-terkumpul').value)||0;const dl=document.getElementById('t-deadline').value;
   if(!n){showToast('Masukkan nama!','err');return;}if(!nom||nom<=0){showToast('Masukkan nominal!','err');return;}
   try{
-    await sb('targets','POST',{user_id:user.id,nama:n,nominal:nom,terkumpul:terk,deadline:dl||null});
-    await renderTargets();document.getElementById('target-modal').classList.remove('open');
-    ['t-nama','t-nominal','t-terkumpul','t-deadline'].forEach(id=>document.getElementById(id).value='');
-    showToast('Target ditambahkan 🎯','ok');
+    if(editingTargetId){
+      await sb(`targets?id=eq.${editingTargetId}&user_id=eq.${user.id}`,'PATCH',{nama:n,nominal:nom,terkumpul:terk,deadline:dl||null});
+    }else{
+      await sb('targets','POST',{user_id:user.id,nama:n,nominal:nom,terkumpul:terk,deadline:dl||null});
+    }
+    await renderTargets();
+    if(typeof loadSummary==='function'&&typeof countTargetInBalance==='function'&&countTargetInBalance())await loadSummary();
+    document.getElementById('target-form-view').style.display='none';
+    document.getElementById('target-success-msg').textContent=editingTargetId?'Target berhasil diupdate!':'Target berhasil ditambahkan!';
+    document.getElementById('target-success-view').style.display='block';
+    showToast(editingTargetId?'Target diupdate ✓':'Target ditambahkan 🎯','ok');
+    editingTargetId=null;
   }catch(e){showToast('Gagal: '+e.message,'err');}
 }
 async function delTarget(id){
   if(confirm('Hapus target ini?')){
-    try{await sb(`targets?id=eq.${id}&user_id=eq.${user.id}`,'DELETE');await renderTargets();}
+    try{
+      await sb(`targets?id=eq.${id}&user_id=eq.${user.id}`,'DELETE');
+      await renderTargets();
+      if(typeof loadSummary==='function'&&typeof countTargetInBalance==='function'&&countTargetInBalance())await loadSummary();
+      showToast('Target dihapus','ok');
+    }
     catch(e){showToast('Gagal hapus','err');}
   }
+}
+
+// ------------------------
+// Kontribusi ke Target (payment/saving) — dicatat sebagai transaksi pengeluaran
+// ------------------------
+let contributingTargetId=null;
+function openContribute(id){
+  const t=targets.find(x=>x.id===id);if(!t)return;
+  contributingTargetId=id;
+  document.getElementById('contrib-form-view').style.display='block';
+  document.getElementById('contrib-success-view').style.display='none';
+  document.getElementById('contrib-target-name').textContent='🎯 '+t.nama+' ('+rpF(t.terkumpul)+' / '+rpF(t.nominal)+')';
+  document.getElementById('contrib-nominal').value='';
+  if(typeof renderAccountSelects==='function')renderAccountSelects();
+  const akunSel=document.getElementById('contrib-akun');
+  if(akunSel&&typeof accountsList!=='undefined')akunSel.innerHTML=accountsList.map(a=>`<option value="${a.id}">${a.nama}</option>`).join('');
+  if(akunSel&&typeof getDefaultAccountId==='function')akunSel.value=getDefaultAccountId();
+  document.getElementById('target-contribute-modal').classList.add('open');
+}
+async function submitContribution(){
+  const t=targets.find(x=>x.id===contributingTargetId);if(!t)return;
+  const nom=parseFloat(document.getElementById('contrib-nominal').value);
+  const akun=document.getElementById('contrib-akun').value;
+  if(!nom||nom<=0){showToast('Masukkan nominal!','err');return;}
+  if(!akun){showToast('Pilih akun!','err');return;}
+  try{
+    await sb('transactions','POST',{user_id:user.id,jenis:'pengeluaran',nominal:nom,kategori:'tabungan',prioritas:'penting',keterangan:'Tabungan: '+t.nama,account_id:akun,target_id:t.id,tanggal:new Date().toISOString().substring(0,10)});
+    await sb(`targets?id=eq.${t.id}&user_id=eq.${user.id}`,'PATCH',{terkumpul:(Number(t.terkumpul)||0)+nom});
+    await renderTargets();
+    if(typeof markTransactedToday==='function')markTransactedToday();
+    if(typeof runAutosync==='function')await runAutosync();else if(typeof loadSummary==='function')await loadSummary();
+    document.getElementById('contrib-form-view').style.display='none';
+    document.getElementById('contrib-success-msg').textContent='Rp'+nom.toLocaleString('id-ID')+' berhasil ditambahkan ke "'+t.nama+'"!';
+    document.getElementById('contrib-success-view').style.display='block';
+    showToast('Tabungan ditambahkan ✓','ok');
+  }catch(e){showToast('Gagal: '+e.message,'err');}
 }
 
 let editingTrxId=null;
@@ -188,8 +263,20 @@ function openTrxDetailById(id){
   document.getElementById('trx-detail-modal').classList.add('open');
 }
 
-function triggerCam(){if(!canScan()){const plan=getPlan();showToast(plan==='free'?'Scan struk tersedia di paket Pro! Upgrade sekarang 🚀':'Limit scan habis bulan ini','warn');return;}if(!getKey()){showToast('AI belum aktif. Hubungi admin','err');return;}document.getElementById('nav-cam').click();}
-async function scanStrukNav(input){if(!input.files||!input.files[0])return;goPage('catat');await new Promise(r=>setTimeout(r,150));await scanStruk(input);}
+function triggerCam(){
+  if(!canScan()){const plan=getPlan();showToast(plan==='free'?'Scan struk tersedia di paket Pro! Upgrade sekarang 🚀':'Limit scan habis bulan ini','warn');return;}
+  if(!getKey()){showToast('AI belum aktif. Hubungi admin','err');return;}
+  try{
+    const cam=document.getElementById('nav-cam');
+    if(!cam){showToast('Kamera tidak tersedia, coba muat ulang app','err');return;}
+    cam.value='';
+    cam.click();
+  }catch(e){showToast('Gagal membuka kamera: '+e.message,'err');}
+}
+async function scanStrukNav(input){
+  if(!input.files||!input.files[0]){showToast('Tidak ada foto yang diambil','warn');return;}
+  goPage('catat');await new Promise(r=>setTimeout(r,150));await scanStruk(input);
+}
 async function scanStruk(input){
   if(!input.files||!input.files[0])return;
   if(!canScan()){showToast('Limit scan habis atau upgrade ke Pro!','warn');return;}
