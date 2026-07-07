@@ -26,7 +26,7 @@
     <string name="fullScopeUrl" translatable="false">https://ai-finance-app-murex.vercel.app/</string>
     <string name="generatorApp" translatable="false">bubblewrap-cli</string>
     <string name="hostName" translatable="false">ai-finance-app-murex.vercel.app</string>
-    <string name="launchUrl" translatable="false">https://ai-finance-app-murex.vercel.app/index.html</string>
+    <string name="launchUrl" translatable="false">https://ai-finance-app-murex.vercel.app/</string>
     <string name="launcherName" translatable="false">Wangku</string>
     <string name="orientation" translatable="false">portrait</string>
     <string name="providerAuthority" translatable="false">app.vercel.ai_finance_app_murex.twa.fileprovider</string>

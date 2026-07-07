@@ -23,7 +23,7 @@ plugins {
 def twaManifest = [
     applicationId: 'app.vercel.ai_finance_app_murex.twa',
     hostName: 'ai-finance-app-murex.vercel.app', // The domain being opened in the TWA.
-    launchUrl: '/index.html', // The start path for the TWA. Must be relative to the domain.
+    launchUrl: '/', // The start path for the TWA. Must be relative to the domain.
     name: 'Wangku', // The application name.
     launcherName: 'Wangku', // The name shown on the Android Launcher.
     themeColor: '#00B26A', // The color used for the status bar.
