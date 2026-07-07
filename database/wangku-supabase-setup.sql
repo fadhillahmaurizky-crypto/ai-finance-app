@@ -245,6 +245,19 @@ CREATE POLICY IF NOT EXISTS "Allow all detected_transactions" ON public.detected
 
 
 -- ============================================================
+-- [15] AKUN SISTEM (Cash) — tidak boleh dihapus, boleh diganti nama
+-- ============================================================
+ALTER TABLE public.accounts ADD COLUMN IF NOT EXISTS is_system BOOLEAN DEFAULT false;
+UPDATE public.accounts SET is_system=true WHERE is_default=true AND nama='Cash' AND is_system IS DISTINCT FROM true;
+
+
+-- ============================================================
+-- [16] KONTRIBUSI TARGET — tautkan transaksi tabungan ke target
+-- ============================================================
+ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS target_id UUID REFERENCES public.targets(id) ON DELETE SET NULL;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables

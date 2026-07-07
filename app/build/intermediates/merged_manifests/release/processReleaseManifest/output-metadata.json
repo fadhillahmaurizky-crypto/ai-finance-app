@@ -4,15 +4,15 @@
     "type": "MERGED_MANIFESTS",
     "kind": "Directory"
   },
-  "applicationId": "app.vercel.ai_finance_app_gamma.twa",
+  "applicationId": "app.vercel.ai_finance_app_murex.twa",
   "variantName": "release",
   "elements": [
     {
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 2,
-      "versionName": "2",
+      "versionCode": 1,
+      "versionName": "1",
       "outputFile": "AndroidManifest.xml"
     }
   ],

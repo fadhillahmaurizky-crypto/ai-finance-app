@@ -8,6 +8,7 @@ function renderSettingsExtras(){
   renderSetAvatar();
   syncNotifToggleUI();
   syncAutoDetectUI();
+  syncCountTargetUI();
   if(typeof renderAccountManageSection==='function')renderAccountManageSection();
   const track=document.getElementById('autosync-track');
   if(track)track.className='toggle-track'+(autosyncEnabled()?' on':'');
@@ -33,12 +34,16 @@ function renderTrialBanner(){
 // ========================
 // UPGRADE / DOWNGRADE PLAN
 // ========================
+function openPlanOptions(){
+  renderPlanOptions();
+  document.getElementById('plan-options-modal').classList.add('open');
+}
 function renderPlanOptions(){
   const el=document.getElementById('plan-options');if(!el)return;
-  const sec=el.closest('.set-section');
+  const wrap=document.getElementById('ganti-paket-wrap');
   const isMaster=user&&(user.role==='admin'||user.username===MASTER);
-  if(isMaster){if(sec)sec.style.display='none';return;}
-  if(sec)sec.style.display='block';
+  if(isMaster){if(wrap)wrap.style.display='none';return;}
+  if(wrap)wrap.style.display='block';
   const current=user?.plan||'free';
   const order=['free','basic','pro','unlimited'];
   const rank={free:0,basic:1,pro:2,unlimited:3};
@@ -72,6 +77,8 @@ function renderSetAvatar(){
 function openProfileEdit(){
   if(!user)return;
   pendingAvatarBase64=null;
+  document.getElementById('pe-form-view').style.display='block';
+  document.getElementById('pe-success-view').style.display='none';
   document.getElementById('pe-nama').value=user.full_name||'';
   document.getElementById('pe-username').value=user.username||'';
   renderAvatarEditPreview(user.avatar_url);
@@ -105,10 +112,26 @@ async function saveProfile(){
     document.getElementById('set-nama').textContent=user.full_name;
     renderSetAvatar();
     localStorage.setItem('sdk_session',JSON.stringify(user));
-    document.getElementById('profile-edit-modal').classList.remove('open');
+    document.getElementById('pe-form-view').style.display='none';
+    document.getElementById('pe-success-view').style.display='block';
     showToast('Profil diperbarui ✓','ok');
   }catch(e){showToast('Gagal: '+e.message,'err');}
   btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> Simpan Profil';
+}
+
+// ========================
+// PERHITUNGAN SALDO (apakah saldo target ikut dihitung ke Saldo Sekarang)
+// ========================
+function syncCountTargetUI(){
+  const t=document.getElementById('count-target-track');
+  if(t)t.className='toggle-track'+(countTargetInBalance()?' on':'');
+}
+async function toggleCountTargetBalance(){
+  const enabled=!countTargetInBalance();
+  localStorage.setItem('wangku_count_target_balance',enabled?'1':'0');
+  syncCountTargetUI();
+  showToast(enabled?'Saldo target ikut dihitung ✓':'Saldo target tidak dihitung','ok');
+  if(typeof loadSummary==='function')await loadSummary();
 }
 
 // ========================
@@ -118,7 +141,7 @@ async function manualSync(){
   const ico=document.getElementById('sync-ico');
   if(ico)ico.style.animation='spin 1s linear infinite';
   try{
-    await Promise.all([loadSummary(),loadTrx(document.getElementById('page-home')?.classList.contains('active')?'semua':'semua','txn-home',4),typeof loadAccounts==='function'?loadAccounts():null]);
+    await Promise.all([loadSummary(),loadTrx(document.getElementById('page-home')?.classList.contains('active')?'semua':'semua','txn-home',5),typeof loadAccounts==='function'?loadAccounts():null]);
     pingSheetSync();
     showToast('Sinkronisasi selesai ✓','ok');
   }catch(e){showToast('Gagal sync','err');}
@@ -140,7 +163,7 @@ function toggleAutosync(){
 }
 function pingSheetSync(){try{fetch(GAS+'?action=ping').catch(()=>{});}catch(e){}}
 async function runAutosync(){
-  await loadSummary();await loadTrx('semua','txn-home',4);
+  await loadSummary();await loadTrx('semua','txn-home',5);
   if(typeof loadAccounts==='function')await loadAccounts();
   if(autosyncEnabled())pingSheetSync();
 }
@@ -297,4 +320,71 @@ async function dismissDetected(){
   try{await sb(`detected_transactions?id=eq.${currentDetected.id}`,'PATCH',{status:'dismissed'});}catch(e){}
   document.getElementById('detected-trx-modal').classList.remove('open');
   currentDetected=null;
+}
+
+// ========================
+// BACKUP DATA (manual JSON + Google Drive via GAS)
+// ========================
+async function collectBackupPayload(){
+  const [trx,acc,kat,pri,tgt]=await Promise.all([
+    sb(`transactions?user_id=eq.${user.id}`),
+    sb(`accounts?user_id=eq.${user.id}`),
+    sb(`user_categories?user_id=eq.${user.id}`),
+    sb(`user_priorities?user_id=eq.${user.id}`),
+    sb(`targets?user_id=eq.${user.id}`)
+  ]);
+  return{exported_at:new Date().toISOString(),user:{username:user.username,full_name:user.full_name},transactions:trx||[],accounts:acc||[],categories:kat||[],priorities:pri||[],targets:tgt||[]};
+}
+async function backupDataManual(){
+  showToast('Menyiapkan backup...','ok');
+  try{
+    const payload=await collectBackupPayload();
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=`wangku-backup-${new Date().toISOString().substring(0,10)}.json`;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Backup berhasil diunduh ✓','ok');
+  }catch(e){showToast('Gagal backup: '+e.message,'err');}
+}
+async function backupToDrive(){
+  if(typeof GAS==='undefined'||!GAS){showToast('Google Apps Script belum dikonfigurasi','err');return;}
+  showToast('Mengirim backup ke Google Drive...','ok');
+  try{
+    const payload=await collectBackupPayload();
+    payload.action='backup';
+    await fetch(GAS,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    showToast('Backup terkirim ✓ Cek folder Google Drive kamu (butuh Apps Script action=backup)','ok');
+  }catch(e){showToast('Gagal kirim backup: '+e.message,'err');}
+}
+
+// ========================
+// RESET DATA (verifikasi berlapis)
+// ========================
+function openResetModal(){
+  document.getElementById('reset-confirm-check').checked=false;
+  document.getElementById('reset-confirm-text').value='';
+  updateResetBtnState();
+  document.getElementById('reset-data-modal').classList.add('open');
+}
+function closeResetModal(){document.getElementById('reset-data-modal').classList.remove('open');}
+function updateResetBtnState(){
+  const checked=document.getElementById('reset-confirm-check').checked;
+  const text=document.getElementById('reset-confirm-text').value.trim().toUpperCase();
+  document.getElementById('reset-confirm-btn').disabled=!(checked&&text==='HAPUS DATA');
+}
+async function doResetData(){
+  const btn=document.getElementById('reset-confirm-btn');
+  btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Menghapus...';
+  try{
+    await sb(`transactions?user_id=eq.${user.id}`,'DELETE');
+    await sb(`targets?user_id=eq.${user.id}`,'DELETE');
+    await sb(`detected_transactions?user_id=eq.${user.id}`,'DELETE');
+    closeResetModal();
+    showToast('Semua data berhasil direset ✓','ok');
+    if(typeof runAutosync==='function')await runAutosync();
+    if(typeof renderTargets==='function')await renderTargets();
+  }catch(e){showToast('Gagal reset: '+e.message,'err');}
+  btn.disabled=false;btn.innerHTML='<i class="ti ti-trash"></i> Hapus Semua Data';
 }

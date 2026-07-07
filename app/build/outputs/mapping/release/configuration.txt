@@ -3,9 +3,9 @@
 -keep class androidx.core.content.FileProvider { <init>(); }
 -keep class androidx.profileinstaller.ProfileInstallReceiver { <init>(); }
 -keep class androidx.startup.InitializationProvider { <init>(); }
--keep class app.vercel.ai_finance_app_gamma.twa.Application { <init>(); }
--keep class app.vercel.ai_finance_app_gamma.twa.DelegationService { <init>(); }
--keep class app.vercel.ai_finance_app_gamma.twa.LauncherActivity { <init>(); }
+-keep class app.vercel.ai_finance_app_murex.twa.Application { <init>(); }
+-keep class app.vercel.ai_finance_app_murex.twa.DelegationService { <init>(); }
+-keep class app.vercel.ai_finance_app_murex.twa.LauncherActivity { <init>(); }
 -keep class com.google.androidbrowserhelper.trusted.FocusActivity { <init>(); }
 -keep class com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity { <init>(); }
 -keep class com.google.androidbrowserhelper.trusted.NotificationPermissionRequestActivity { <init>(); }

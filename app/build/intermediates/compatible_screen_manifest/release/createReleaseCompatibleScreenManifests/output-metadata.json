@@ -4,7 +4,7 @@
     "type": "COMPATIBLE_SCREEN_MANIFEST",
     "kind": "Directory"
   },
-  "applicationId": "app.vercel.ai_finance_app_gamma.twa",
+  "applicationId": "app.vercel.ai_finance_app_murex.twa",
   "variantName": "release",
   "elements": []
 }

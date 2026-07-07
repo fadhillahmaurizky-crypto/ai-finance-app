@@ -21,10 +21,10 @@ plugins {
 }
 
 def twaManifest = [
-    applicationId: 'app.vercel.ai_finance_app_gamma.twa',
-    hostName: 'ai-finance-app-gamma.vercel.app', // The domain being opened in the TWA.
+    applicationId: 'app.vercel.ai_finance_app_murex.twa',
+    hostName: 'ai-finance-app-murex.vercel.app', // The domain being opened in the TWA.
     launchUrl: '/index.html', // The start path for the TWA. Must be relative to the domain.
-    name: 'Wangku - Catat Keuangan Lewat WhatsApp', // The application name.
+    name: 'Wangku', // The application name.
     launcherName: 'Wangku', // The name shown on the Android Launcher.
     themeColor: '#00B26A', // The color used for the status bar.
     themeColorDark: '#000000', // The color used for the dark status bar.
@@ -52,9 +52,9 @@ def twaManifest = [
 
 android {
     compileSdkVersion 36
-    namespace "app.vercel.ai_finance_app_gamma.twa"
+    namespace "app.vercel.ai_finance_app_murex.twa"
     defaultConfig {
-        applicationId "app.vercel.ai_finance_app_gamma.twa"
+        applicationId "app.vercel.ai_finance_app_murex.twa"
         minSdkVersion 21
         targetSdkVersion 35
         versionCode 1
@@ -76,12 +76,12 @@ android {
             // The URL the Web Manifest for the Progressive Web App that the TWA points to. This
             // is used by Chrome OS and Meta Quest to open the Web version of the PWA instead of
             // the TWA, as it will probably give a better user experience for non-mobile devices.
-            resValue "string", "webManifestUrl", 'https://ai-finance-app-gamma.vercel.app/manifest.json'
+            resValue "string", "webManifestUrl", 'https://ai-finance-app-murex.vercel.app/manifest.json'
         
 
         
             // This is used by Meta Quest.
-            resValue "string", "fullScopeUrl", 'https://ai-finance-app-gamma.vercel.app/'
+            resValue "string", "fullScopeUrl", 'https://ai-finance-app-murex.vercel.app/'
         
 
         

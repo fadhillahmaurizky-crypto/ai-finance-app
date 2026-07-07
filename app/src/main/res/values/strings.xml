@@ -34,7 +34,7 @@
         \"relation\": [\"delegate_permission/common.handle_all_urls\"],
         \"target\": {
             \"namespace\": \"web\",
-            \"site\": \"https://ai-finance-app-gamma.vercel.app\"
+            \"site\": \"https://ai-finance-app-murex.vercel.app\"
         }
     }]
     

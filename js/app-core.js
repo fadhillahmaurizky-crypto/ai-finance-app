@@ -50,7 +50,7 @@ function showApp(){
     if(typeof renderSettingsExtras==='function')renderSettingsExtras();
     try{PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(av=>{const row=document.getElementById('bio-row');if(row)row.style.display=av?'flex':'none';if(av&&localStorage.getItem('sdk_bio_cred')){const bs=document.getElementById('bio-status');if(bs)bs.textContent='Fingerprint aktif ✓';}});}catch(e){}
   }
-  loadPoolKey();loadSummary();loadTrx('semua','txn-home',4);
+  loadPoolKey();loadSummary();loadTrx('semua','txn-home',5);
   (async()=>{
     if(typeof ensureDefaultAccount==='function')await ensureDefaultAccount();
     if(typeof loadAccounts==='function')await loadAccounts();
@@ -92,6 +92,51 @@ function renderPlanCard(){
   }
 }
 
-const PAGES=['home','catat','transaksi','target','laporan','settings'];
-function goPage(n){PAGES.forEach(p=>{document.getElementById('page-'+p)?.classList.remove('active');document.getElementById('ni-'+p)?.classList.remove('active');document.getElementById('nl-'+p)?.classList.remove('active');document.getElementById('nd-'+p)?.classList.remove('show');});document.getElementById('page-'+n)?.classList.add('active');document.getElementById('ni-'+n)?.classList.add('active');document.getElementById('nl-'+n)?.classList.add('active');document.getElementById('nd-'+n)?.classList.add('show');document.querySelector('.header')?.classList.toggle('compact',n!=='home');if(n==='transaksi')loadTrx('semua','txn-all',100);if(n==='laporan')renderLaporan();if(n==='target')renderTargets();if(n==='settings')renderSettingsExtras();if(n==='catat'){if(typeof renderAccountSelects==='function')renderAccountSelects();if(typeof renderKategoriSelect==='function')renderKategoriSelect();if(typeof renderPrioritasSelect==='function')renderPrioritasSelect();}}
+const PAGES=['home','catat','transaksi','target','laporan','settings','kategori','prioritas'];
+function goPage(n){PAGES.forEach(p=>{document.getElementById('page-'+p)?.classList.remove('active');document.getElementById('ni-'+p)?.classList.remove('active');document.getElementById('nl-'+p)?.classList.remove('active');document.getElementById('nd-'+p)?.classList.remove('show');});document.getElementById('page-'+n)?.classList.add('active');document.getElementById('ni-'+n)?.classList.add('active');document.getElementById('nl-'+n)?.classList.add('active');document.getElementById('nd-'+n)?.classList.add('show');document.querySelector('.header')?.classList.toggle('compact',n!=='home');if(n==='transaksi'){renderTransaksiFilters();applyTransaksiFilter();}if(n==='laporan')renderLaporan();if(n==='target')renderTargets();if(n==='settings')renderSettingsExtras();if(n==='kategori')renderKategoriManageList();if(n==='prioritas')renderPrioritasManageList();if(n==='catat'){if(typeof renderAccountSelects==='function')renderAccountSelects();if(typeof renderKategoriSelect==='function')renderKategoriSelect();if(typeof renderPrioritasSelect==='function')renderPrioritasSelect();}if(!window.__wangkuHandlingPop&&history.state?.wangkuPage!==n){try{history.pushState({wangkuPage:n},'');}catch(e){}}}
 
+
+// ========================
+// NAVIGASI BACK BUTTON (Android/TWA) — cegah keluar/restart app saat tombol back ditekan
+// ========================
+(function(){
+  let modalOpenStack=[];
+  function attachModalObserver(m){
+    const obs=new MutationObserver(()=>{
+      const isOpen=m.classList.contains('open');
+      const idx=modalOpenStack.indexOf(m.id);
+      if(isOpen&&idx===-1){
+        modalOpenStack.push(m.id);
+        if(!window.__wangkuHandlingPop){try{history.pushState({wangkuModal:m.id},'');}catch(e){}}
+      }else if(!isOpen&&idx!==-1){
+        modalOpenStack.splice(idx,1);
+      }
+    });
+    obs.observe(m,{attributes:true,attributeFilter:['class']});
+  }
+  function initNavHistory(){
+    document.querySelectorAll('.modal-overlay').forEach(attachModalObserver);
+    try{history.replaceState({wangkuPage:'home'},'');}catch(e){}
+  }
+  window.addEventListener('popstate',(e)=>{
+    if(modalOpenStack.length){
+      const topId=modalOpenStack[modalOpenStack.length-1];
+      window.__wangkuHandlingPop=true;
+      document.getElementById(topId)?.classList.remove('open');
+      modalOpenStack.pop();
+      window.__wangkuHandlingPop=false;
+      return;
+    }
+    const state=e.state;
+    window.__wangkuHandlingPop=true;
+    if(state&&state.wangkuPage){
+      goPage(state.wangkuPage);
+    }else{
+      goPage('home');
+      try{history.pushState({wangkuPage:'home'},'');}catch(err){}
+    }
+    window.__wangkuHandlingPop=false;
+  });
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initNavHistory);
+  else initNavHistory();
+})();

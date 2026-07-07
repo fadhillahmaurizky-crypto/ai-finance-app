@@ -7668,15 +7668,18 @@ androidx.viewpager.widget.ViewPager$SavedState
 androidx.viewpager.widget.ViewPager$SimpleOnPageChangeListener
 androidx.viewpager.widget.ViewPager$ViewPositionComparator
 androidx.viewpager.widget.ViewPager
-app.vercel.ai_finance_app_gamma.twa.R$bool
-app.vercel.ai_finance_app_gamma.twa.R$color
-app.vercel.ai_finance_app_gamma.twa.R$drawable
-app.vercel.ai_finance_app_gamma.twa.R$integer
-app.vercel.ai_finance_app_gamma.twa.R$mipmap
-app.vercel.ai_finance_app_gamma.twa.R$raw
-app.vercel.ai_finance_app_gamma.twa.R$string
-app.vercel.ai_finance_app_gamma.twa.R$xml
-app.vercel.ai_finance_app_gamma.twa.R
+app.vercel.ai_finance_app_gamma.twa.Application
+app.vercel.ai_finance_app_gamma.twa.DelegationService
+app.vercel.ai_finance_app_gamma.twa.LauncherActivity
+app.vercel.ai_finance_app_murex.twa.R$bool
+app.vercel.ai_finance_app_murex.twa.R$color
+app.vercel.ai_finance_app_murex.twa.R$drawable
+app.vercel.ai_finance_app_murex.twa.R$integer
+app.vercel.ai_finance_app_murex.twa.R$mipmap
+app.vercel.ai_finance_app_murex.twa.R$raw
+app.vercel.ai_finance_app_murex.twa.R$string
+app.vercel.ai_finance_app_murex.twa.R$xml
+app.vercel.ai_finance_app_murex.twa.R
 com.google.androidbrowserhelper.BuildConfig
 com.google.androidbrowserhelper.R$drawable:
     private void <init>()

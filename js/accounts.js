@@ -8,7 +8,7 @@ async function ensureDefaultAccount(){
   try{
     const existing=await sb(`accounts?user_id=eq.${user.id}&select=id&limit=1`);
     if(existing&&existing.length)return;
-    await sb('accounts','POST',{user_id:user.id,nama:DEFAULT_ACCOUNT_NAME,saldo_awal:0,is_default:true,icon:'cash',color:'#00B26A'});
+    await sb('accounts','POST',{user_id:user.id,nama:DEFAULT_ACCOUNT_NAME,saldo_awal:0,is_default:true,is_system:true,icon:'cash',color:'#00B26A'});
   }catch(e){}
 }
 
@@ -27,7 +27,7 @@ function getDefaultAccountId(){
 }
 
 function renderAccountSelects(){
-  ['f-akun','f-akun-dari','f-akun-tujuan'].forEach(id=>{
+  ['f-akun','f-akun-tujuan'].forEach(id=>{
     const sel=document.getElementById(id);if(!sel)return;
     const cur=sel.value;
     sel.innerHTML=accountsList.map(a=>`<option value="${a.id}">${a.nama}</option>`).join('');
@@ -103,13 +103,15 @@ function renderAccountManageSection(){
   if(!accountsList.length){el.innerHTML='<div style="text-align:center;padding:12px;font-size:12px;color:var(--text3)">Belum ada akun</div>';return;}
   el.innerHTML=accountsList.map(a=>`<div class="set-row" style="cursor:default">
       <div class="set-ico" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-wallet"></i></div>
-      <div style="flex:1"><div class="set-lbl">${a.nama}${a.is_default?' <span style="font-size:9px;font-weight:600;color:var(--text3);background:var(--border2);padding:1px 6px;border-radius:6px">Default</span>':''}</div><div class="set-sub">Saldo awal: ${rpF(a.saldo_awal)}</div></div>
+      <div style="flex:1"><div class="set-lbl">${a.nama}${a.is_default?' <span style="font-size:9px;font-weight:600;color:var(--text3);background:var(--border2);padding:1px 6px;border-radius:6px">Default</span>':''}${a.is_system?' <span style="font-size:9px;font-weight:600;color:var(--blue);background:var(--blue-bg);padding:1px 6px;border-radius:6px">Sistem</span>':''}</div><div class="set-sub">Saldo awal: ${rpF(a.saldo_awal)}</div></div>
       <button onclick="openAccountEdit('${a.id}')" style="background:var(--blue-bg);border:1px solid var(--blue);color:var(--blue);padding:5px 9px;border-radius:7px;font-size:11px;cursor:pointer;margin-right:4px"><i class="ti ti-pencil"></i></button>
-      <button onclick="deleteAccount('${a.id}')" style="background:var(--red-bg);border:1px solid var(--red);color:var(--red);padding:5px 9px;border-radius:7px;font-size:11px;cursor:pointer"><i class="ti ti-trash"></i></button>
+      ${a.is_system?'':`<button onclick="deleteAccount('${a.id}')" style="background:var(--red-bg);border:1px solid var(--red);color:var(--red);padding:5px 9px;border-radius:7px;font-size:11px;cursor:pointer"><i class="ti ti-trash"></i></button>`}
     </div>`).join('');
 }
 function openAccountAdd(){
   editingAccountId=null;
+  document.getElementById('acc-form-view').style.display='block';
+  document.getElementById('acc-success-view').style.display='none';
   document.getElementById('acc-modal-title').textContent='Tambah Akun';
   document.getElementById('acc-nama').value='';
   document.getElementById('acc-saldo').value='0';
@@ -119,6 +121,8 @@ function openAccountAdd(){
 function openAccountEdit(id){
   const a=accountsList.find(x=>x.id===id);if(!a)return;
   editingAccountId=id;
+  document.getElementById('acc-form-view').style.display='block';
+  document.getElementById('acc-success-view').style.display='none';
   document.getElementById('acc-modal-title').textContent='Edit Akun';
   document.getElementById('acc-nama').value=a.nama;
   document.getElementById('acc-saldo').value=a.saldo_awal;
@@ -132,6 +136,7 @@ async function saveAccount(){
   if(!nama){showToast('Nama akun wajib diisi!','err');return;}
   try{
     let accId=editingAccountId;
+    const wasEdit=!!accId;
     if(accId){
       await sb(`accounts?id=eq.${accId}&user_id=eq.${user.id}`,'PATCH',{nama,saldo_awal:saldo});
     }else{
@@ -142,13 +147,18 @@ async function saveAccount(){
       await sb(`accounts?user_id=eq.${user.id}`,'PATCH',{is_default:false});
       await sb(`accounts?id=eq.${accId}`,'PATCH',{is_default:true});
     }
-    document.getElementById('account-modal').classList.remove('open');
     editingAccountId=null;
     await loadAccounts();
+    if(typeof loadSummary==='function')await loadSummary();
+    document.getElementById('acc-form-view').style.display='none';
+    document.getElementById('acc-success-msg').textContent=wasEdit?'Akun berhasil diupdate!':'Akun berhasil ditambahkan!';
+    document.getElementById('acc-success-view').style.display='block';
     showToast('Akun disimpan ✓','ok');
   }catch(e){showToast(e.message.includes('unique')?'Nama akun sudah ada!':'Gagal: '+e.message,'err');}
 }
 async function deleteAccount(id){
+  const acc=accountsList.find(a=>a.id===id);
+  if(acc?.is_system){showToast('Akun sistem (Cash) tidak bisa dihapus, tapi boleh diganti nama','warn');return;}
   if(accountsList.length<=1){showToast('Minimal harus ada 1 akun!','warn');return;}
   if(!confirm('Hapus akun ini? Transaksi lama yang terhubung akan kehilangan info akun.'))return;
   try{
