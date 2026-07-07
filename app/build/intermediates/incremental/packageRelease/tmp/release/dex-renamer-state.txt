@@ -1,4 +1,4 @@
-#Tue Jul 07 00:15:39 WIB 2026
+#Tue Jul 07 11:35:27 WIB 2026
 base.0=/home/arif/Documents/WANGKU/ai-finance-app/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
 renamed.0=classes.dex
 path.0=classes.dex
