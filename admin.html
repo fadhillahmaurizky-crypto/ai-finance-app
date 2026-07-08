@@ -191,11 +191,15 @@ tbody tr:hover{background:var(--bg3)}
       <div style="font-size:12px;color:var(--text3);margin-top:4px">Wangku · Dashboard Admin</div>
     </div>
     <div class="l-group">
-      <label class="l-label">Password Admin</label>
+      <label class="l-label">Username</label>
+      <input class="l-input" id="admin-username" type="text" placeholder="Username admin..." onkeydown="if(event.key==='Enter')document.getElementById('admin-pass').focus()"/>
+    </div>
+    <div class="l-group">
+      <label class="l-label">Password</label>
       <input class="l-input" id="admin-pass" type="password" placeholder="Masukkan password..." onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
-    <button class="l-btn" onclick="doLogin()"><i class="ti ti-lock-open"></i> Masuk ke Dashboard</button>
-    <div class="l-err" id="login-err">Password salah!</div>
+    <button class="l-btn" onclick="doLogin()" id="admin-login-btn"><i class="ti ti-lock-open"></i> Masuk ke Dashboard</button>
+    <div class="l-err" id="login-err">Username/password salah, atau akun ini bukan admin.</div>
   </div>
 </div>
 
@@ -423,8 +427,9 @@ tbody tr:hover{background:var(--bg3)}
     <div class="page" id="page-settings">
       <div style="max-width:480px;display:flex;flex-direction:column;gap:16px">
         <div class="card">
-          <div class="card-header"><div class="card-title">Ganti Password Admin</div></div>
+          <div class="card-header"><div class="card-title">Ganti Password Akun Saya</div></div>
           <div class="card-body">
+            <input class="l-input" id="set-old-pass" type="password" placeholder="Password saat ini" style="margin-bottom:8px"/>
             <input class="l-input" id="set-new-pass" type="password" placeholder="Password baru (min. 6 karakter)" style="margin-bottom:8px"/>
             <input class="l-input" id="set-confirm-pass" type="password" placeholder="Konfirmasi password baru"/>
             <button class="f-btn green" style="margin-top:10px" onclick="changeAdminPass()"><i class="ti ti-lock"></i> Ganti Password</button>
@@ -518,10 +523,6 @@ tbody tr:hover{background:var(--bg3)}
 // ========================
 // CONFIG
 // ========================
-const PASS_KEY     = 'wangku_admin_pass';
-const DEFAULT_PASS = 'admin123';
-// Force reset ke default baru
-if(localStorage.getItem(PASS_KEY) && localStorage.getItem(PASS_KEY) !== DEFAULT_PASS && localStorage.getItem(PASS_KEY) === 'wangku@admin2024'){localStorage.removeItem(PASS_KEY);}
 const SUPABASE_URL = 'https://mchuhgihywnyamurbetz.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jaHVoZ2loeXdueWFtdXJiZXR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNTIyNDIsImV4cCI6MjA5NzcyODI0Mn0.z1ildAJY--ErFoom2d7GIF1TCr3fmaBkCWtwGz4QstI';
 const GAS_URL      = 'https://script.google.com/macros/s/AKfycbxO5RHZcHojCy-d65QiKDMnk4d-z_d_vCCqAETetTnr0kVqMoRXp6yrep8AuU3mmCtNuw/exec';
@@ -532,10 +533,14 @@ let supaUsers = [], gasUsers = [], adminData = null, currentDetailUser = null;
 // SUPABASE
 // ========================
 async function sbFetch(path, method='GET', body=null) {
-  const opts = { method, headers: { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json', 'Prefer': method==='POST'?'return=representation':'' } };
+  const opts = { method, headers: { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+(localStorage.getItem(ADMIN_TOKEN_KEY)||SUPABASE_KEY), 'Content-Type':'application/json', 'Prefer': method==='POST'?'return=representation':'' } };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(SUPABASE_URL+'/rest/v1/'+path, opts);
-  if (!res.ok) { const e=await res.json(); throw new Error(e.message||'Error'); }
+  if (!res.ok) {
+    const e=await res.json().catch(()=>({}));
+    if(res.status===401){localStorage.removeItem(ADMIN_TOKEN_KEY);localStorage.removeItem(ADMIN_USER_KEY);location.reload();}
+    throw new Error(e.message||'Error');
+  }
   return res.status===204?null:res.json();
 }
 
@@ -551,18 +556,53 @@ async function hashPass(p) {
 // ========================
 // AUTH
 // ========================
+// ========================
+// AUTH (login sungguhan lewat login_check RPC — bukan password tunggal lagi)
+// ========================
+const ADMIN_TOKEN_KEY='wangku_admin_token';
+const ADMIN_USER_KEY='wangku_admin_user';
+
+async function rpcFetch(fnName, params={}) {
+  const r = await fetch(SUPABASE_URL+'/rest/v1/rpc/'+fnName, {
+    method:'POST',
+    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+(localStorage.getItem(ADMIN_TOKEN_KEY)||SUPABASE_KEY),'Content-Type':'application/json'},
+    body:JSON.stringify(params)
+  });
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.message||'Error');}
+  return r.status===204?null:r.json();
+}
+
 function checkAuth() {
-  if (sessionStorage.getItem('wangku_admin')!=='ok') return;
+  if (!localStorage.getItem(ADMIN_TOKEN_KEY)) return;
   document.getElementById('login-overlay').style.display='none';
   init();
 }
-function doLogin() {
-  const p = document.getElementById('admin-pass').value;
-  const saved = localStorage.getItem(PASS_KEY)||DEFAULT_PASS;
-  if (p===saved) { sessionStorage.setItem('wangku_admin','ok'); document.getElementById('login-overlay').style.display='none'; document.getElementById('login-err').style.display='none'; init(); }
-  else { document.getElementById('login-err').style.display='block'; document.getElementById('admin-pass').value=''; document.getElementById('admin-pass').focus(); }
+async function doLogin() {
+  const username = document.getElementById('admin-username').value.trim();
+  const pass = document.getElementById('admin-pass').value;
+  const btn = document.getElementById('admin-login-btn');
+  const errEl = document.getElementById('login-err');
+  errEl.style.display='none';
+  if(!username||!pass){errEl.textContent='Masukkan username dan password';errEl.style.display='block';return;}
+  btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Memeriksa...';
+  try{
+    const hash=await hashPass(pass);
+    const result=await rpcFetch('login_check',{p_username:username,p_password_hash:hash});
+    if(!result||!result.user) throw new Error('Username atau password salah');
+    if(result.user.role!=='admin') throw new Error('Akun ini bukan admin');
+    localStorage.setItem(ADMIN_TOKEN_KEY,result.token);
+    localStorage.setItem(ADMIN_USER_KEY,JSON.stringify(result.user));
+    document.getElementById('login-overlay').style.display='none';
+    document.getElementById('admin-pass').value='';
+    init();
+  }catch(e){
+    errEl.textContent=e.message||'Username/password salah, atau akun ini bukan admin.';
+    errEl.style.display='block';
+    document.getElementById('admin-pass').value='';document.getElementById('admin-pass').focus();
+  }
+  btn.disabled=false;btn.innerHTML='<i class="ti ti-lock-open"></i> Masuk ke Dashboard';
 }
-function doLogout() { sessionStorage.removeItem('wangku_admin'); location.reload(); }
+function doLogout() { localStorage.removeItem(ADMIN_TOKEN_KEY);localStorage.removeItem(ADMIN_USER_KEY); location.reload(); }
 document.getElementById('admin-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
 // ========================
@@ -1173,15 +1213,25 @@ function renderKatChart(id,data,color) {
 // ========================
 // SETTINGS
 // ========================
-function changeAdminPass() {
+async function changeAdminPass() {
+  const op=document.getElementById('set-old-pass').value;
   const np=document.getElementById('set-new-pass').value;
   const cp=document.getElementById('set-confirm-pass').value;
-  if(!np||np.length<6){showToast('Password min. 6 karakter!','err');return;}
+  if(!op){showToast('Masukkan password saat ini!','err');return;}
+  if(!np||np.length<6){showToast('Password baru min. 6 karakter!','err');return;}
   if(np!==cp){showToast('Password tidak cocok!','err');return;}
-  localStorage.setItem(PASS_KEY,np);
-  document.getElementById('set-new-pass').value='';
-  document.getElementById('set-confirm-pass').value='';
-  showToast('Password admin berhasil diubah ✓','ok');
+  try{
+    const me=JSON.parse(localStorage.getItem(ADMIN_USER_KEY)||'{}');
+    if(!me.id)throw new Error('Sesi tidak valid, silakan login ulang');
+    const oldHash=await hashPass(op);
+    const newHash=await hashPass(np);
+    const ok=await rpcFetch('change_password',{p_user_id:me.id,p_old_hash:oldHash,p_new_hash:newHash});
+    if(!ok)throw new Error('Password saat ini salah');
+    document.getElementById('set-old-pass').value='';
+    document.getElementById('set-new-pass').value='';
+    document.getElementById('set-confirm-pass').value='';
+    showToast('Password berhasil diubah ✓','ok');
+  }catch(e){showToast('Gagal: '+e.message,'err');}
 }
 
 // ========================

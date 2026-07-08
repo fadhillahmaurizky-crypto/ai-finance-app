@@ -408,6 +408,178 @@ CREATE POLICY "No public access to settings" ON public.settings
 
 
 -- ============================================================
+-- [18] KEAMANAN (FASE 2) — isolasi data per-user yang SUNGGUHAN
+-- ============================================================
+-- Fase 1 (blok 17) menutup kebocoran password_hash & kunci tabel settings,
+-- tapi tabel data (transactions, accounts, targets, dll) masih "USING (true)"
+-- alias siapa saja dengan anon key bisa baca/tulis milik SIAPAPUN. Blok ini
+-- memperbaiki itu dengan memberi setiap request identitas yang bisa dicek
+-- RLS, TANPA migrasi ke Supabase Auth penuh:
+--
+--   1) login_check() sekarang juga MENANDATANGANI token JWT kustom (pakai
+--      extension pgjwt + JWT Secret project ini), berisi claim `user_id`
+--      dan `app_role`. Token ini dikirim client sebagai Bearer token
+--      menggantikan anon key polos untuk semua request setelah login.
+--   2) Semua policy RLS di tabel data diganti agar hanya mengizinkan baris
+--      milik pemilik token (auth.jwt()->>'user_id' = user_id), ATAU token
+--      dengan app_role='admin' (dipakai admin.html setelah login sungguhan
+--      — lihat catatan di bawah, admin.html WAJIB diupdate untuk login
+--      lewat login_check juga, tidak lagi pakai password tunggal di
+--      localStorage).
+--   3) Registrasi akun baru (belum punya token) tetap diizinkan lewat INSERT
+--      langsung ke `users`, tapi WITH CHECK memaksa status='pending' dan
+--      role='user' — supaya orang tidak bisa daftar sendiri sebagai admin
+--      atau langsung status aktif lewat panggilan API mentah.
+--
+-- WAJIB DIJALANKAN SEKALI SEBELUM RELEASE PUBLIK. Setelah blok ini jalan,
+-- SEMUA sesi lama (localStorage sdk_session tanpa token) tidak lagi bisa
+-- baca/tulis data — user yang sedang login harus logout+login ulang sekali.
+-- Karena ini masih tahap testing (belum rilis publik), efeknya aman.
+-- ============================================================
+
+-- --- Extension untuk menandatangani JWT langsung dari Postgres ---
+CREATE EXTENSION IF NOT EXISTS pgjwt;
+
+-- --- Ganti login_check agar mengembalikan {user, token} ---
+-- (return type berubah dari SETOF JSONB jadi JSONB tunggal, jadi harus DROP dulu
+-- — CREATE OR REPLACE saja tidak diizinkan Postgres untuk ganti return type)
+DROP FUNCTION IF EXISTS public.login_check(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.password_hash = p_password_hash LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  v_token := sign(
+    json_build_object(
+      'role','authenticated',
+      'sub', v_user.id::text,
+      'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),
+      'exp', extract(epoch from (now() + interval '30 days'))::integer
+    ),
+    -- GANTI dengan JWT Secret asli project ini: Supabase Dashboard ->
+    -- Project Settings -> Data API -> JWT Settings -> "JWT Secret"
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA==',
+    'HS256'
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+
+-- --- get_user_by_username / get_user_by_id juga perlu mengeluarkan token baru
+-- (dipakai oleh login biometrik & refresh sesi) — sama, harus DROP dulu ---
+DROP FUNCTION IF EXISTS public.get_user_by_username(TEXT);
+CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  v_token := sign(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA==','HS256'
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.get_user_by_id(UUID);
+CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.id = p_user_id AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  v_token := sign(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA==','HS256'
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+
+-- --- Helper dipakai di semua policy di bawah: apakah token ini pemilik baris,
+-- atau admin? (mengembalikan boolean, aman dipanggil walau tanpa token) ---
+CREATE OR REPLACE FUNCTION public.is_owner_or_admin(p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE AS $$
+  SELECT
+    COALESCE((auth.jwt()->>'user_id')::uuid = p_user_id, false)
+    OR COALESCE(auth.jwt()->>'app_role','') = 'admin';
+$$;
+
+-- --- Users: hanya boleh lihat/ubah baris sendiri, atau admin boleh semua.
+-- INSERT (registrasi) tetap terbuka untuk anon TAPI dipaksa pending+user. ---
+DROP POLICY IF EXISTS "Allow all users" ON public.users;
+CREATE POLICY "Own row or admin - select" ON public.users FOR SELECT
+  USING (public.is_owner_or_admin(id));
+CREATE POLICY "Own row or admin - update" ON public.users FOR UPDATE
+  USING (public.is_owner_or_admin(id)) WITH CHECK (public.is_owner_or_admin(id));
+CREATE POLICY "Own row or admin - delete" ON public.users FOR DELETE
+  USING (public.is_owner_or_admin(id));
+CREATE POLICY "Public registration" ON public.users FOR INSERT TO anon
+  WITH CHECK (status = 'pending' AND role = 'user');
+CREATE POLICY "Admin can insert any" ON public.users FOR INSERT
+  WITH CHECK (COALESCE(auth.jwt()->>'app_role','') = 'admin');
+
+-- --- Semua tabel data: ganti "allow all" jadi milik-sendiri-atau-admin ---
+DROP POLICY IF EXISTS "Allow all transactions" ON public.transactions;
+CREATE POLICY "Own data or admin" ON public.transactions FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+DROP POLICY IF EXISTS "Allow all targets" ON public.targets;
+CREATE POLICY "Own data or admin" ON public.targets FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+DROP POLICY IF EXISTS "Allow all orders" ON public.orders;
+CREATE POLICY "Own data or admin" ON public.orders FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+DROP POLICY IF EXISTS "Allow all categories" ON public.user_categories;
+CREATE POLICY "Own data or admin" ON public.user_categories FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+DROP POLICY IF EXISTS "Allow all accounts" ON public.accounts;
+CREATE POLICY "Own data or admin" ON public.accounts FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+DROP POLICY IF EXISTS "Allow all priorities" ON public.user_priorities;
+CREATE POLICY "Own data or admin" ON public.user_priorities FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+DROP POLICY IF EXISTS "Allow all detected_transactions" ON public.detected_transactions;
+CREATE POLICY "Own data or admin" ON public.detected_transactions FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+-- --- Pastikan role authenticated punya hak akses tabel yang sama seperti anon
+-- (RLS di atas yang membatasi baris, bukan hak akses tabel) ---
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.transactions, public.targets,
+  public.orders, public.user_categories, public.accounts, public.user_priorities,
+  public.detected_transactions, public.users TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_owner_or_admin(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon, authenticated;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables

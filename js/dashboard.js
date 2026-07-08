@@ -304,3 +304,29 @@ function cycleInsight(){
   insightIdx=(insightIdx+1)%insightList.length;
   showInsight();
 }
+function prevInsight(){
+  if(!insightList.length)return;
+  insightIdx=(insightIdx-1+insightList.length)%insightList.length;
+  showInsight();
+}
+(function initInsightSwipe(){
+  let startX=null,startY=null,moved=false;
+  document.addEventListener('DOMContentLoaded',bind);
+  if(document.readyState!=='loading')bind();
+  function bind(){
+    const el=document.getElementById('insight-card');if(!el||el.dataset.swipeBound)return;
+    el.dataset.swipeBound='1';
+    el.addEventListener('touchstart',e=>{startX=e.touches[0].clientX;startY=e.touches[0].clientY;moved=false;},{passive:true});
+    el.addEventListener('touchmove',e=>{
+      if(startX===null)return;
+      const dx=e.touches[0].clientX-startX,dy=e.touches[0].clientY-startY;
+      if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy))moved=true;
+    },{passive:true});
+    el.addEventListener('touchend',e=>{
+      if(startX===null)return;
+      const dx=e.changedTouches[0].clientX-startX;
+      if(moved&&Math.abs(dx)>40){dx<0?cycleInsight():prevInsight();}
+      startX=null;startY=null;
+    });
+  }
+})();

@@ -219,22 +219,21 @@
     </div>
   </div>
 
-  <div class="sp" style="margin-top:12px">
-    <div class="insight-card" onclick="cycleInsight()">
-      <div class="insight-avatar">🤖</div>
-      <div style="flex:1;min-width:0">
-        <div class="insight-title">Insight dari WangkuAI ✨</div>
-        <div class="insight-text" id="insight-text">Memuat insight...</div>
-      </div>
-      <i class="ti ti-chevron-right" style="color:var(--text3);flex-shrink:0"></i>
-    </div>
-    <div class="insight-dots" id="insight-dots"></div>
-  </div>
-
   <div class="pages">
     <!-- HOME -->
     <div class="page active" id="page-home">
       <div class="sp">
+        <div style="margin-top:12px">
+          <div class="insight-card" id="insight-card" onclick="cycleInsight()">
+            <div class="insight-avatar">🤖</div>
+            <div style="flex:1;min-width:0">
+              <div class="insight-title">Insight dari WangkuAI ✨</div>
+              <div class="insight-text" id="insight-text">Memuat insight...</div>
+            </div>
+            <i class="ti ti-chevron-right" style="color:var(--text3);flex-shrink:0"></i>
+          </div>
+          <div class="insight-dots" id="insight-dots"></div>
+        </div>
         <div id="alert-section"></div>
         <div class="sec-title">Aksi Cepat</div>
         <div class="qa-row" style="margin-bottom:4px">

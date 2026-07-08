@@ -17,9 +17,9 @@ async function checkSession(){
   if(!saved){if(!checkOb())showLoginPage();return;}
   try{
     user=JSON.parse(saved);
-    const u=await rpc('get_user_by_id',{p_user_id:user.id});
-    if(!u||!u.length){localStorage.removeItem('sdk_session');showLoginPage();return;}
-    user=u[0];
+    const result=await rpc('get_user_by_id',{p_user_id:user.id});
+    if(!result||!result.user){localStorage.removeItem('sdk_session');localStorage.removeItem('sdk_token');showLoginPage();return;}
+    user=result.user;localStorage.setItem('sdk_token',result.token);localStorage.setItem('sdk_session',JSON.stringify(user));
     // Cek PIN
     const hasPIN=localStorage.getItem(PIN_KEY);
     if(hasPIN){showPinScreen('verify');}
@@ -65,7 +65,15 @@ function showApp(){
   if(typeof refreshBadge==='function')refreshBadge();
 }
 
-function logout(){localStorage.removeItem('sdk_session');user=null;showLoginPage();}
+function logout(){localStorage.removeItem('sdk_session');localStorage.removeItem('sdk_token');user=null;showLoginPage();}
+let authExpiredHandled=false;
+function handleAuthExpired(){
+  if(authExpiredHandled)return;authExpiredHandled=true;
+  localStorage.removeItem('sdk_session');localStorage.removeItem('sdk_token');user=null;
+  showLoginPage();
+  if(typeof showToast==='function')showToast('Sesi kamu berakhir, silakan login lagi','warn');
+  setTimeout(()=>{authExpiredHandled=false;},2000);
+}
 
 async function changePW(){
   const op=document.getElementById('cp-old').value,np=document.getElementById('cp-new').value,cp=document.getElementById('cp-conf').value;
