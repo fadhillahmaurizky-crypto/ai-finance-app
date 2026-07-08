@@ -17,7 +17,7 @@ async function checkSession(){
   if(!saved){if(!checkOb())showLoginPage();return;}
   try{
     user=JSON.parse(saved);
-    const u=await sb(`users?id=eq.${user.id}&status=eq.active&select=*`);
+    const u=await rpc('get_user_by_id',{p_user_id:user.id});
     if(!u||!u.length){localStorage.removeItem('sdk_session');showLoginPage();return;}
     user=u[0];
     // Cek PIN
@@ -50,7 +50,7 @@ function showApp(){
     if(typeof renderSettingsExtras==='function')renderSettingsExtras();
     try{PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(av=>{const row=document.getElementById('bio-row');if(row)row.style.display=av?'flex':'none';if(av&&localStorage.getItem('sdk_bio_cred')){const bs=document.getElementById('bio-status');if(bs)bs.textContent='Fingerprint aktif ✓';}});}catch(e){}
   }
-  loadPoolKey();loadSummary();loadTrx('semua','txn-home',5);
+  loadSummary();loadTrx('semua','txn-home',5);
   (async()=>{
     if(typeof ensureDefaultAccount==='function')await ensureDefaultAccount();
     if(typeof loadAccounts==='function')await loadAccounts();
@@ -73,22 +73,28 @@ async function changePW(){
   if(!op||!np||!cp){err.textContent='Isi semua field!';err.style.display='block';return;}
   if(np!==cp){err.textContent='Password tidak cocok!';err.style.display='block';return;}
   if(np.length<6){err.textContent='Password min. 6 karakter!';err.style.display='block';return;}
-  try{const oh=await hp(op);const c=await sb(`users?id=eq.${user.id}&password_hash=eq.${oh}&select=id`);if(!c||!c.length)throw new Error('Password lama salah!');await sb(`users?id=eq.${user.id}`,'PATCH',{password_hash:await hp(np)});document.getElementById('chpass-modal').classList.remove('open');['cp-old','cp-new','cp-conf'].forEach(id=>document.getElementById(id).value='');showToast('Password diubah ✓','ok');}
+  try{
+    const oh=await hp(op);const nh=await hp(np);
+    const ok=await rpc('change_password',{p_user_id:user.id,p_old_hash:oh,p_new_hash:nh});
+    if(!ok)throw new Error('Password lama salah!');
+    document.getElementById('chpass-modal').classList.remove('open');['cp-old','cp-new','cp-conf'].forEach(id=>document.getElementById(id).value='');showToast('Password diubah ✓','ok');
+  }
   catch(e){err.textContent=e.message;err.style.display='block';}
 }
 
 function renderPlanCard(){
   const plan=getPlan();const el=document.getElementById('plan-card');if(!el)return;
   const tokenLimit=user?.tokens_limit||0;const tokenUsed=user?.tokens_used||0;const tokenSisa=Math.max(0,tokenLimit-tokenUsed);const tokenPct=tokenLimit>0?Math.min(100,Math.round((tokenSisa/tokenLimit)*100)):0;
+  const upgradeBtn=plan==='unlimited'?'':'<button class="plan-upgrade-pill" onclick="openPlanOptions()">Upgrade</button>';
   if(plan==='unlimited'&&user?.username===MASTER){
     el.innerHTML=`<div class="plan-card pro" style="margin:0 16px 16px"><div class="plan-badge" style="background:var(--green);color:#fff">SUPER ADMIN</div><div class="plan-name" style="color:#fff">Ultimate Access 🚀</div><div class="plan-feature" style="color:rgba(255,255,255,.8)">AI Chat & Scan unlimited</div></div>`;
   } else if(plan==='free'){
-    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px"><div class="plan-badge" style="background:var(--border2);color:var(--text3)">FREE</div><div class="plan-name">Paket Free</div><div class="plan-feature">Catat transaksi manual ✓</div><div class="plan-feature">Dashboard & Laporan ✓</div><div class="plan-feature" style="opacity:.5">Integrasi WhatsApp ✗</div><div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);border-radius:10px;font-size:12px;color:var(--amber)">⬆️ Upgrade ke Basic mulai Rp 19.000/bln</div><button class="upgrade-btn" onclick="hubungiCS()">Upgrade Paket</button></div>`;
+    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px">${upgradeBtn}<div class="plan-badge" style="background:var(--border2);color:var(--text3)">FREE</div><div class="plan-name">Paket Free</div><div class="plan-feature">Catat transaksi manual ✓</div><div class="plan-feature">Dashboard & Laporan ✓</div><div class="plan-feature" style="opacity:.5">Integrasi WhatsApp ✗</div><div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);border-radius:10px;font-size:12px;color:var(--amber)">⬆️ Upgrade ke Basic mulai Rp 19.000/bln</div></div>`;
   } else if(plan==='basic'){
-    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px"><div class="plan-badge" style="background:var(--border2);color:var(--text3)">BASIC · Rp 19.000/bln</div><div class="plan-name">Paket Basic</div><div class="plan-feature">Catat transaksi manual ✓</div><div class="plan-feature">Dashboard & Laporan ✓</div><div class="plan-feature">Integrasi WhatsApp ✓</div><div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);border-radius:10px;font-size:12px;color:var(--amber)">🤖 Upgrade ke Pro untuk AI mulai Rp 34.000/bln</div><button class="upgrade-btn" onclick="hubungiCS()">Upgrade ke Pro</button></div>`;
+    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px">${upgradeBtn}<div class="plan-badge" style="background:var(--border2);color:var(--text3)">BASIC · Rp 19.000/bln</div><div class="plan-name">Paket Basic</div><div class="plan-feature">Catat transaksi manual ✓</div><div class="plan-feature">Dashboard & Laporan ✓</div><div class="plan-feature">Integrasi WhatsApp ✓</div><div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);border-radius:10px;font-size:12px;color:var(--amber)">🤖 Upgrade ke Pro untuk AI mulai Rp 34.000/bln</div></div>`;
   } else {
     const planInfo=PLANS[plan]||PLANS['pro'];
-    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px;border-color:var(--green)"><div class="plan-badge" style="background:var(--green);color:#fff">${planInfo.label.toUpperCase()} · ${planInfo.price}</div><div class="plan-name">${planInfo.label}</div><div class="plan-feature">Semua fitur Basic ✓</div><div class="plan-feature">AI Chat & Scan Struk ✓</div><div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px"><span style="color:var(--text3)">Token AI bulan ini</span><span style="color:var(--green);font-weight:600">${(tokenSisa/1000).toFixed(0)}K / ${(tokenLimit/1000).toFixed(0)}K</span></div><div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden"><div style="width:${tokenPct}%;height:100%;background:var(--green);border-radius:3px;transition:width .5s"></div></div></div>${tokenSisa<100000?`<button class="upgrade-btn" style="background:var(--blue);margin-top:12px" onclick="hubungiCS()">Isi Token Lagi → mulai Rp 29.000</button>`:''}</div>`;
+    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px;border-color:var(--green)">${upgradeBtn}<div class="plan-badge" style="background:var(--green);color:#fff">${planInfo.label.toUpperCase()} · ${planInfo.price}</div><div class="plan-name">${planInfo.label}</div><div class="plan-feature">Semua fitur Basic ✓</div><div class="plan-feature">AI Chat & Scan Struk ✓</div><div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px"><span style="color:var(--text3)">Token AI bulan ini</span><span style="color:var(--green);font-weight:600">${(tokenSisa/1000).toFixed(0)}K / ${(tokenLimit/1000).toFixed(0)}K</span></div><div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden"><div style="width:${tokenPct}%;height:100%;background:var(--green);border-radius:3px;transition:width .5s"></div></div></div>${tokenSisa<100000?`<button class="upgrade-btn" style="background:var(--blue);margin-top:12px" onclick="hubungiCS()">Isi Token Lagi → mulai Rp 29.000</button>`:''}</div>`;
   }
 }
 

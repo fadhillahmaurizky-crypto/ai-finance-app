@@ -31,25 +31,56 @@ function renderTxn(txns,cid){
 
 function filterHome(btn,f){document.querySelectorAll('#home-tabs .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');loadTrx(f,'txn-home',5);}
 
-let txAllFilter={jenis:'semua',range:'7d'};
+let txAllFilter={jenis:'semua'};
+let txAllList=[];
 function setTxFilterJenis(btn,f){document.querySelectorAll('#txn-jenis-filter .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');txAllFilter.jenis=f;applyTransaksiFilter();}
-function setTxFilterRange(btn,r){document.querySelectorAll('#txn-range-filter .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');txAllFilter.range=r;applyTransaksiFilter();}
+function setTxFilterDate(){applyTransaksiFilter();}
 function renderTransaksiFilters(){
   document.querySelectorAll('#txn-jenis-filter .tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.f===txAllFilter.jenis));
-  document.querySelectorAll('#txn-range-filter .tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.r===txAllFilter.range));
+  const fromEl=document.getElementById('txn-date-from'),toEl=document.getElementById('txn-date-to');
+  if(fromEl&&!fromEl.value){const d=new Date();d.setDate(d.getDate()-6);fromEl.value=d.toISOString().substring(0,10);}
+  if(toEl&&!toEl.value){toEl.value=new Date().toISOString().substring(0,10);}
 }
 async function applyTransaksiFilter(){
   const el=document.getElementById('txn-all');if(!el)return;
   el.innerHTML='<div class="skeleton" style="height:60px;margin-bottom:6px"></div><div class="skeleton" style="height:60px;margin-bottom:6px"></div><div class="skeleton" style="height:60px"></div>';
   try{
-    let q=`transactions?user_id=eq.${user.id}&order=tanggal.desc,created_at.desc&limit=300`;
+    let q=`transactions?user_id=eq.${user.id}&order=tanggal.desc,created_at.desc&limit=1000`;
     if(txAllFilter.jenis!=='semua')q+=`&jenis=eq.${txAllFilter.jenis}`;
-    if(txAllFilter.range==='7d'){const d=new Date();d.setDate(d.getDate()-6);q+=`&tanggal=gte.${d.toISOString().substring(0,10)}`;}
-    else if(txAllFilter.range==='30d'){const d=new Date();d.setDate(d.getDate()-29);q+=`&tanggal=gte.${d.toISOString().substring(0,10)}`;}
-    else if(txAllFilter.range==='bulan'){const month=getMonth(),nextMonth=getNextMonth();q+=`&tanggal=gte.${month}-01&tanggal=lt.${nextMonth}-01`;}
+    const fromVal=document.getElementById('txn-date-from')?.value;
+    const toVal=document.getElementById('txn-date-to')?.value;
+    if(fromVal)q+=`&tanggal=gte.${fromVal}`;
+    if(toVal)q+=`&tanggal=lte.${toVal}`;
     const data=await sb(q);
+    txAllList=data||[];
     renderTxn(data,'txn-all');
   }catch(e){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Gagal memuat</div>';}
+}
+
+function accountNameById(id){
+  if(!id)return'';
+  const a=(typeof accountsList!=='undefined'?accountsList:[]).find(x=>x.id===id);
+  return a?a.nama:'';
+}
+function exportToExcel(){
+  if(typeof XLSX==='undefined'){showToast('Modul Excel belum termuat, coba lagi sebentar','err');return;}
+  if(!txAllList.length){showToast('Tidak ada transaksi untuk diekspor','warn');return;}
+  const rows=txAllList.map(t=>({
+    Tanggal:t.tanggal,
+    Jenis:t.jenis,
+    Kategori:t.kategori||'',
+    Keterangan:t.keterangan||'',
+    Nominal:Number(t.nominal)||0,
+    Prioritas:t.prioritas||'',
+    Akun:accountNameById(t.account_id),
+    'Akun Tujuan':t.jenis==='transfer'?accountNameById(t.to_account_id):''
+  }));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:12},{wch:12},{wch:14},{wch:24},{wch:14},{wch:13},{wch:14},{wch:14}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Transaksi');
+  XLSX.writeFile(wb,`wangku-transaksi-${new Date().toISOString().substring(0,10)}.xlsx`);
+  showToast('Excel berhasil diunduh ✓','ok');
 }
 
 async function loadTargets(){try{const data=await sb(`targets?user_id=eq.${user.id}&order=created_at.asc`);targets=data||[];}catch(e){targets=[];}}
@@ -265,7 +296,6 @@ function openTrxDetailById(id){
 
 function triggerCam(){
   if(!canScan()){const plan=getPlan();showToast(plan==='free'?'Scan struk tersedia di paket Pro! Upgrade sekarang 🚀':'Limit scan habis bulan ini','warn');return;}
-  if(!getKey()){showToast('AI belum aktif. Hubungi admin','err');return;}
   try{
     const cam=document.getElementById('nav-cam');
     if(!cam){showToast('Kamera tidak tersedia, coba muat ulang app','err');return;}
@@ -280,14 +310,14 @@ async function scanStrukNav(input){
 async function scanStruk(input){
   if(!input.files||!input.files[0])return;
   if(!canScan()){showToast('Limit scan habis atau upgrade ke Pro!','warn');return;}
-  if(!getKey()){await loadPoolKey();}
-  if(!getKey()){showToast('AI belum aktif','err');return;}
   const file=input.files[0];const reader=new FileReader();reader.onload=e=>{document.getElementById('struk-prev').src=e.target.result;document.getElementById('struk-prev-wrap').style.display='block';};reader.readAsDataURL(file);
   document.getElementById('struk-loading').style.display='block';document.getElementById('struk-result').style.display='none';
   try{
     const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=()=>rej(new Error('Gagal'));r.readAsDataURL(file);});
-    const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getKey()},body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:400,messages:[{role:'user',content:[{type:'image_url',image_url:{url:`data:${file.type||'image/jpeg'};base64,${b64}`}},{type:'text',text:'Baca struk ini. Kembalikan JSON saja tanpa penjelasan: {"toko":"nama toko","total":angka,"kategori":"makan/belanja/elektronik/pulsa/paket_data","prioritas":"penting/tidak_penting","keterangan":"deskripsi max 30 karakter"}. Jika bukan struk: {"error":"Bukan struk"}'}]}]})});
-    const d=await resp.json();const m=(d.choices?.[0]?.message?.content||'').match(/\{[\s\S]*\}/);if(!m)throw new Error('Format tidak valid');
+    const resp=await fetch('/api/ai-scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,image_base64:b64,mime_type:file.type||'image/jpeg'})});
+    const d=await resp.json();
+    if(!resp.ok||d.error)throw new Error(d.error||'Gagal memindai struk');
+    const m=(d.content||'').match(/\{[\s\S]*\}/);if(!m)throw new Error('Format tidak valid');
     const h=JSON.parse(m[0]);if(h.error)throw new Error(h.error);
     setJenis('pengeluaran');document.getElementById('f-nominal').value=h.total||'';document.getElementById('f-ket').value=h.keterangan||h.toko||'';
     if(document.getElementById('f-akun')&&typeof getDefaultAccountId==='function')document.getElementById('f-akun').value=getDefaultAccountId();

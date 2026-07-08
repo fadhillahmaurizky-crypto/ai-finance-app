@@ -40,10 +40,8 @@ function openPlanOptions(){
 }
 function renderPlanOptions(){
   const el=document.getElementById('plan-options');if(!el)return;
-  const wrap=document.getElementById('ganti-paket-wrap');
   const isMaster=user&&(user.role==='admin'||user.username===MASTER);
-  if(isMaster){if(wrap)wrap.style.display='none';return;}
-  if(wrap)wrap.style.display='block';
+  if(isMaster)return;
   const current=user?.plan||'free';
   const order=['free','basic','pro','unlimited'];
   const rank={free:0,basic:1,pro:2,unlimited:3};
