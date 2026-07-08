@@ -29,17 +29,14 @@ document.getElementById('chat-input').addEventListener('keydown',e=>{if(e.key===
 async function sendMsg(text){
   if(loading)return;
   if(!canAI()){addMsg(text,'user');const p=getPlan();addMsg((p==='basic'||p==='free')?'🔒 AI tersedia di paket Pro/Ultimate. Hubungi admin untuk upgrade!':'⚠️ Token AI bulan ini habis. Hubungi admin untuk isi ulang!','ai');return;}
-  if(!getKey()){await loadPoolKey();}
-  if(!getKey()){addMsg(text,'user');addMsg('Wangku AI belum aktif. Hubungi admin untuk aktivasi.','ai');return;}
   loading=true;document.getElementById('send-btn').disabled=true;addMsg(text,'user');chatHist.push({role:'user',content:text});addTyping();
   try{
     const messages=[{role:'system',content:SYS+'\n\n'+(ctx||'')},...chatHist];
-    const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getKey()},body:JSON.stringify({model:'llama-3.1-8b-instant',max_tokens:400,messages})});
+    const r=await fetch('/api/ai-chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,messages})});
     const d=await r.json();
-    console.log('Groq response status:',r.status,d);
-    if(d.error){throw new Error('Groq error: '+d.error.message);}
-    let reply=d.choices?.[0]?.message?.content||'Maaf ada gangguan.';
-    const tokensUsed=d.usage?.total_tokens||0;
+    if(!r.ok||d.error){throw new Error(d.error||'Gagal menghubungi AI');}
+    let reply=d.reply||'Maaf ada gangguan.';
+    const tokensUsed=d.tokensUsed||0;
     if(tokensUsed>0&&user.username!==MASTER){user.tokens_used=(user.tokens_used||0)+tokensUsed;sb(`users?id=eq.${user.id}`,'PATCH',{tokens_used:user.tokens_used}).catch(()=>{});}
     removeTyping();
     const jsonMatch=reply.match(/\{[\s\S]*"action"\s*:\s*"catat"[\s\S]*\}/);
@@ -48,7 +45,7 @@ async function sendMsg(text){
         const trx=JSON.parse(jsonMatch[0]);
         await sb('transactions','POST',{user_id:user.id,jenis:trx.jenis,nominal:parseFloat(trx.nominal),kategori:trx.kategori,keterangan:trx.keterangan,prioritas:'penting',tanggal:new Date().toISOString().substring(0,10)});
         reply=trx.konfirmasi||'Transaksi berhasil dicatat ✓';
-        loadSummary();loadTrx('semua','txn-home',4);
+        loadSummary();loadTrx('semua','txn-home',5);
       }catch(e){reply='Gagal menyimpan transaksi: '+e.message;}
     }
     chatHist.push({role:'assistant',content:reply});addMsg(reply,'ai');

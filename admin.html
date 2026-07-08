@@ -632,7 +632,7 @@ async function loadAllData() {
   if(ico) ico.classList.add('spinning');
   try {
     // Load dari Supabase
-    supaUsers = await sbFetch('users?select=*&order=created_at.desc') || [];
+    supaUsers = await sbFetch('users?select=id,username,full_name,wa_number,email,role,status,plan,avatar_color,gas_user_id,ai_chat_count,ai_scan_count,usage_month,tokens_limit,tokens_used,token_reset_month,created_at,updated_at,last_login,last_active&order=created_at.desc') || [];
     // Load dari GAS
     try {
       const res = await fetch(GAS_URL+'?action=adminData');
@@ -950,7 +950,7 @@ let selectedToken = 0;
 async function loadPendingUsers() {
   document.getElementById('pending-table').innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Memuat...</td></tr>';
   try {
-    const pending = await sbFetch('users?status=eq.pending&order=created_at.desc&select=*');
+    const pending = await sbFetch('users?status=eq.pending&order=created_at.desc&select=id,username,full_name,wa_number,email,role,status,plan,created_at');
     document.getElementById('pending-count-sub').textContent=(pending?.length||0)+' user menunggu aktivasi';
     document.getElementById('pending-card').style.display=pending?.length?'block':'none';
     const badge=document.getElementById('pending-badge');

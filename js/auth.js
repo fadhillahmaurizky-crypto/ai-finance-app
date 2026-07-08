@@ -8,7 +8,7 @@ async function doLogin(){
   btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Memverifikasi...';err.style.display='none';
   try{
     const h=await hp(pw);
-    const u=await sb(`users?username=eq.${un}&password_hash=eq.${h}&select=*`);
+    const u=await rpc('login_check',{p_username:un,p_password_hash:h});
     if(!u||!u.length)throw new Error('Username atau password salah');
     if(u[0].status==='pending')throw new Error('Akun menunggu aktivasi admin. Hubungi admin via WhatsApp 😊');
     if(u[0].status==='banned')throw new Error('Akun kamu dinonaktifkan. Hubungi admin.');
@@ -66,7 +66,7 @@ async function verifyRegOTP(){
   try{
     const h=await hp(regData.pw);
     const waFull=regData.wa.startsWith('62')?regData.wa:'62'+(regData.wa.startsWith('0')?regData.wa.substring(1):regData.wa);
-    const r=await sb('users','POST',{username:regData.un,full_name:regData.name,email:regData.email,wa_number:waFull,password_hash:h,role:'user',status:'pending',gas_user_id:waFull,plan:'free',tokens_limit:0,tokens_used:0});
+    const r=await sb('users?select=id,username,full_name,email,wa_number','POST',{username:regData.un,full_name:regData.name,email:regData.email,wa_number:waFull,password_hash:h,role:'user',status:'pending',gas_user_id:waFull,plan:'free',tokens_limit:0,tokens_used:0});
     if(!r||!r.length)throw new Error('Gagal membuat akun');
     newUser={id:r[0].id,full_name:regData.name,username:regData.un,email:regData.email,wa_number:waFull};
     regOTP=null;regData=null;
@@ -103,9 +103,9 @@ async function sendForgotOTP(){
   if(!email||!email.includes('@')){err.textContent='Email tidak valid!';err.style.display='block';return;}
   btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Mencari...';
   try{
-    const u=await sb(`users?email=eq.${encodeURIComponent(email)}&status=eq.active&select=id,username,full_name,email`);
-    if(!u||!u.length)throw new Error('Email tidak terdaftar atau akun belum aktif!');
-    fpUser=u[0];fpOTP=String(Math.floor(100000+Math.random()*900000));
+    const rows=await rpc('create_password_reset',{p_email:email});
+    if(!rows||!rows.length)throw new Error('Email tidak terdaftar atau akun belum aktif!');
+    fpUser={id:rows[0].user_id,full_name:rows[0].full_name};fpOTP=rows[0].otp;
     await sendEmailOTP(email,fpUser.full_name,fpOTP);
     document.getElementById('fp-s1').style.display='none';document.getElementById('fp-s2').style.display='block';
     document.getElementById('fp-hint').textContent='OTP dikirim ke '+email.replace(/(.{2}).*(@.*)/,'$1***$2');
@@ -123,11 +123,14 @@ async function resetPW(){
   const err=document.getElementById('err-fp-pass');err.style.display='none';
   if(!np||np.length<6){err.textContent='Password min. 6 karakter!';err.style.display='block';return;}
   if(np!==cp){err.textContent='Password tidak cocok!';err.style.display='block';return;}
-  try{await sb(`users?id=eq.${fpUser.id}`,'PATCH',{password_hash:await hp(np)});showToast('Password direset! 🎉','ok');fpUser=null;fpOTP=null;['fp-s2','fp-s3'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});document.getElementById('fp-s1').style.display='block';['fp-phone','fp-np','fp-cp'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});switchTab('login');}
+  try{
+    const ok=await rpc('confirm_password_reset',{p_user_id:fpUser.id,p_otp:fpOTP,p_new_hash:await hp(np)});
+    if(!ok)throw new Error('Kode OTP sudah kedaluwarsa atau tidak valid. Minta OTP baru.');
+    showToast('Password direset! 🎉','ok');fpUser=null;fpOTP=null;['fp-s2','fp-s3'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});document.getElementById('fp-s1').style.display='block';['fp-phone','fp-np','fp-cp'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});switchTab('login');}
   catch(e){err.textContent='Gagal: '+e.message;err.style.display='block';}
 }
 
-async function doBiometric(){const su=localStorage.getItem('sdk_bio_user');if(!su){showToast('Login manual dulu!','err');return;}try{const a=await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rpId:window.location.hostname,userVerification:'required',timeout:60000}});if(a){const u=await sb(`users?username=eq.${su}&status=eq.active&select=*`);if(!u||!u.length)throw new Error('User tidak ditemukan');user=u[0];localStorage.setItem('sdk_session',JSON.stringify(user));showApp();}}catch(e){if(e.name!=='NotAllowedError')showToast('Fingerprint gagal','err');}}
+async function doBiometric(){const su=localStorage.getItem('sdk_bio_user');if(!su){showToast('Login manual dulu!','err');return;}try{const a=await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rpId:window.location.hostname,userVerification:'required',timeout:60000}});if(a){const u=await rpc('get_user_by_username',{p_username:su});if(!u||!u.length)throw new Error('User tidak ditemukan');user=u[0];localStorage.setItem('sdk_session',JSON.stringify(user));showApp();}}catch(e){if(e.name!=='NotAllowedError')showToast('Fingerprint gagal','err');}}
 
 async function setupBiometric(){if(!user)return;try{const av=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();if(!av){showToast('Perangkat tidak mendukung','err');return;}const c=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:'Wangku',id:window.location.hostname},user:{id:new TextEncoder().encode(user.id),name:user.username,displayName:user.full_name},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},timeout:60000}});if(c){localStorage.setItem('sdk_bio_user',user.username);localStorage.setItem('sdk_bio_cred',c.id);document.getElementById('bio-status').textContent='Fingerprint aktif ✓';showToast('Fingerprint aktif! 👆','ok');}}catch(e){if(e.name!=='NotAllowedError')showToast('Gagal setup fingerprint','err');}}
 
