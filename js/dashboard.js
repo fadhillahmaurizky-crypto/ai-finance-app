@@ -196,16 +196,27 @@ async function renderBalanceSparkline(){
     const baseline=sumData.summary.saldo-weekNet;
     let running=baseline;const points=[running];
     days.forEach(x=>{running+=netByDay[x];points.push(running);});
+
+    const w=300,h=60,padY=8;
     const min=Math.min(...points),max=Math.max(...points);
-    const range=(max-min)||1;
-    const w=300,h=60,stepX=w/(points.length-1);
-    const coords=points.map((p,i)=>{const x=i*stepX;const y=h-((p-min)/range)*h;return`${x.toFixed(1)},${Math.max(2,Math.min(h-2,y)).toFixed(1)}`;});
-    const linePath=coords.join(' ');
-    const areaPath=`M${coords[0]} L${coords.join(' L')} L${w},${h} L0,${h} Z`;
-    svg.innerHTML=`<defs><linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fff" stop-opacity="0.35"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+    const range=(max-min)||(Math.abs(points[0])*0.1)||1;
+    const stepX=w/(points.length-1);
+    const xy=points.map((p,i)=>[i*stepX, h-padY-((p-min)/range)*(h-padY*2)]);
+
+    // Kurva halus (smooth curve) lewat cubic-bezier antar titik, bukan garis patah-patah
+    let linePath=`M${xy[0][0].toFixed(1)},${xy[0][1].toFixed(1)}`;
+    for(let i=0;i<xy.length-1;i++){
+      const[x0,y0]=xy[i],[x1,y1]=xy[i+1];
+      const cx=(x0+x1)/2;
+      linePath+=` C${cx.toFixed(1)},${y0.toFixed(1)} ${cx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
+    }
+    const areaPath=`${linePath} L${w.toFixed(1)},${h} L0,${h} Z`;
+    const last=xy[xy.length-1];
+
+    svg.innerHTML=`<defs><linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fff" stop-opacity="0.28"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
       <path d="${areaPath}" fill="url(#sparkGrad)" stroke="none"/>
-      <polyline points="${linePath}" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="${(points.length-1)*stepX}" cy="${Math.max(2,Math.min(h-2,h-((points[points.length-1]-min)/range)*h))}" r="4" fill="#fff"/>`;
+      <path d="${linePath}" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.5" fill="#fff"/>`;
     if(trendEl){
       const diff=weekNet;
       trendEl.innerHTML=(diff>=0?'<i class="ti ti-triangle-filled" style="font-size:8px"></i> +':'<i class="ti ti-triangle-inverted-filled" style="font-size:8px"></i> -')+rpF(Math.abs(diff))+' dari minggu lalu';
@@ -295,7 +306,11 @@ function renderInsightBox(){
 }
 function showInsight(){
   const el=document.getElementById('insight-text');if(!el)return;
-  el.textContent=insightList[insightIdx]||'—';
+  el.style.opacity='0';
+  setTimeout(()=>{
+    el.textContent=insightList[insightIdx]||'—';
+    el.style.opacity='1';
+  },160);
   const dotsEl=document.getElementById('insight-dots');
   if(dotsEl)dotsEl.innerHTML=insightList.map((_,i)=>`<span class="${i===insightIdx?'act':''}"></span>`).join('');
 }

@@ -5,7 +5,7 @@ function renderSettingsExtras(){
   if(!user)return;
   renderTrialBanner();
   renderPlanOptions();
-  renderSetAvatar();
+  renderSetAvatar();renderHeaderAvatar();
   syncNotifToggleUI();
   syncAutoDetectUI();
   syncCountTargetUI();
@@ -66,6 +66,12 @@ function requestPlanChange(plan){
 // PROFILE EDIT (nama & foto)
 // ========================
 let pendingAvatarBase64=null;
+function renderHeaderAvatar(){
+  const btn=document.getElementById('hdr-avatar-btn');if(!btn||!user)return;
+  btn.innerHTML=user.avatar_url
+    ?`<img src="${user.avatar_url}" alt="Profil"/>`
+    :`<i class="ti ti-settings"></i>`;
+}
 function renderSetAvatar(){
   const wrap=document.getElementById('set-avatar-wrap');if(!wrap||!user)return;
   wrap.innerHTML=user.avatar_url
@@ -108,7 +114,7 @@ async function saveProfile(){
     if(pendingAvatarBase64)user.avatar_url=pendingAvatarBase64;
     document.getElementById('uname').textContent=user.full_name;
     document.getElementById('set-nama').textContent=user.full_name;
-    renderSetAvatar();
+    renderSetAvatar();renderHeaderAvatar();
     localStorage.setItem('sdk_session',JSON.stringify(user));
     document.getElementById('pe-form-view').style.display='none';
     document.getElementById('pe-success-view').style.display='block';

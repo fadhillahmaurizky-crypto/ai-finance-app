@@ -201,20 +201,7 @@
         <div class="hdr-btn" id="sync-btn" onclick="manualSync()"><i class="ti ti-refresh" id="sync-ico"></i></div>
         <div class="mini-bal" id="mini-bal-wrap"><div class="mini-bal-lbl">Saldo</div><div class="mini-bal-amt" id="mini-bal">Rp 0</div></div>
         <div class="hdr-btn" onclick="toggleTheme()"><i class="ti ti-moon" id="theme-ico"></i></div>
-        <div class="hdr-btn" onclick="goPage('settings')"><i class="ti ti-settings"></i></div>
-      </div>
-    </div>
-    <div class="bal-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1">
-        <div class="bal-label" style="display:flex;align-items:center;gap:5px;cursor:pointer" onclick="toggleBalanceVisibility()">Saldo <i class="ti ti-eye" id="bal-eye-ico"></i></div>
-        <button class="bal-detail-btn" onclick="showBalanceBreakdown()">Lihat Detail <i class="ti ti-chevron-right"></i></button>
-      </div>
-      <div class="bal-amount" id="saldo" style="position:relative;z-index:1">Memuat...</div>
-      <div class="bal-trend" id="bal-trend" style="position:relative;z-index:1"></div>
-      <div class="bal-spark-wrap"><svg id="bal-spark" viewBox="0 0 300 60" preserveAspectRatio="none"></svg></div>
-      <div class="bal-row" style="position:relative;z-index:1">
-        <div class="bal-pill"><div class="bal-pill-lbl">↓ Pemasukan Bulan Ini</div><div class="bal-pill-val" id="tot-masuk">—</div></div>
-        <div class="bal-pill"><div class="bal-pill-lbl">↑ Pengeluaran Bulan Ini</div><div class="bal-pill-val" id="tot-keluar">—</div></div>
+        <div class="hdr-btn hdr-avatar-btn" id="hdr-avatar-btn" onclick="goPage('settings')"><i class="ti ti-settings" id="hdr-avatar-fallback"></i></div>
       </div>
     </div>
   </div>
@@ -223,6 +210,19 @@
     <!-- HOME -->
     <div class="page active" id="page-home">
       <div class="sp">
+        <div class="bal-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1">
+            <div class="bal-label" style="display:flex;align-items:center;gap:5px;cursor:pointer" onclick="toggleBalanceVisibility()">Saldo <i class="ti ti-eye" id="bal-eye-ico"></i></div>
+            <button class="bal-detail-btn" onclick="showBalanceBreakdown()">Lihat Detail <i class="ti ti-chevron-right"></i></button>
+          </div>
+          <div class="bal-amount" id="saldo" style="position:relative;z-index:1">Memuat...</div>
+          <div class="bal-trend" id="bal-trend" style="position:relative;z-index:1"></div>
+          <div class="bal-spark-wrap"><svg id="bal-spark" viewBox="0 0 300 60" preserveAspectRatio="none"></svg></div>
+          <div class="bal-row" style="position:relative;z-index:1">
+            <div class="bal-pill"><div class="bal-pill-lbl">↓ Pemasukan Bulan Ini</div><div class="bal-pill-val" id="tot-masuk">—</div></div>
+            <div class="bal-pill"><div class="bal-pill-lbl">↑ Pengeluaran Bulan Ini</div><div class="bal-pill-val" id="tot-keluar">—</div></div>
+          </div>
+        </div>
         <div style="margin-top:12px">
           <div class="insight-card" id="insight-card" onclick="cycleInsight()">
             <div class="insight-avatar">🤖</div>
@@ -234,28 +234,34 @@
           </div>
           <div class="insight-dots" id="insight-dots"></div>
         </div>
-        <div id="alert-section"></div>
+        <div id="alert-section" style="margin-top:14px"></div>
         <div class="sec-title">Aksi Cepat</div>
-        <div class="qa-row" style="margin-bottom:4px">
+        <div class="qa-row" style="margin-bottom:20px">
           <div class="qa-item" onclick="resetTrxForm();goPage('catat')"><div class="qa-ico" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-plus"></i></div><div class="qa-lbl">Catat</div></div>
           <div class="qa-item" onclick="goCatatTransfer()"><div class="qa-ico" style="background:var(--blue-bg);color:var(--blue)"><i class="ti ti-arrows-left-right"></i></div><div class="qa-lbl">Transfer</div></div>
           <div class="qa-item" onclick="openChat()"><div class="qa-ico" style="background:var(--blue-bg);color:var(--blue)"><i class="ti ti-robot"></i></div><div class="qa-lbl">Tanya AI</div></div>
           <div class="qa-item" onclick="goPage('target')"><div class="qa-ico" style="background:var(--amber-bg);color:var(--amber)"><i class="ti ti-target"></i></div><div class="qa-lbl">Target</div></div>
           <div class="qa-item" onclick="goPage('laporan')"><div class="qa-ico" style="background:#F3EEFF;color:#7C3AED"><i class="ti ti-chart-bar"></i></div><div class="qa-lbl">Laporan</div></div>
         </div>
-        <div class="sec-title">Kesehatan Keuangan</div>
         <div class="home-2col" style="margin-bottom:10px">
           <div class="health-card" onclick="goPage('laporan')">
-            <div class="health-gauge-wrap">
-              <svg viewBox="0 0 100 100" class="health-gauge">
-                <circle cx="50" cy="50" r="42" fill="none" stroke="var(--bg3)" stroke-width="9"/>
-                <circle id="health-arc" cx="50" cy="50" r="42" fill="none" stroke="var(--green)" stroke-width="9" stroke-linecap="round" transform="rotate(-90 50 50)" stroke-dasharray="0 264"/>
-              </svg>
-              <div class="health-score-wrap"><span class="health-score" id="health-score">—</span><span class="health-max">/100</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="nt-title">Kesehatan Keuangan</span>
+              <i class="ti ti-chevron-right" style="color:var(--text3)"></i>
             </div>
-            <div class="health-label" id="health-label">—</div>
-            <div class="health-sub" id="health-sub">Memuat...</div>
-            <div class="health-detail-btn">Lihat Detail <i class="ti ti-chevron-right"></i></div>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
+              <div class="health-gauge-wrap">
+                <svg viewBox="0 0 100 100" class="health-gauge">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="var(--bg3)" stroke-width="9"/>
+                  <circle id="health-arc" cx="50" cy="50" r="42" fill="none" stroke="var(--green)" stroke-width="9" stroke-linecap="round" transform="rotate(-90 50 50)" stroke-dasharray="0 264"/>
+                </svg>
+                <div class="health-score-wrap"><span class="health-score" id="health-score">—</span><span class="health-max">/100</span></div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div class="health-label" id="health-label" style="text-align:left">—</div>
+                <div class="health-sub" id="health-sub" style="text-align:left">Memuat...</div>
+              </div>
+            </div>
           </div>
           <div class="nearest-target-card" onclick="goPage('target')">
             <div style="display:flex;justify-content:space-between;align-items:center">

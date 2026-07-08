@@ -47,6 +47,7 @@ function showApp(){
     }
     aiChat=user.ai_chat_count||0;aiScan=user.ai_scan_count||0;
     renderPlanCard();
+    if(typeof renderHeaderAvatar==='function')renderHeaderAvatar();
     if(typeof renderSettingsExtras==='function')renderSettingsExtras();
     try{PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(av=>{const row=document.getElementById('bio-row');if(row)row.style.display=av?'flex':'none';if(av&&localStorage.getItem('sdk_bio_cred')){const bs=document.getElementById('bio-status');if(bs)bs.textContent='Fingerprint aktif ✓';}});}catch(e){}
   }

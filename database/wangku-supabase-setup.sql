@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   last_active      TIMESTAMPTZ
 );
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all users" ON public.users FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all users" ON public.users;
+CREATE POLICY "Allow all users" ON public.users FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -73,7 +74,8 @@ CREATE INDEX IF NOT EXISTS idx_trx_user    ON public.transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_trx_tanggal ON public.transactions(tanggal);
 CREATE INDEX IF NOT EXISTS idx_trx_jenis   ON public.transactions(jenis);
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all transactions" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all transactions" ON public.transactions;
+CREATE POLICY "Allow all transactions" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -90,7 +92,8 @@ CREATE TABLE IF NOT EXISTS public.targets (
 );
 CREATE INDEX IF NOT EXISTS idx_targets_user ON public.targets(user_id);
 ALTER TABLE public.targets ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all targets" ON public.targets FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all targets" ON public.targets;
+CREATE POLICY "Allow all targets" ON public.targets FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -107,7 +110,8 @@ CREATE TABLE IF NOT EXISTS public.orders (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all orders" ON public.orders FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all orders" ON public.orders;
+CREATE POLICY "Allow all orders" ON public.orders FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -118,7 +122,8 @@ CREATE TABLE IF NOT EXISTS public.settings (
   value  TEXT
 );
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all settings" ON public.settings;
+CREATE POLICY "Allow all settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -133,7 +138,8 @@ CREATE TABLE IF NOT EXISTS public.user_categories (
   UNIQUE(user_id, nama)
 );
 ALTER TABLE public.user_categories ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all categories" ON public.user_categories FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all categories" ON public.user_categories;
+CREATE POLICY "Allow all categories" ON public.user_categories FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -196,7 +202,8 @@ CREATE TABLE IF NOT EXISTS public.accounts (
   UNIQUE(user_id, nama)
 );
 ALTER TABLE public.accounts ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all accounts" ON public.accounts FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all accounts" ON public.accounts;
+CREATE POLICY "Allow all accounts" ON public.accounts FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================================
 -- [12] TRANSACTIONS: dukungan akun & jenis Transfer
@@ -221,7 +228,8 @@ CREATE TABLE IF NOT EXISTS public.user_priorities (
   UNIQUE(user_id, slug)
 );
 ALTER TABLE public.user_priorities ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all priorities" ON public.user_priorities FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all priorities" ON public.user_priorities;
+CREATE POLICY "Allow all priorities" ON public.user_priorities FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================================
 -- [14] DETECTED TRANSACTIONS (untuk fitur deteksi otomatis)
@@ -241,7 +249,8 @@ CREATE TABLE IF NOT EXISTS public.detected_transactions (
 );
 CREATE INDEX IF NOT EXISTS idx_detected_user_status ON public.detected_transactions(user_id, status);
 ALTER TABLE public.detected_transactions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all detected_transactions" ON public.detected_transactions FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all detected_transactions" ON public.detected_transactions;
+CREATE POLICY "Allow all detected_transactions" ON public.detected_transactions FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -298,6 +307,10 @@ CREATE POLICY "No direct access to reset tokens" ON public.password_reset_tokens
   FOR ALL USING (false) WITH CHECK (false);
 
 -- --- Login: verifikasi password di dalam DB, kembalikan user TANPA password_hash ---
+-- (DROP dulu — kalau script ini pernah dijalankan sampai blok [18], fungsi ini
+-- sudah berubah jadi RETURNS JSONB tunggal, jadi re-run dari sini akan gagal
+-- ganti tipe balik ke SETOF JSONB tanpa di-drop dulu)
+DROP FUNCTION IF EXISTS public.login_check(TEXT, TEXT);
 CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
 RETURNS SETOF JSONB
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
@@ -308,6 +321,7 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
 $$;
 
 -- --- Ambil profil (tanpa password_hash) berdasarkan username — dipakai login biometrik ---
+DROP FUNCTION IF EXISTS public.get_user_by_username(TEXT);
 CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
 RETURNS SETOF JSONB
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
@@ -318,6 +332,7 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
 $$;
 
 -- --- Ambil profil (tanpa password_hash) berdasarkan id — dipakai refresh sesi ---
+DROP FUNCTION IF EXISTS public.get_user_by_id(UUID);
 CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
 RETURNS SETOF JSONB
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
@@ -437,8 +452,39 @@ CREATE POLICY "No public access to settings" ON public.settings
 -- Karena ini masih tahap testing (belum rilis publik), efeknya aman.
 -- ============================================================
 
--- --- Extension untuk menandatangani JWT langsung dari Postgres ---
-CREATE EXTENSION IF NOT EXISTS pgjwt;
+-- --- Extension untuk tanda tangan HMAC (dipakai untuk membuat JWT manual) ---
+-- CATATAN: awalnya blok ini memakai sign() dari extension `pgjwt`, tapi fungsi
+-- itu punya search_path internal sendiri yang tidak bisa dioverride dari sini,
+-- jadi gagal menemukan hmac() di setup Supabase ini. Diganti dengan fungsi
+-- tanda-tangan JWT manual di bawah, yang search_path-nya kita kontrol sendiri.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Base64url encode (tanpa padding, tanpa newline) — dipakai untuk bagian JWT.
+CREATE OR REPLACE FUNCTION public.wangku_b64url(data BYTEA)
+RETURNS TEXT
+LANGUAGE sql IMMUTABLE
+SET search_path = public, extensions
+AS $$
+  SELECT rtrim(replace(replace(replace(encode(data,'base64'), E'\n', ''), '+','-'), '/','_'), '=');
+$$;
+
+-- Tanda tangani JWT HS256 secara manual pakai hmac() dari pgcrypto.
+CREATE OR REPLACE FUNCTION public.wangku_sign_jwt(p_payload JSON, p_secret TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  header_b64 TEXT;
+  payload_b64 TEXT;
+  signature BYTEA;
+BEGIN
+  header_b64 := public.wangku_b64url(convert_to('{"alg":"HS256","typ":"JWT"}','utf8'));
+  payload_b64 := public.wangku_b64url(convert_to(p_payload::text,'utf8'));
+  signature := hmac(header_b64 || '.' || payload_b64, p_secret, 'sha256');
+  RETURN header_b64 || '.' || payload_b64 || '.' || public.wangku_b64url(signature);
+END;
+$$;
 
 -- --- Ganti login_check agar mengembalikan {user, token} ---
 -- (return type berubah dari SETOF JSONB jadi JSONB tunggal, jadi harus DROP dulu
@@ -456,7 +502,7 @@ BEGIN
   IF NOT FOUND THEN
     RETURN NULL;
   END IF;
-  v_token := sign(
+  v_token := public.wangku_sign_jwt(
     json_build_object(
       'role','authenticated',
       'sub', v_user.id::text,
@@ -466,8 +512,7 @@ BEGIN
     ),
     -- GANTI dengan JWT Secret asli project ini: Supabase Dashboard ->
     -- Project Settings -> Data API -> JWT Settings -> "JWT Secret"
-    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA==',
-    'HS256'
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
   );
   RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
 END;
@@ -487,10 +532,10 @@ BEGIN
   SELECT * INTO v_user FROM public.users u
     WHERE u.username = p_username AND u.status = 'active' LIMIT 1;
   IF NOT FOUND THEN RETURN NULL; END IF;
-  v_token := sign(
+  v_token := public.wangku_sign_jwt(
     json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
       'app_role', COALESCE(v_user.role,'user'),'exp', extract(epoch from (now() + interval '30 days'))::integer),
-    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA==','HS256'
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
   );
   RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
 END;
@@ -507,10 +552,10 @@ BEGIN
   SELECT * INTO v_user FROM public.users u
     WHERE u.id = p_user_id AND u.status = 'active' LIMIT 1;
   IF NOT FOUND THEN RETURN NULL; END IF;
-  v_token := sign(
+  v_token := public.wangku_sign_jwt(
     json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
       'app_role', COALESCE(v_user.role,'user'),'exp', extract(epoch from (now() + interval '30 days'))::integer),
-    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA==','HS256'
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
   );
   RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
 END;
