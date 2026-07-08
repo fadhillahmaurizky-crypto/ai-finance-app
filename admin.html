@@ -389,8 +389,8 @@ tbody tr:hover{background:var(--bg3)}
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>User</th><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Nominal</th><th>Keterangan</th><th>Saldo</th></tr></thead>
-            <tbody id="trx-table"><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">Memuat...</td></tr></tbody>
+            <thead><tr><th>User</th><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Akun</th><th>Nominal</th><th>Keterangan</th><th>Saldo</th></tr></thead>
+            <tbody id="trx-table"><tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Memuat...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -431,20 +431,16 @@ tbody tr:hover{background:var(--bg3)}
           </div>
         </div>
         <div class="card">
-          <div class="card-header"><div class="card-title">🤖 API Key Pool (Groq AI)</div><div class="card-sub" style="font-size:11px;color:var(--text3);margin-top:2px">Dipakai semua user Pro — user tidak perlu isi sendiri</div></div>
+          <div class="card-header"><div class="card-title">👤 Kelola Admin</div><div class="card-sub" style="font-size:11px;color:var(--text3);margin-top:2px">User dengan akses admin panel ini — terpisah dari daftar App Users</div></div>
           <div class="card-body">
-            <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Dari <strong>console.groq.com</strong> → API Keys → Create Key</div>
-            <div style="display:flex;gap:8px;margin-bottom:10px">
-              <input id="pool-key-input" type="password" placeholder="gsk_..." style="flex:1;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:10px 13px;font-size:12px;color:var(--text);outline:none;font-family:monospace;transition:border-color .2s"/>
-              <button onclick="togglePoolKey()" style="padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:14px" title="Show/Hide">👁️</button>
-            </div>
-            <button onclick="savePoolKey()" style="width:100%;padding:11px;border-radius:10px;background:var(--green);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer"><i class="ti ti-device-floppy"></i> Simpan API Key Pool</button>
-            <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between">
-              <span style="font-size:12px;color:var(--text3)">Status AI:</span>
-              <span id="pool-status" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">—</span>
-            </div>
-            <div style="margin-top:10px;background:var(--amber-bg);border:1px solid var(--amber);border-radius:10px;padding:10px 12px;font-size:11px;color:var(--amber);line-height:1.6">
-              ⚡ Estimasi biaya AI: ~Rp 600/user Pro/bulan.<br>Harga Pro Rp 19.000 → margin kamu <strong>~97%</strong>!
+            <div id="admin-users-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+            <div style="border-top:1px solid var(--bg3);padding-top:14px">
+              <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px">Tambah Admin Baru</div>
+              <input class="l-input" id="new-admin-username" type="text" placeholder="Username" style="margin-bottom:8px"/>
+              <input class="l-input" id="new-admin-name" type="text" placeholder="Nama Lengkap" style="margin-bottom:8px"/>
+              <input class="l-input" id="new-admin-email" type="email" placeholder="Email" style="margin-bottom:8px"/>
+              <input class="l-input" id="new-admin-pass" type="password" placeholder="Password (min. 6 karakter)" style="margin-bottom:10px"/>
+              <button class="f-btn green" style="width:100%" onclick="addAdminUser()"><i class="ti ti-user-plus"></i> Tambah Admin</button>
             </div>
           </div>
         </div>
@@ -544,7 +540,11 @@ async function sbFetch(path, method='GET', body=null) {
 }
 
 async function hashPass(p) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p+'wangku_salt_2024'));
+  // PENTING: salt ini HARUS sama dengan yang dipakai di js/ui-helpers.js (hp()),
+  // kalau tidak, password yang di-set/reset lewat admin panel tidak akan pernah
+  // cocok saat user login dari app utama. (Sebelumnya di sini pakai salt
+  // berbeda — 'wangku_salt_2024' — sudah diperbaiki agar konsisten.)
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p+'finly_salt_2024'));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
@@ -614,7 +614,7 @@ function showPage(name) {
   if(name==='users') { loadUsers(); loadPendingUsers(); loadOrders(); }
   if(name==='transaksi') loadAllTrx();
   if(name==='laporan') renderLaporan();
-  if(name==='settings') loadPoolKey();
+  if(name==='settings') loadAdminUsersList();
 }
 
 // ========================
@@ -708,11 +708,12 @@ function renderOverview() {
 async function loadUsers() {
   document.getElementById('users-table').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Memuat...</td></tr>';
   if(!supaUsers.length) await loadAllData();
-  renderUsersTable(supaUsers);
-  document.getElementById('user-count-sub').textContent=supaUsers.length+' user terdaftar';
+  const appUsers=supaUsers.filter(u=>u.role!=='admin');
+  renderUsersTable(appUsers);
+  document.getElementById('user-count-sub').textContent=appUsers.length+' user terdaftar';
   // Populate filter transaksi
   const sel=document.getElementById('trx-filter-user');
-  sel.innerHTML='<option value="">Semua User</option>'+supaUsers.map(u=>`<option value="${u.id}">${u.full_name||u.username}</option>`).join('');
+  sel.innerHTML='<option value="">Semua User</option>'+appUsers.map(u=>`<option value="${u.id}">${u.full_name||u.username}</option>`).join('');
 }
 
 const AVATAR_COLORS=['#00B26A','#2B7EF8','#F59E0B','#8B5CF6','#EC4899','#EF4444','#06B6D4'];
@@ -1096,15 +1097,15 @@ function viewUserTrx(waNumber, nama) {
 async function loadAllTrx() {
   const userId=document.getElementById('trx-filter-user')?.value||'';
   const filter=document.getElementById('trx-filter-jenis')?.value||'semua';
-  document.getElementById('trx-table').innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">Memuat...</td></tr>';
+  document.getElementById('trx-table').innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Memuat...</td></tr>';
   try {
-    let q=`transactions?select=*,users(id,username,full_name,wa_number)&order=created_at.desc&limit=200`;
+    let q=`transactions?select=*,users(id,username,full_name,wa_number),akun:accounts!transactions_account_id_fkey(nama)&order=created_at.desc&limit=200`;
     if(userId) q+=`&user_id=eq.${userId}`;
     if(filter==='pemasukan') q+=`&jenis=eq.pemasukan`;
     else if(filter==='pengeluaran') q+=`&jenis=eq.pengeluaran`;
     const trx=await sbFetch(q);
     document.getElementById('trx-count-sub').textContent=(trx?.length||0)+' transaksi'+(userId?' (filter user)':'');
-    if(!trx?.length){document.getElementById('trx-table').innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text3)">Tidak ada transaksi</td></tr>';return;}
+    if(!trx?.length){document.getElementById('trx-table').innerHTML='<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Tidak ada transaksi</td></tr>';return;}
     // Hitung running saldo per user
     const saldoMap={};
     [...trx].reverse().forEach(t=>{
@@ -1120,12 +1121,13 @@ async function loadAllTrx() {
         <td style="font-size:12px;color:var(--text3)">${t.tanggal||'—'} ${t.created_at?new Date(t.created_at).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}):''}</td>
         <td><span class="badge-pill ${isInc?'green':'red'}">${t.jenis||'—'}</span></td>
         <td style="text-transform:capitalize">${t.kategori||'—'}</td>
+        <td style="font-size:12px;color:var(--text2)">${t.akun?.nama||'—'}</td>
         <td class="amount-cell ${isInc?'pos':'neg'}">${isInc?'+':'−'}${rpFull(t.nominal)}</td>
         <td style="color:var(--text3);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.keterangan||'—'}</td>
         <td class="amount-cell ${(saldoMap[t.user_id]||0)>=0?'pos':'neg'}">${rpFull(saldoMap[t.user_id]||0)}</td>
       </tr>`;
     }).join('');
-  } catch(e){document.getElementById('trx-table').innerHTML=`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--red)">Gagal: ${e.message}</td></tr>`;}
+  } catch(e){document.getElementById('trx-table').innerHTML=`<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--red)">Gagal: ${e.message}</td></tr>`;}
 }
 
 // ========================
@@ -1163,40 +1165,10 @@ function renderKatChart(id,data,color) {
     </div>`).join('');
 }
 
-async function loadPoolKey(){
-  const inp=document.getElementById('pool-key-input');
-  const status=document.getElementById('pool-status');
-  try{
-    const res=await sbFetch('settings?key=eq.groq_api_key&select=value');
-    const key=res?.[0]?.value||'';
-    if(inp&&key)inp.value=key;
-    if(status){
-      if(key){status.textContent='✓ Tersimpan';status.style.background='var(--green-bg)';status.style.color='var(--green)';}
-      else{status.textContent='Belum diisi';status.style.background='var(--red-bg)';status.style.color='var(--red)';}
-    }
-  }catch(e){
-    // fallback localStorage
-    const key=localStorage.getItem('wangku_pool_key')||'';
-    if(inp&&key)inp.value=key;
-  }
-}
-function togglePoolKey(){
-  const inp=document.getElementById('pool-key-input');
-  if(inp)inp.type=inp.type==='password'?'text':'password';
-}
-async function savePoolKey(){
-  const val=document.getElementById('pool-key-input')?.value.trim();
-  if(!val){showToast('Masukkan API key!','err');return;}
-  if(!val.startsWith('gsk_')){showToast('API key tidak valid! Harus diawali gsk_','err');return;}
-  try{
-    // Upsert ke Supabase
-    await sbFetch('settings?key=eq.groq_api_key','DELETE');
-    await sbFetch('settings','POST',{key:'groq_api_key',value:val});
-    localStorage.setItem('wangku_pool_key',val); // backup
-    loadPoolKey();
-    showToast('API Key Pool tersimpan ✓','ok');
-  }catch(e){showToast('Gagal simpan: '+e.message,'err');}
-}
+// Catatan: pengelolaan Groq API key dipindah ke server (Vercel env var
+// GROQ_API_KEY via /api/ai-chat.js dan /api/ai-scan.js) — lihat roadmap.md.
+// Tabel `settings` sudah dikunci total (DENY ALL) sehingga UI pool-key lama
+// di sini sengaja dihapus, bukan disembunyikan.
 
 // ========================
 // SETTINGS
@@ -1210,6 +1182,46 @@ function changeAdminPass() {
   document.getElementById('set-new-pass').value='';
   document.getElementById('set-confirm-pass').value='';
   showToast('Password admin berhasil diubah ✓','ok');
+}
+
+// ========================
+// KELOLA ADMIN (users dengan role='admin', terpisah dari App Users)
+// ========================
+async function loadAdminUsersList() {
+  const el=document.getElementById('admin-users-list');if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:12px;color:var(--text3);font-size:12px">Memuat...</div>';
+  try{
+    if(!supaUsers.length) await loadAllData();
+    const admins=supaUsers.filter(u=>u.role==='admin');
+    if(!admins.length){el.innerHTML='<div style="text-align:center;padding:12px;color:var(--text3);font-size:12px">Belum ada admin</div>';return;}
+    el.innerHTML=admins.map(u=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:10px">
+        <div style="width:32px;height:32px;border-radius:50%;background:#F3EEFF;color:#7C3AED;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">${(u.full_name||u.username||'?').charAt(0).toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${u.full_name||u.username}</div>
+          <div style="font-size:11px;color:var(--text3)">@${u.username}${u.email?' · '+u.email:''}</div>
+        </div>
+      </div>`).join('');
+  }catch(e){el.innerHTML='<div style="text-align:center;padding:12px;color:var(--red);font-size:12px">Gagal memuat</div>';}
+}
+
+async function addAdminUser() {
+  const username=document.getElementById('new-admin-username').value.trim();
+  const name=document.getElementById('new-admin-name').value.trim();
+  const email=document.getElementById('new-admin-email').value.trim();
+  const pass=document.getElementById('new-admin-pass').value;
+  if(!username||!name||!email){showToast('Lengkapi semua field!','err');return;}
+  if(!pass||pass.length<6){showToast('Password min. 6 karakter!','err');return;}
+  try{
+    const hash=await hashPass(pass);
+    await sbFetch('users?select=id,username,full_name,email,role,status','POST',{
+      username,full_name:name,email,password_hash:hash,
+      role:'admin',status:'active',plan:'unlimited',tokens_limit:0,tokens_used:0
+    });
+    ['new-admin-username','new-admin-name','new-admin-email','new-admin-pass'].forEach(id=>document.getElementById(id).value='');
+    showToast('Admin baru berhasil ditambahkan ✓','ok');
+    await loadAllData();
+    await loadAdminUsersList();
+  }catch(e){showToast('Gagal: '+(e.message.includes('unique')?'Username/email sudah dipakai':e.message),'err');}
 }
 
 // ========================

@@ -31,25 +31,56 @@ function renderTxn(txns,cid){
 
 function filterHome(btn,f){document.querySelectorAll('#home-tabs .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');loadTrx(f,'txn-home',5);}
 
-let txAllFilter={jenis:'semua',range:'7d'};
+let txAllFilter={jenis:'semua'};
+let txAllList=[];
 function setTxFilterJenis(btn,f){document.querySelectorAll('#txn-jenis-filter .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');txAllFilter.jenis=f;applyTransaksiFilter();}
-function setTxFilterRange(btn,r){document.querySelectorAll('#txn-range-filter .tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');txAllFilter.range=r;applyTransaksiFilter();}
+function setTxFilterDate(){applyTransaksiFilter();}
 function renderTransaksiFilters(){
   document.querySelectorAll('#txn-jenis-filter .tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.f===txAllFilter.jenis));
-  document.querySelectorAll('#txn-range-filter .tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.r===txAllFilter.range));
+  const fromEl=document.getElementById('txn-date-from'),toEl=document.getElementById('txn-date-to');
+  if(fromEl&&!fromEl.value){const d=new Date();d.setDate(d.getDate()-6);fromEl.value=d.toISOString().substring(0,10);}
+  if(toEl&&!toEl.value){toEl.value=new Date().toISOString().substring(0,10);}
 }
 async function applyTransaksiFilter(){
   const el=document.getElementById('txn-all');if(!el)return;
   el.innerHTML='<div class="skeleton" style="height:60px;margin-bottom:6px"></div><div class="skeleton" style="height:60px;margin-bottom:6px"></div><div class="skeleton" style="height:60px"></div>';
   try{
-    let q=`transactions?user_id=eq.${user.id}&order=tanggal.desc,created_at.desc&limit=300`;
+    let q=`transactions?user_id=eq.${user.id}&order=tanggal.desc,created_at.desc&limit=1000`;
     if(txAllFilter.jenis!=='semua')q+=`&jenis=eq.${txAllFilter.jenis}`;
-    if(txAllFilter.range==='7d'){const d=new Date();d.setDate(d.getDate()-6);q+=`&tanggal=gte.${d.toISOString().substring(0,10)}`;}
-    else if(txAllFilter.range==='30d'){const d=new Date();d.setDate(d.getDate()-29);q+=`&tanggal=gte.${d.toISOString().substring(0,10)}`;}
-    else if(txAllFilter.range==='bulan'){const month=getMonth(),nextMonth=getNextMonth();q+=`&tanggal=gte.${month}-01&tanggal=lt.${nextMonth}-01`;}
+    const fromVal=document.getElementById('txn-date-from')?.value;
+    const toVal=document.getElementById('txn-date-to')?.value;
+    if(fromVal)q+=`&tanggal=gte.${fromVal}`;
+    if(toVal)q+=`&tanggal=lte.${toVal}`;
     const data=await sb(q);
+    txAllList=data||[];
     renderTxn(data,'txn-all');
   }catch(e){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Gagal memuat</div>';}
+}
+
+function accountNameById(id){
+  if(!id)return'';
+  const a=(typeof accountsList!=='undefined'?accountsList:[]).find(x=>x.id===id);
+  return a?a.nama:'';
+}
+function exportToExcel(){
+  if(typeof XLSX==='undefined'){showToast('Modul Excel belum termuat, coba lagi sebentar','err');return;}
+  if(!txAllList.length){showToast('Tidak ada transaksi untuk diekspor','warn');return;}
+  const rows=txAllList.map(t=>({
+    Tanggal:t.tanggal,
+    Jenis:t.jenis,
+    Kategori:t.kategori||'',
+    Keterangan:t.keterangan||'',
+    Nominal:Number(t.nominal)||0,
+    Prioritas:t.prioritas||'',
+    Akun:accountNameById(t.account_id),
+    'Akun Tujuan':t.jenis==='transfer'?accountNameById(t.to_account_id):''
+  }));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:12},{wch:12},{wch:14},{wch:24},{wch:14},{wch:13},{wch:14},{wch:14}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Transaksi');
+  XLSX.writeFile(wb,`wangku-transaksi-${new Date().toISOString().substring(0,10)}.xlsx`);
+  showToast('Excel berhasil diunduh ✓','ok');
 }
 
 async function loadTargets(){try{const data=await sb(`targets?user_id=eq.${user.id}&order=created_at.asc`);targets=data||[];}catch(e){targets=[];}}
