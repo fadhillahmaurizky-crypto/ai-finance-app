@@ -4,11 +4,11 @@
 
 ```
 ai-finance-app/
-├── index.html              # The entire app shell — every "page" is a <div class="page"> toggled by JS
-├── admin.html               # Separate standalone admin panel (order approval, user/plan management)
+├── index.html              # The entire consumer app — every "page" is a <div class="page"> toggled by JS
+├── admin.html               # Separate standalone admin panel (real login, user/plan management, transactions view)
 ├── landing.html              # Marketing/landing page (pre-login)
 ├── manifest.json              # PWA manifest
-├── sw.js                       # Service worker (registered in boot.js, currently minimal)
+├── sw.js                       # Service worker (registered in boot.js, minimal)
 ├── twa-manifest.json             # Bubblewrap TWA config (package id, signing key, colors)
 ├── android.keystore               # Android signing key (Bubblewrap)
 ├── app-release-*.apk / .aab          # Built Android artifacts (Bubblewrap output)
@@ -16,107 +16,118 @@ ai-finance-app/
 ├── css/
 │   └── app.css                          # Single stylesheet, CSS variables for theming (light/dark)
 ├── js/
-│   ├── config.js       # Constants: Supabase URL/key, plan definitions, default categories/accounts
-│   ├── state.js        # Global mutable state (user, targets, sumData, etc.)
-│   ├── ui-helpers.js    # rp()/rpF() formatters, getPlan(), canAI(), showToast(), sb() Supabase client
-│   ├── auth.js           # Login, register (email OTP), forgot password, biometric (WebAuthn)
-│   ├── app-core.js        # goPage() router, showApp() bootstrap, back-button/history handling
-│   ├── dashboard.js        # loadSummary() (balance engine), renderPie(), renderLaporan()
-│   ├── transactions.js      # Transaction CRUD, filters, targets CRUD, receipt-scan trigger
+│   ├── config.js       # Constants: Supabase URL/anon key, plan/limits definitions, default categories/accounts
+│   ├── state.js        # Global mutable state (user, targets, sumData, jenis, etc.)
+│   ├── ui-helpers.js    # rp()/rpF() formatters, getPlan(), canAI(), showToast(), sb()/rpc() clients
+│   ├── auth.js           # Login, register (email OTP), forgot password (server-verified OTP), biometric
+│   ├── app-core.js        # goPage() router + back-button history handling, showApp() bootstrap, session refresh, logout/auth-expiry
+│   ├── dashboard.js        # loadSummary() (balance engine), renderPie(), renderLaporan(), sparkline, insight card, health score
+│   ├── transactions.js      # Transaction CRUD, filters, Excel export, target CRUD + contributions, receipt-scan trigger
 │   ├── accounts.js           # Account CRUD, balance breakdown popup
-│   ├── categories.js          # Category CRUD (default + custom, unified)
-│   ├── priorities.js           # Priority CRUD (default + custom, unified)
-│   ├── chat-ai.js                # AI chat assistant (Groq)
-│   ├── payment.js                 # Plan upgrade / payment proof submission flow
-│   ├── settings.js                 # Profile, notifications, autosync, backup/reset, auto-detect
+│   ├── categories.js          # Category CRUD (default + custom, unified, full-page management)
+│   ├── priorities.js           # Priority CRUD (default + custom, unified, full-page management)
+│   ├── chat-ai.js                # AI chat assistant — calls /api/ai-chat, never touches Groq directly
+│   ├── payment.js                 # Plan display, upgrade/downgrade picker, payment proof submission
+│   ├── settings.js                 # Profile, notifications, autosync, reset-data, auto-detect stub
 │   └── boot.js                       # Entry point: registers service worker, shows splash
+├── api/
+│   ├── ai-chat.js                     # Vercel serverless function — proxies chat completions to Groq
+│   └── ai-scan.js                      # Vercel serverless function — proxies receipt-scan (vision) to Groq
 ├── database/
-│   └── wangku-supabase-setup.sql      # Full schema, additive migration blocks numbered [1]…[16]
+│   └── wangku-supabase-setup.sql        # Full schema, additive migration blocks [1]…[18] (see database.md)
 ├── gas/
-│   └── wangku-backend.gs               # (Draft, unverified against live script) Apps Script for
-│                                          Fonnte webhook parsing + Drive backup — see backend.md
+│   └── wangku-backend.gs                 # DRAFT ONLY — Apps Script for Fonnte webhook + Drive backup, unverified against the real live script (see backend.md)
 └── docs/                                  # You are here
 ```
 
 ## 2. Technology stack
 
-- **Frontend**: Vanilla HTML/CSS/JS. No React/Vue, no bundler, no npm build step — files are served as-is.
-- **Backend-as-a-service**: Supabase (Postgres, REST via PostgREST, using the anon key directly from the client).
-- **AI**: Groq API — `meta-llama/llama-4-scout-17b-16e-instruct` for receipt image parsing, a Llama 3.x chat model for the AI assistant.
-- **WhatsApp bot**: Fonnte (WhatsApp Business API provider) + a Google Apps Script webhook (see [backend.md](./backend.md) — this piece is currently undocumented in the repo itself).
-- **Backup/sync**: Google Apps Script + Google Drive.
-- **Hosting**: Vercel (static file hosting) at `ai-finance-app-gamma.vercel.app`.
+- **Frontend**: Vanilla HTML/CSS/JS. No React/Vue, no bundler, no build step.
+- **Backend-as-a-service**: Supabase (Postgres via PostgREST). No custom application server.
+- **Auth**: Custom — not Supabase Auth. Login verifies a password hash inside a Postgres function and mints a hand-signed JWT (HS256, using the project's real Supabase JWT secret) that the client then uses as its Bearer token for everything else. See §4 and `database.md`'s RLS section.
+- **AI**: Groq API (`meta-llama/llama-4-scout-17b-16e-instruct` for receipt vision, a Llama 3.x chat model for the assistant) — called only from Vercel serverless functions, never from the browser.
+- **WhatsApp bot**: Fonnte + Google Apps Script (draft/unverified — see `backend.md`).
+- **Hosting**: Vercel, both the static site and the `/api` serverless functions.
 - **Android packaging**: Bubblewrap CLI → Trusted Web Activity (TWA), signed APK/AAB.
-- **Auth extras**: EmailJS (OTP delivery), WebAuthn (biometric unlock).
+- **Email**: EmailJS (OTP delivery for registration and password reset).
 
 ## 3. How data flows through the application
 
 ```mermaid
 flowchart LR
     U[User] -->|taps UI| JS[js/*.js in browser]
-    JS -->|fetch REST, anon key| SB[(Supabase Postgres)]
-    JS -->|fetch| GROQ[Groq API]
-    JS -->|fetch, fire-and-forget| GAS[Google Apps Script]
+    JS -->|fetch REST + Bearer JWT| SB[(Supabase Postgres, RLS-enforced)]
+    JS -->|fetch| API[Vercel /api/ai-chat, /api/ai-scan]
+    API -->|server-side key| GROQ[Groq API]
+    JS -->|fire-and-forget| GAS[Google Apps Script draft]
     GAS --> DRIVE[(Google Drive)]
-    WA[WhatsApp / Fonnte] --> GAS
-    GAS --> SB
-    SB -->|REST response| JS
+    WA[WhatsApp / Fonnte] -.->|not yet wired| GAS
+    SB -->|REST response, RLS-filtered| JS
     JS -->|re-render| U
 ```
 
-There is **no application server** in the traditional sense — the browser talks directly to Supabase's PostgREST API using the public anon key, and directly to Groq for AI calls. Google Apps Script is the only "backend" code that runs server-side, and only for two things: the WhatsApp bot and Drive backups.
+The browser never talks to Groq directly, and every Supabase request now carries a real per-user JWT (not just the shared anon key) — this is a meaningfully different picture from earlier in the project's history, where the client held the Groq key and Supabase RLS allowed anyone to read/write anyone's rows.
 
-## 4. Authentication flow
+## 4. Authentication flow (custom JWT, not Supabase Auth)
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant A as auth.js
-    participant SB as Supabase (users table)
-    participant EJ as EmailJS
+    participant PG as Postgres RPC (login_check)
+    participant SB as Supabase REST (RLS-enforced)
 
     U->>A: submit login (username/password)
-    A->>SB: SELECT * FROM users WHERE username=... AND status='active'
-    SB-->>A: user row (password compared client-side)
-    A->>A: localStorage.setItem('sdk_session', user)
-    A->>U: showApp()
-
-    Note over U,EJ: Registration flow
-    U->>A: submit register form
-    A->>EJ: send 6-digit OTP email
-    U->>A: enter OTP
-    A->>SB: INSERT INTO users (status='active')
-    A->>U: showApp()
+    A->>PG: rpc/login_check(username, sha256(password+salt))
+    PG->>PG: verify password_hash match inside the function (SECURITY DEFINER)
+    PG->>PG: sign JWT {user_id, app_role, exp} with project's real JWT secret (wangku_sign_jwt, manual HS256 via pgcrypto hmac())
+    PG-->>A: { user: {...without password_hash}, token: "<jwt>" }
+    A->>A: localStorage: sdk_session = user, sdk_token = jwt
+    A->>SB: all subsequent requests send Authorization: Bearer <jwt>
+    SB->>SB: RLS policies check (jwt.user_id = row.user_id) OR (jwt.app_role = 'admin')
 ```
 
-See [roadmap.md](./roadmap.md) for the security caveat on this flow (password handling and RLS).
+Biometric login (`get_user_by_username`) and session restore (`get_user_by_id`) follow the same pattern — both are RPCs that verify status/existence and mint a fresh token, so a legacy session (no token yet) gets silently upgraded to a real token the next time the app loads, without forcing a re-login.
 
-## 5. Database schema and relationships
-See [database.md](./database.md) for the full ERD. Summary: `users` is the root; `accounts`, `transactions`, `targets`, `user_categories`, `user_priorities`, `orders`, `detected_transactions` all hang off `user_id`.
+`admin.html` uses the **exact same `login_check` RPC**, just requiring `result.user.role === 'admin'`, and stores its own token separately. This replaced an earlier single shared static password that had nothing to do with real accounts.
 
-## 6. API endpoints
-See [api.md](./api.md). There's no custom REST API of ours — the app calls Supabase's auto-generated PostgREST endpoints directly, plus Groq's chat-completions endpoint, plus one Google Apps Script Web App URL.
+Password itself: SHA-256 with a static, shared salt (`hp()` in `ui-helpers.js`) — this is flagged as a known weakness in `roadmap.md`, not something to copy as a pattern.
 
-## 7. AI integration flow
-See [ai.md](./ai.md) for the two AI features (chat assistant, receipt scanning) with full sequence diagrams.
+## 5. Row Level Security (the thing that actually enforces per-user isolation)
 
-## 8. State management
+Every data table's RLS policy checks:
+```sql
+(auth.jwt()->>'user_id')::uuid = user_id   OR   auth.jwt()->>'app_role' = 'admin'
+```
+via a shared helper function `is_owner_or_admin(user_id)`. This is what actually stops one user's browser from reading or writing another user's rows — the JWT alone doesn't do anything by itself; it's the RLS policies checking its claims that matter. See `database.md` for the full table-by-table breakdown and the migration history of how this was reached (it took a few rounds to get the Postgres function-return-type and extension-search-path details right — worth reading if you're touching any of these RPCs).
 
-There is no state library. Global mutable variables live in `js/state.js`:
+## 6. Database schema and relationships
+See [database.md](./database.md) for the full ERD and every migration block.
 
+## 7. API endpoints
+See [api.md](./api.md). No custom application API — direct PostgREST access (now JWT-gated), Postgres RPC functions for anything sensitive (auth, password reset), and two Vercel serverless functions for AI.
+
+## 8. AI integration flow
+See [ai.md](./ai.md).
+
+## 9. State management
+
+No state library. Global mutable variables in `js/state.js`:
 ```js
 let user=null, chatHist=[], loading=false, sumData=null, jenis='pemasukan',
     targets=[], dP, fpUser=null, fpOTP=null, aiChat=0, aiScan=0;
 ```
+Plus module-level `let` in `accounts.js` (`accountsList`), `categories.js` (`kategoriList`), `priorities.js` (`prioritasList`), and several in `transactions.js` (`txnCache`, `txAllFilter`, `txAllList`, `editingTrxId`, `editingTargetId`, `contributingTargetId`). Anything that needs to survive a reload goes to `localStorage` — full key list in `environment.md`, including the newer `sdk_token` (JWT), `wangku_balance_hidden`, `wangku_count_target_balance`.
 
-Plus module-level `let` declarations at the top of `accounts.js` (`accountsList`), `categories.js` (`kategoriList`), `priorities.js` (`prioritasList`), `transactions.js` (`txnCache`, `txAllFilter`, `editingTrxId`, `editingTargetId`, `contributingTargetId`). Anything that needs to survive a page reload is persisted to `localStorage` (session, theme, notification prefs, autosync flag, etc.) — see [environment.md](./environment.md) for the full key list.
+## 10. Component hierarchy
+No framework components. `index.html` holds every "page" and every modal as sibling `<div>`s; JS toggles `.active`/`.open` classes. Full inventory in `frontend.md`.
 
-## 9. Component hierarchy
-There are no components in the framework sense. `index.html` contains every "page" and every modal as sibling `<div>`s; JS toggles `.active`/`.open` classes to show/hide them. See [frontend.md](./frontend.md) for the full page/modal inventory.
+## 11. Page routing
 
-## 10. Page routing
-
-Routing is entirely client-side, via `goPage(name)` in `app-core.js` toggling `.page` divs — there are no real URL changes for in-app pages (the URL bar stays on `index.html`). To make the Android back button behave correctly, `goPage()` and every modal open/close push/consume `history` state (see the `popstate` handler at the bottom of `app-core.js`).
+Entirely client-side via `goPage(name)` in `app-core.js`. As of the security/UX work, this also:
+- Pushes/consumes real browser `history` state so the **Android back button navigates within the app instead of exiting/restarting the TWA** (this was a genuine bug, fixed at the web layer).
+- A `MutationObserver` watches every `.modal-overlay` and does the same for modal open/close, so back also closes the topmost open modal first.
+- Toggles `.compact` on `.header`, collapsing to a mini balance readout on every page except Home (the full balance card itself now lives inside the *scrollable* Home page content, not the fixed header — see `frontend.md`).
 
 ```mermaid
 flowchart TD
@@ -131,11 +142,11 @@ flowchart TD
     target --> catat
 ```
 
-## 11. External services
-Supabase, Groq, Fonnte, Google Apps Script/Drive, EmailJS, Vercel. Full list with what each is used for in [api.md](./api.md).
+## 12. External services
+Supabase, Groq (via Vercel proxy), Fonnte (draft/unverified), Google Apps Script/Drive (draft), EmailJS, Vercel. Full breakdown in `api.md`.
 
-## 12. Environment variables
-There is no `.env` — all config is hardcoded as JS constants in `js/config.js` (client-visible by nature, since this is a static site). See [environment.md](./environment.md).
+## 13. Environment variables
+No `.env` for the static site (all client-visible constants in `js/config.js`, which is fine for a Supabase-anon-key architecture). The Vercel serverless functions **do** use real environment variables (`GROQ_API_KEY`) that never reach the client. Full list in `environment.md`.
 
-## 13. Build and deployment process
-No build step for the web app — Vercel serves the repo's static files directly. The Android app is built separately via Bubblewrap (`gradlew` / `bubblewrap build`), producing the APK/AAB checked into the repo root. See [deployment.md](./deployment.md).
+## 14. Build and deployment process
+No build step for the web app. The `/api` folder is auto-detected by Vercel as serverless functions alongside the static site. Android is built separately via Bubblewrap. See `deployment.md`.

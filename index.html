@@ -194,7 +194,6 @@
 
 <!-- MAIN APP -->
 <div class="app" id="main-app" style="display:none">
-  <div class="statusbar"><span id="clock">09:41</span><span style="display:flex;gap:6px;align-items:center"><i class="ti ti-wifi" style="font-size:12px"></i><i class="ti ti-battery-2" style="font-size:12px"></i></span></div>
   <div class="header">
     <div class="header-top">
       <div><div class="greeting" id="greeting">Selamat pagi</div><div class="username" id="uname">—</div></div>
@@ -202,15 +201,7 @@
         <div class="hdr-btn" id="sync-btn" onclick="manualSync()"><i class="ti ti-refresh" id="sync-ico"></i></div>
         <div class="mini-bal" id="mini-bal-wrap"><div class="mini-bal-lbl">Saldo</div><div class="mini-bal-amt" id="mini-bal">Rp 0</div></div>
         <div class="hdr-btn" onclick="toggleTheme()"><i class="ti ti-moon" id="theme-ico"></i></div>
-        <div class="hdr-btn" onclick="goPage('settings')"><i class="ti ti-settings"></i></div>
-      </div>
-    </div>
-    <div class="bal-card" onclick="showBalanceBreakdown()">
-      <div class="bal-label">Saldo Sekarang</div>
-      <div class="bal-amount" id="saldo">Memuat...</div>
-      <div class="bal-row">
-        <div class="bal-pill"><div class="bal-pill-lbl">↓ Pemasukan</div><div class="bal-pill-val" id="tot-masuk">—</div></div>
-        <div class="bal-pill"><div class="bal-pill-lbl">↑ Pengeluaran</div><div class="bal-pill-val" id="tot-keluar">—</div></div>
+        <div class="hdr-btn hdr-avatar-btn" id="hdr-avatar-btn" onclick="goPage('settings')"><i class="ti ti-settings" id="hdr-avatar-fallback"></i></div>
       </div>
     </div>
   </div>
@@ -219,19 +210,72 @@
     <!-- HOME -->
     <div class="page active" id="page-home">
       <div class="sp">
-        <div id="alert-section"></div>
+        <div class="bal-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1">
+            <div class="bal-label" style="display:flex;align-items:center;gap:5px;cursor:pointer" onclick="toggleBalanceVisibility()">Saldo <i class="ti ti-eye" id="bal-eye-ico"></i></div>
+            <button class="bal-detail-btn" onclick="showBalanceBreakdown()">Lihat Detail <i class="ti ti-chevron-right"></i></button>
+          </div>
+          <div class="bal-amount" id="saldo" style="position:relative;z-index:1">Memuat...</div>
+          <div class="bal-trend" id="bal-trend" style="position:relative;z-index:1"></div>
+          <div class="bal-spark-wrap"><svg id="bal-spark" viewBox="0 0 300 60" preserveAspectRatio="none"></svg></div>
+          <div class="bal-row" style="position:relative;z-index:1">
+            <div class="bal-pill"><div class="bal-pill-lbl">↓ Pemasukan Bulan Ini</div><div class="bal-pill-val" id="tot-masuk">—</div></div>
+            <div class="bal-pill"><div class="bal-pill-lbl">↑ Pengeluaran Bulan Ini</div><div class="bal-pill-val" id="tot-keluar">—</div></div>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="insight-card" id="insight-card" onclick="cycleInsight()">
+            <div class="insight-avatar">🤖</div>
+            <div style="flex:1;min-width:0">
+              <div class="insight-title">Insight dari WangkuAI ✨</div>
+              <div class="insight-text" id="insight-text">Memuat insight...</div>
+            </div>
+            <i class="ti ti-chevron-right" style="color:var(--text3);flex-shrink:0"></i>
+          </div>
+          <div class="insight-dots" id="insight-dots"></div>
+        </div>
+        <div id="alert-section" style="margin-top:14px"></div>
         <div class="sec-title">Aksi Cepat</div>
-        <div class="qa-row" style="margin-bottom:4px">
+        <div class="qa-row" style="margin-bottom:20px">
           <div class="qa-item" onclick="resetTrxForm();goPage('catat')"><div class="qa-ico" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-plus"></i></div><div class="qa-lbl">Catat</div></div>
           <div class="qa-item" onclick="goCatatTransfer()"><div class="qa-ico" style="background:var(--blue-bg);color:var(--blue)"><i class="ti ti-arrows-left-right"></i></div><div class="qa-lbl">Transfer</div></div>
           <div class="qa-item" onclick="openChat()"><div class="qa-ico" style="background:var(--blue-bg);color:var(--blue)"><i class="ti ti-robot"></i></div><div class="qa-lbl">Tanya AI</div></div>
           <div class="qa-item" onclick="goPage('target')"><div class="qa-ico" style="background:var(--amber-bg);color:var(--amber)"><i class="ti ti-target"></i></div><div class="qa-lbl">Target</div></div>
           <div class="qa-item" onclick="goPage('laporan')"><div class="qa-ico" style="background:#F3EEFF;color:#7C3AED"><i class="ti ti-chart-bar"></i></div><div class="qa-lbl">Laporan</div></div>
         </div>
-        <div class="sec-title">Ringkasan Bulan Ini</div>
-        <div class="stat-row" style="margin-bottom:10px">
-          <div class="stat-card"><div class="stat-top"><i class="ti ti-trending-up" style="font-size:15px;color:var(--green)"></i><span class="stat-lbl">Pemasukan</span></div><div class="stat-val" id="stat-masuk" style="color:var(--green)">—</div><div class="stat-badge" style="background:var(--green-bg);color:var(--green)" id="stat-masuk-b">—</div></div>
-          <div class="stat-card"><div class="stat-top"><i class="ti ti-trending-down" style="font-size:15px;color:var(--red)"></i><span class="stat-lbl">Pengeluaran</span></div><div class="stat-val" id="stat-keluar" style="color:var(--red)">—</div><div class="stat-badge" style="background:var(--red-bg);color:var(--red)" id="stat-keluar-b">—</div></div>
+        <div class="home-2col" style="margin-bottom:10px">
+          <div class="health-card" onclick="goPage('laporan')">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="nt-title">Kesehatan Keuangan</span>
+              <i class="ti ti-chevron-right" style="color:var(--text3)"></i>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
+              <div class="health-gauge-wrap">
+                <svg viewBox="0 0 100 100" class="health-gauge">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="var(--bg3)" stroke-width="9"/>
+                  <circle id="health-arc" cx="50" cy="50" r="42" fill="none" stroke="var(--green)" stroke-width="9" stroke-linecap="round" transform="rotate(-90 50 50)" stroke-dasharray="0 264"/>
+                </svg>
+                <div class="health-score-wrap"><span class="health-score" id="health-score">—</span><span class="health-max">/100</span></div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div class="health-label" id="health-label" style="text-align:left">—</div>
+                <div class="health-sub" id="health-sub" style="text-align:left">Memuat...</div>
+              </div>
+            </div>
+          </div>
+          <div class="nearest-target-card" onclick="goPage('target')">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="nt-title">Target Terdekat</span>
+              <i class="ti ti-chevron-right" style="color:var(--text3)"></i>
+            </div>
+            <div class="nt-name" id="nt-name">Memuat...</div>
+            <div class="target-progress" style="margin:10px 0 4px"><div class="target-fill" id="nt-fill" style="width:0%"></div></div>
+            <div class="nt-pct" id="nt-pct"></div>
+            <div class="nt-row">
+              <div><div class="nt-lbl">Terkumpul</div><div class="nt-val" id="nt-terkumpul">Rp0</div></div>
+              <div style="text-align:right"><div class="nt-lbl">Target</div><div class="nt-val" id="nt-target">Rp0</div></div>
+            </div>
+          </div>
         </div>
         <div class="sec-title">Transaksi Terakhir <span class="see-all" onclick="goPage('transaksi')">Lihat semua</span></div>
         <div class="tab-strip" id="home-tabs">
@@ -310,18 +354,19 @@
     <!-- TRANSAKSI -->
     <div class="page" id="page-transaksi">
       <div class="sp" style="padding-top:14px">
-        <div class="sec-title">Semua Transaksi</div>
+        <div class="sec-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Semua Transaksi</span>
+          <button class="export-btn" onclick="exportToExcel()"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
+        </div>
         <div class="tab-strip" id="txn-jenis-filter">
           <button class="tab-btn active" data-f="semua" onclick="setTxFilterJenis(this,'semua')">Semua</button>
           <button class="tab-btn" data-f="pemasukan" onclick="setTxFilterJenis(this,'pemasukan')">Pemasukan</button>
           <button class="tab-btn" data-f="pengeluaran" onclick="setTxFilterJenis(this,'pengeluaran')">Pengeluaran</button>
           <button class="tab-btn" data-f="transfer" onclick="setTxFilterJenis(this,'transfer')">Transfer</button>
         </div>
-        <div class="tab-strip" id="txn-range-filter" style="margin-top:6px">
-          <button class="tab-btn active" data-r="7d" onclick="setTxFilterRange(this,'7d')">7 Hari</button>
-          <button class="tab-btn" data-r="30d" onclick="setTxFilterRange(this,'30d')">30 Hari</button>
-          <button class="tab-btn" data-r="bulan" onclick="setTxFilterRange(this,'bulan')">Bulan Ini</button>
-          <button class="tab-btn" data-r="semua" onclick="setTxFilterRange(this,'semua')">Semua</button>
+        <div class="date-filter-row">
+          <div class="date-filter-field"><label>Dari</label><input type="date" class="f-input" id="txn-date-from" onchange="setTxFilterDate()"/></div>
+          <div class="date-filter-field"><label>Sampai</label><input type="date" class="f-input" id="txn-date-to" onchange="setTxFilterDate()"/></div>
         </div>
         <div class="txn-list" id="txn-all" style="margin-top:10px"></div>
       </div>
@@ -387,10 +432,6 @@
         <div class="set-sec-title">Paket Saya</div>
         <div id="plan-card"></div>
 
-        <div class="set-section" id="ganti-paket-wrap">
-          <button class="add-target-btn" onclick="openPlanOptions()"><i class="ti ti-arrows-right-left"></i> Ganti Paket</button>
-        </div>
-
         <div class="set-section">
           <div class="set-sec-title">Profil</div>
           <div class="set-card">
@@ -404,9 +445,11 @@
         </div>
 
         <div class="set-section">
-          <div class="set-sec-title">Akun</div>
+          <div class="set-sec-title" style="display:flex;justify-content:space-between;align-items:center;padding-right:16px">
+            <span>Akun</span>
+            <button class="inline-add-btn" onclick="openAccountAdd()"><i class="ti ti-plus"></i> Tambah Akun</button>
+          </div>
           <div class="set-card" id="account-list"></div>
-          <button class="add-target-btn" style="margin-top:8px" onclick="openAccountAdd()"><i class="ti ti-plus"></i> Tambah Akun</button>
         </div>
 
         <div class="set-section">
@@ -495,9 +538,7 @@
         <div class="set-section">
           <div class="set-sec-title">Data</div>
           <div class="set-card">
-            <div class="set-row" onclick="backupDataManual()"><div class="set-ico" style="background:var(--blue-bg);color:var(--blue)"><i class="ti ti-download"></i></div><div><div class="set-lbl">Backup Data (Manual)</div><div class="set-sub">Unduh semua data sebagai file JSON</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
-            <div class="set-row" onclick="backupToDrive()"><div class="set-ico" style="background:#E8F5E9;color:#2E7D32"><i class="ti ti-brand-google-drive"></i></div><div><div class="set-lbl">Backup ke Google Drive</div><div class="set-sub">Kirim salinan data ke Google Drive kamu</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
-            <div class="set-row" onclick="openResetModal()" style="border-top:1px solid var(--red-bg)"><div class="set-ico" style="background:var(--red-bg);color:var(--red)"><i class="ti ti-alert-triangle"></i></div><div><div class="set-lbl" style="color:var(--red)">Reset Data</div><div class="set-sub">Hapus semua transaksi & target secara permanen</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
+            <div class="set-row" onclick="openResetModal()"><div class="set-ico" style="background:var(--red-bg);color:var(--red)"><i class="ti ti-alert-triangle"></i></div><div><div class="set-lbl" style="color:var(--red)">Reset Data</div><div class="set-sub">Hapus semua transaksi & target secara permanen</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
           </div>
         </div>
 
@@ -560,18 +601,13 @@
   <div class="bottom-nav">
     <div class="nav-item" onclick="goPage('home')"><i class="ti ti-home nav-ico act" id="ni-home"></i><div class="nav-lbl act" id="nl-home">Beranda</div><div class="nav-dot show" id="nd-home"></div></div>
     <div class="nav-item" onclick="goPage('transaksi')"><i class="ti ti-list nav-ico" id="ni-transaksi"></i><div class="nav-lbl" id="nl-transaksi">Transaksi</div><div class="nav-dot" id="nd-transaksi"></div></div>
-    <div class="nav-item" onclick="goPage('target')"><i class="ti ti-target nav-ico" id="ni-target"></i><div class="nav-lbl" id="nl-target">Target</div><div class="nav-dot" id="nd-target"></div></div>
     <div class="nav-item" onclick="triggerCam()">
       <div style="position:relative;width:52px;height:52px;background:linear-gradient(135deg,#00B26A,#007A48);border-radius:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,178,106,.4);margin-top:-20px;border:3px solid var(--bg2)"><i class="ti ti-camera" style="font-size:24px;color:#fff"></i><span class="nav-badge-dot" id="foto-badge"></span></div>
       <div class="nav-lbl" style="color:var(--green);margin-top:2px">Foto</div>
       <input type="file" id="nav-cam" accept="image/*" capture="environment" style="display:none" onchange="scanStrukNav(this)"/>
     </div>
+    <div class="nav-item" onclick="goPage('target')"><i class="ti ti-target nav-ico" id="ni-target"></i><div class="nav-lbl" id="nl-target">Target</div><div class="nav-dot" id="nd-target"></div></div>
     <div class="nav-item" onclick="goPage('laporan')"><i class="ti ti-chart-bar nav-ico" id="ni-laporan"></i><div class="nav-lbl" id="nl-laporan">Laporan</div><div class="nav-dot" id="nd-laporan"></div></div>
-    <div class="nav-item" onclick="openChat()">
-      <div style="position:relative"><i class="ti ti-robot nav-ico" style="color:var(--blue)"></i><span style="position:absolute;top:-2px;right:-4px;width:8px;height:8px;background:#FF5757;border-radius:50%;border:1.5px solid var(--bg);animation:pd 2s infinite"></span></div>
-      <div class="nav-lbl" style="color:var(--blue)">AI</div>
-    </div>
-    <div class="nav-item" onclick="goPage('settings')"><i class="ti ti-settings nav-ico" id="ni-settings"></i><div class="nav-lbl" id="nl-settings">Setting</div><div class="nav-dot" id="nd-settings"></div></div>
     <div class="nav-item" id="nav-admin" style="display:none" onclick="window.location.href='admin.html'"><i class="ti ti-shield nav-ico" style="color:#7C3AED"></i><div class="nav-lbl" style="color:#7C3AED">Admin</div></div>
   </div>
 </div>
@@ -935,6 +971,7 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/state.js"></script>
 <script src="js/ui-helpers.js"></script>

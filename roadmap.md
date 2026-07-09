@@ -1,36 +1,44 @@
 # Known Technical Debt & Roadmap
 
-Ordered roughly by how much it matters, not by how easy it is to fix.
+Ordered by what matters most, not by what's easiest.
 
-## Security
+## Security — mostly resolved, two items remain
 
-1. **RLS policies are `USING (true)`/`WITH CHECK (true)` on every table.** The anon key — which is public by necessity in a client-side Supabase app — currently grants full read/write access to *all* users' data, not just the caller's own. This is the highest-priority fix before this app handles real users' financial data at any scale. Proper fix requires either adopting Supabase Auth (so `auth.uid()` exists and policies can check `auth.uid() = user_id`), or at minimum a Postgres function/policy that validates against the custom `users` table via a passed token.
-2. **Auth is homegrown, not Supabase Auth.** Passwords are checked client-side against a plaintext-or-lightly-hashed column (verify which — this wasn't confirmed during this session) fetched via a `SELECT`. This is both a security concern (password comparison logic and any hashing happens in the browser, and the query itself returns the password field to the client) and a missed opportunity (Supabase Auth would give RLS integration for free).
-3. **API keys have leaked into chat at least once** (Groq key, Fonnte token, both pasted in plaintext during a support session). Both should be rotated periodically regardless of whether the specific ones were "used" anywhere sensitive. Longer-term: move server-side secrets (Groq key, Fonnte token used by Apps Script) into Apps Script's Script Properties instead of hardcoded constants, so they're never in a file that could accidentally get committed.
-4. Groq API key on the web app side lives in `localStorage`, readable by any script running on the page (XSS risk, however small the attack surface currently is).
+The single biggest risk in this codebase was that **every RLS policy was `USING (true)`** — the public anon key (necessarily embedded in client JS) could read and write any user's data, and the Groq API key was readable directly from a public table. This has been fixed:
+
+- ✅ Groq key moved to Vercel environment variables, proxied through `/api/ai-chat.js`/`/api/ai-scan.js` — never touches the client.
+- ✅ `password_hash` no longer bulk-readable — column-level `SELECT` revoked from `anon`, all password comparisons happen inside `SECURITY DEFINER` Postgres functions.
+- ✅ Forgot-password OTP now validated server-side (hashed, expiring, single-use) — previously only checked in a JS variable, trivially bypassable.
+- ✅ Real per-user row-level security via a custom-signed JWT (see `database.md`) — every table now checks `is_owner_or_admin(user_id)` instead of `true`.
+- ✅ `admin.html` now requires a real `role='admin'` account login instead of one shared static password with no connection to real accounts.
+
+**Still open:**
+1. **No token refresh.** Sessions just expire after 30 days and force a full re-login. Fine for now; revisit before a wider public push.
+2. **Registration email verification is client-side only.** Unlike the forgot-password OTP (fixed above), the registration OTP is still just compared in a JS variable — someone could theoretically create an account without actually owning the email address. Lower severity (doesn't expose other users' data), but still a real gap.
+3. **Password hashing itself** is SHA-256 with one static, shared salt across all users (not bcrypt/argon2, not per-user salt). Adequate for now given the above fixes close the actual exposure vectors, but worth upgrading before real financial data from the public is at stake.
 
 ## Data model
 
-5. **`gas/wangku-backend.gs` is unverified against the actual live Apps Script.** It's a fresh rewrite based on inferring behavior from the schema, not a diff/merge of the real thing. Before deploying it, get the real script's source (from script.google.com, or via `clasp` if ever set up) and reconcile — otherwise you risk silently dropping working logic (admin alerts? usage tracking? different Basic-tier bot rules?).
-6. `targets.terkumpul` is a denormalized counter, incremented by app code on each contribution — it is not derived from summing linked `transactions`. Any bulk import/backfill of transactions with `target_id` set must also patch `terkumpul` manually, or progress bars will be wrong.
-7. `settings` table exists in the schema but isn't clearly wired up to a specific feature — audit before building on it.
-8. Category/priority defaults were redefined at least twice during development (`makanan/transportasi/...` → `makan/belanja/elektronik/pulsa/paket_data`). Since defaults are only seeded once per user (on first load, if no `is_default` rows exist), users who signed up under an earlier default set are **not** retroactively migrated — they keep whatever was seeded when they joined. Decide if this matters enough to write a one-time migration script.
-9. Icon/color lookup maps (`IM`/`BG`/`CL` in `transactions.js`) are keyed by category slug and manually kept in sync with `DEFAULT_CATEGORIES` in `config.js` — there's no single source of truth. If you rename a default category, update both places (and the receipt-scan prompt in `scanStruk()`, a third place).
+4. **`gas/wangku-backend.gs` is an unverified draft**, not a confirmed match for whatever's actually deployed to Fonnte. Don't treat it as documentation of current bot behavior. The backup-related handler in it is now doubly stale since the client-side backup feature was removed from Settings entirely.
+5. **`targets.terkumpul` is denormalized**, incremented by app code on each contribution, not derived from summing linked `transactions` at query time. Any bulk import/backfill with `target_id` set must also patch `terkumpul` manually.
+6. **Default categories/priorities changed more than once** during development. Since seeding only fires when a user has zero `is_default` rows, users who joined under an earlier default set were never retroactively migrated. Decide if this is worth a one-time backfill script.
+7. **Icon/color lookup maps** (`IM`/`BG`/`CL` in `transactions.js`) are manually kept in sync with `DEFAULT_CATEGORIES` in `config.js` — no single source of truth. A third place, the receipt-scan prompt in `scanStruk()`/`api/ai-scan.js`, also needs to match if categories change again.
+8. **`settings` table** is fully locked down and unused — don't build new features on it without first deciding whether it should be revived or removed from the schema.
 
 ## Known bugs / soft spots
 
-10. **"Foto" (receipt scan) unreliability** was reported and partially addressed: `scanStrukNav` now gives explicit feedback on an empty/cancelled capture instead of failing silently, and `triggerCam()` is wrapped in try/catch. If it's still flaky, the likely remaining cause is Android killing the WebView process while the native camera app is in the foreground (a known TWA/low-memory-device issue) — that requires native-side investigation (Bubblewrap/Android project config), not a web-layer fix.
-11. **Android back button** previously exited/restarted the app instead of navigating back. Fixed at the web layer via `history.pushState`/`popstate` in `app-core.js` for both page navigation and modal open/close. Not battle-tested across every modal — if you add a new modal, confirm the `MutationObserver` in `app-core.js` picks it up (it auto-attaches to every `.modal-overlay` present at boot; a modal injected into the DOM *after* boot would need manual registration).
-12. The "Chrome disclosure" TWA snackbar was reportedly fixed by the user directly (Digital Asset Links / hosting-side) — not something addressed in this repo's code; worth documenting what was actually changed so it doesn't regress on a future resign/redeploy.
+9. **Receipt scan reliability**: addressed the reported silent-failure case (now gives explicit toast feedback on empty/cancelled capture), but if it's still flaky, the likely remaining cause is Android killing the WebView process while the native camera app is in the foreground — a native TWA/low-memory-device issue, not fixable from this web codebase. Needs native-side investigation (Bubblewrap/Android project) if it resurfaces.
+10. **Android back-button** was previously exiting/restarting the app. Fixed at the web layer (`history.pushState`/`popstate` in `app-core.js`) for page navigation and modal open/close. If a new modal is added, confirm the `MutationObserver` in `app-core.js` (which auto-attaches to every `.modal-overlay` present at boot) picks it up — a modal injected into the DOM *after* boot needs manual registration.
+11. **"Running on Chrome" TWA disclosure popup** was reportedly resolved directly on the Android/hosting config side (Digital Asset Links), not through this repo's code. Document exactly what was changed there so it doesn't silently regress on a future resign.
 
 ## Feature gaps / half-built by design
 
-13. **Auto-detect transactions** has full app-side plumbing (table, poll, popup) but nothing populates `detected_transactions` — it depends on the user setting up phone-side automation (Tasker/MacroDroid) themselves. Consider writing a ready-to-import Tasker/MacroDroid profile as a companion doc if this feature should actually see use.
-14. **Google Drive backup** depends on the unverified Apps Script (#5) actually being deployed with a working `doPost` handler for `action:'backup'`. Until confirmed, treat this feature as non-functional in production even though the client-side call exists.
-15. **Fonnte account-extraction improvement** (reading which account a WhatsApp-reported transaction came from, defaulting to Cash) is drafted in `gas/wangku-backend.gs` but explicitly **on hold** — was not deployed, pending the real script being made available for a proper merge.
+12. **Auto-detect transactions** has full app-side plumbing (table, poll, popup) but nothing populates `detected_transactions` — depends on the user setting up phone-side automation (Tasker/MacroDroid) themselves. A ready-to-import automation profile would make this feature actually usable, if it's worth prioritizing.
+13. **Fonnte account-extraction improvement** (reading which account a WhatsApp-reported transaction came from, defaulting to Cash) is drafted but **on hold**, pending the real live Apps Script being made available for a proper merge — see `backend.md`.
+14. **Manual/Google Drive backup was removed** from Settings (the app relies on Supabase's realtime storage instead) — if there's ever a request for exportable backups again, note this was a deliberate product decision, not an oversight.
 
 ## Nice-to-haves, not yet started
-- Automated CI for at least a syntax/lint check on `js/*.js` before merge.
-- A staging Supabase project, so schema migrations can be tested before hitting production data.
-- Compress/resize images client-side before upload (receipt photos and avatars are currently sent as full-size base64).
-- Revisit whether `.env`-style config (even just for the Apps Script secrets) is worth the added complexity for a project this size.
+- Automated CI for at least a syntax/lint check on `js/*.js` and the SQL migration file before merge.
+- A staging Supabase project, so schema migrations can be tested before hitting the (currently single) real project.
+- Compress/resize images client-side before upload (receipt photos, avatars currently sent as full-size base64).
+- Clean up genuinely dead code: `wangku_pool_key`/`getKey()`/`loadPoolKey()` in `ui-helpers.js` and `chat-ai.js` are leftovers from before the Groq-key move and do nothing anymore.

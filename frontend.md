@@ -1,59 +1,81 @@
 # Frontend
 
-No framework, no build step. `index.html` is the entire app shell; `js/*.js` files are loaded via plain `<script src>` tags in a specific order (order matters — later files assume earlier ones already ran).
+No framework, no build step. `index.html` is the entire consumer-app shell; `js/*.js` files load via plain `<script src>` tags in a specific order — later files assume earlier ones already ran.
 
 ## Script load order (from `index.html`)
 
 ```
-config.js → state.js → ui-helpers.js → auth.js → app-core.js → dashboard.js →
-transactions.js → chat-ai.js → payment.js → categories.js → priorities.js →
-accounts.js → settings.js → boot.js
+xlsx (CDN, SheetJS) → config.js → state.js → ui-helpers.js → auth.js → app-core.js →
+dashboard.js → transactions.js → chat-ai.js → payment.js → categories.js →
+priorities.js → accounts.js → settings.js → boot.js
 ```
 
-`boot.js` runs last and kicks things off (registers the service worker, shows the splash screen). Nothing in `boot.js` calls `showApp()` directly — that happens from `auth.js` after a successful login/session restore.
+`boot.js` runs last and kicks things off (service worker registration, splash screen). `showApp()` (in `app-core.js`) is what actually enters the app, called from `auth.js` after a successful login/session restore.
 
-## Pages (all siblings inside `.pages`, toggled via `.active`)
+## Layout structure — read this before adding anything to the header or Home page
+
+```
+.app (fixed-height flex column)
+├── .header (fixed, does NOT scroll)
+│   └── .header-top: greeting/name (left) + sync button, mini-balance, dark-mode toggle, profile-picture/settings button (right)
+├── .pages (flex:1, scrollable area)
+│   └── .page-home, .page-catat, .page-transaksi, .page-target, .page-laporan,
+│       .page-settings, .page-kategori, .page-prioritas (siblings, toggled via .active)
+└── .bottom-nav (fixed): Beranda, Transaksi, Foto (raised camera FAB, center), Target, Laporan
+```
+
+**Important**: the big green balance card (`.bal-card`) lives **inside** `#page-home`'s scrollable content now, not in the fixed `.header` — it scrolls away like any other content on Home. This was a deliberate late change; earlier in the project it lived in the header and stayed pinned across all pages, which turned out to be the wrong call once collapsed to a mini-balance readout on other pages was already handling that need. If you see references to the balance card being "sticky," that's the old behavior — it isn't anymore.
+
+The header's right-side "settings" button now doubles as a **profile picture** button: it shows `user.avatar_url` as a circular photo when set (`renderHeaderAvatar()` in `settings.js`), falling back to a plain gear icon otherwise. Same click target (`goPage('settings')`) either way.
+
+`goPage(name)` (in `app-core.js`) on every call: toggles `.active`/`.show` classes for the page + its nav item, toggles `.compact` on `.header` (collapses to mini-balance on every page except Home), runs page-specific refresh logic, and pushes/consumes `history` state for Android back-button support (see `architecture.md` §11).
+
+## Pages
 
 | id | Purpose | Key JS |
 |---|---|---|
-| `page-home` | Dashboard: balance card, quick actions, recent transactions | `dashboard.js`, `transactions.js` |
-| `page-catat` | Add/edit transaction form (Pemasukan / Pengeluaran / Transfer) | `transactions.js` |
-| `page-transaksi` | Full transaction list with jenis + date-range filters, FAB to add | `transactions.js` |
-| `page-target` | Savings targets: cards with progress bars, edit/delete/contribute | `transactions.js` |
-| `page-laporan` | Financial report: hero balance, trends, donuts, priority analysis, tips, category tables | `dashboard.js` |
-| `page-settings` | Everything: plan, profile, accounts, categories/priorities entry points, notifications, sync, data, help | `settings.js`, `accounts.js` |
-| `page-kategori` | Full-page category management (moved out of a popup) | `categories.js` |
-| `page-prioritas` | Full-page priority management (moved out of a popup) | `priorities.js` |
+| `page-home` | Balance card (with 7-day sparkline), AI insight card, alert banner, quick actions, Kesehatan Keuangan + Target Terdekat cards, recent transactions | `dashboard.js`, `transactions.js` |
+| `page-catat` | Add/edit transaction (Pemasukan / Pengeluaran / Transfer) | `transactions.js` |
+| `page-transaksi` | Full transaction list — jenis filter tabs + **date-range pickers** (not preset buttons), Excel export button, FAB to add | `transactions.js` |
+| `page-target` | Target cards: progress, edit/delete, "Tambah Tabungan" contribution button per card | `transactions.js` |
+| `page-laporan` | Financial report: hero summary w/ MoM trend, savings-rate bar, category donuts, priority analysis, rule-based tips, per-category tables | `dashboard.js` |
+| `page-settings` | Plan card (with inline "Upgrade" pill, hidden at highest plan), profile, accounts (inline "Tambah Akun" button next to the section title), category/priority entry points, notifications, sync, reset-data, help | `settings.js`, `accounts.js` |
+| `page-kategori` / `page-prioritas` | Full-page CRUD (not popups) | `categories.js` / `priorities.js` |
 
-Routing is handled by `goPage(name)` in `app-core.js`. It does four things every call: (1) toggle `.active`/`.show` classes for the target page + its nav item, (2) toggle `.compact` on `.header` (collapses the big balance card to a mini balance readout on every page except Home), (3) run any page-specific refresh logic (e.g. `renderLaporan()`, `applyTransaksiFilter()`), (4) push a `history` state so the Android back button steps back through pages instead of exiting the app.
+## Home page specifics (this area has had the most iteration — read carefully)
 
-## Modals (all siblings near the bottom of `<body>`, toggled via `.open`)
+- **Balance card**: "Saldo" label + eye icon (show/hide toggle, `toggleBalanceVisibility()`), a "Lihat Detail" pill button (opens the per-account breakdown modal), the amount, a trend badge ("+/-Rp X dari minggu lalu"), a **7-day sparkline** (smooth bezier curve, positioned absolutely in the upper-right corner of the card, ~40% width/64px tall — deliberately small and corner-positioned so it can never collide with the pemasukan/pengeluaran pills below it, which sit in normal document flow), then the two pills.
+- **Insight card** ("Insight dari WangkuAI"): rule-based (not a live AI call) — `computeInsights()` in `dashboard.js` compares this month's category spend to last month, checks savings rate, overspend, and "tidak penting" ratio, and produces up to 4 short observations. Cycles on tap **and** swipe (touch events bound in `dashboard.js`), with a fade transition and dot indicators. This card lives inside `#page-home`'s scrollable content — it must never be moved to be a sibling of `.header`/`.pages`, because that previously caused it to render pinned on every page (a real bug, since fixed).
+- **Kesehatan Keuangan / Target Terdekat**: two-column card row. Kesehatan Keuangan's title sits inside the card (same pattern as Target Terdekat), with a small horizontal layout — gauge on the left, label/subtext on the right (not stacked/centered).
+- **Header background** matches the body background (`var(--bg)`), not a distinct white card color.
+
+## Modals
 
 | id | Purpose |
 |---|---|
-| `add-kat-modal` / `add-pri-modal` | Quick-add category/priority from the Catat form's "+" button (lightweight; full management is the dedicated pages above) |
-| `account-modal` | Add/edit account, with a "Selesai" success state instead of auto-closing |
-| `target-modal` | Add/edit target, same success-state pattern |
-| `target-contribute-modal` | "Tambah Tabungan" — record a savings contribution against a target |
-| `balance-breakdown-modal` | Per-account balance/income/expense breakdown, opened by tapping the balance card |
-| `trx-detail-modal` | Transaction detail sheet with Edit/Delete |
-| `profile-edit-modal` | Name + avatar upload, success-state pattern |
-| `plan-options-modal` | Upgrade/downgrade plan picker (opened from a button in Settings) |
+| `add-kat-modal` / `add-pri-modal` | Quick-add only (from the Catat form's "+"); full management is the dedicated pages |
+| `account-modal` | Add/edit account, with a "Selesai" success screen instead of auto-closing |
+| `target-modal` | Add/edit target, same success-screen pattern |
+| `target-contribute-modal` | "Tambah Tabungan" |
+| `balance-breakdown-modal` | Per-account balance/income/expense, opened from "Lihat Detail" |
+| `trx-detail-modal` | Transaction detail sheet — Edit/Hapus |
+| `profile-edit-modal` | Name + avatar upload, success-screen pattern |
+| `plan-options-modal` | Upgrade/downgrade picker |
 | `reset-data-modal` | Multi-step verification (checkbox + typed phrase) before wiping transactions/targets |
-| `detected-trx-modal` | Confirm/dismiss popup for the auto-detect-transactions feature |
-| `chpass-modal`, `wa-modal`, etc. | Password change, WhatsApp bot setup guide |
+| `detected-trx-modal` | Confirm/dismiss for the auto-detect-transactions stub |
+| `chpass-modal` | Change password (now via `change_password` RPC) |
 
-Every `.modal-overlay` is watched by a `MutationObserver` (installed in `app-core.js`) that pushes a `history` state when it opens, so the back button closes the topmost open modal instead of navigating away or exiting.
+Every `.modal-overlay` is watched by a `MutationObserver` (in `app-core.js`) that pushes a `history` state on open, so Android back closes the topmost open modal instead of navigating away or exiting the app.
 
 ## CSS conventions (`css/app.css`)
 
-- Theming is done via CSS variables (`--bg`, `--text`, `--green`, `--red-bg`, etc.), redefined under `[data-theme="dark"]` for dark mode (`toggleTheme()` in `ui-helpers.js`).
-- Layout is a single centered column, `max-width: 430px`, mimicking a phone screen even on desktop — several elements (`.fab-wrap`, `#splash-screen`, `#pin-screen`) use a "fixed + centered via `left:50%; transform:translateX(-50%)`" trick to stay aligned with that column instead of the full browser viewport, with a `@media(max-width:480px)` override that removes the centering (since on an actual phone, the app *is* the viewport width).
-- No CSS classes are scoped/module-based — it's one global stylesheet, organized roughly by feature area in the order features were added.
+- Theming via CSS variables, redefined under `[data-theme="dark"]`.
+- Single centered column, `max-width: 430px`, mimicking a phone even on desktop. Fixed/floating elements that need to stay aligned with that column (not the full browser viewport) use the `left:50%; transform:translateX(-50%); max-width:430px` trick, with a `@media(max-width:480px)` override removing the centering on actual phones.
+- **No fake status bar** — the mocked clock/wifi/battery bar that used to sit above the greeting was removed entirely (it was decorative, not functional, and cluttered the real header).
 
-## Naming patterns worth knowing before you add code
+## Naming patterns worth knowing before adding code
 
-- Selects/inputs in the Catat form are `f-*` (`f-nominal`, `f-kat`, `f-pri`, `f-akun`...).
-- Settings toggle switches follow `<name>-track` id + a shared `.toggle-track`/`.toggle-thumb` CSS pattern, flipped with a plain `classList.toggle('on', ...)`.
-- "Full page management with inline add form + list" (Kategori, Prioritas) follows the same three-part pattern: `<name>-full-nama` input(s) → `save<Name>Full()` → `render<Name>FullList()` re-render. Copy this pattern if you add another manageable list.
-- Success-state modals (Account, Target, Profile) follow: `<modal>-form-view` / `<modal>-success-view` sibling divs, toggled via inline `style.display`, reset to form view every time the modal is opened via its `open*()` function.
+- Catat-form inputs: `f-*` (`f-nominal`, `f-kat`, `f-pri`, `f-akun`...).
+- Settings toggles: `<name>-track` id + shared `.toggle-track`/`.toggle-thumb` CSS, flipped via `classList.toggle('on', ...)`.
+- Full-page CRUD (Kategori, Prioritas): inline add form (`<name>-full-nama` etc.) → `save<Name>Full()` → `render<Name>FullList()` re-render. Copy this pattern for any future manageable list.
+- Success-state modals (Account, Target, Profile): `<modal>-form-view` / `<modal>-success-view` sibling divs, toggled via inline `style.display`, reset to form view every time the modal's `open*()` function runs.

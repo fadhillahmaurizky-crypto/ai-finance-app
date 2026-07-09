@@ -1,49 +1,57 @@
 # Environment & Configuration
 
-There is no `.env` file and no build-time environment injection — this is a static site with hardcoded JS constants, all of which are necessarily **public/client-visible** (anyone can view-source them). This is normal for a Supabase-anon-key architecture, but it does mean these values are not secrets in the traditional sense, *except* where noted.
+No `.env` for the static site — everything's a hardcoded JS constant in `js/config.js`, necessarily client-visible (view-source). This is normal for a Supabase-anon-key architecture. The **Vercel serverless functions are different** — they use real environment variables, which is exactly why the Groq key moved there.
 
 ## `js/config.js` — client-side constants
 
 | Constant | Purpose |
 |---|---|
 | `SB_URL` | Supabase project URL |
-| `SB_KEY` | Supabase anon key — public by design, but see [database.md](./database.md)'s RLS warning: with the current "allow all" policies, this key alone grants full read/write to every user's data |
-| `MASTER` | Username that gets treated as admin/unlimited plan |
+| `SB_KEY` | Supabase anon key — public by design. Used as a fallback before login; after login the real per-user JWT (`sdk_token`) is used instead for anything that matters |
+| `MASTER` | Username treated as admin/unlimited plan |
 | `CS` | WhatsApp number for "Hubungi CS" links |
-| `GAS` | Google Apps Script Web App URL |
-| `LIMITS` | Per-plan AI token/scan limits |
-| `DEFAULT_CATEGORIES` | Seeded on first load per user (block 13 migration) |
-| `DEFAULT_PRIORITIES` | Same, for priorities |
-| `DEFAULT_ACCOUNT_NAME` | `'Cash'` — must match the Apps Script's `DEFAULT_ACCOUNT_NAME` constant if you touch either |
+| `GAS` | Google Apps Script Web App URL (draft — see `backend.md`) |
+| `LIMITS` | Per-plan AI token/scan limits (also re-checked server-side in `/api/ai-chat.js` and `/api/ai-scan.js` — don't rely on the client-side copy for actual enforcement) |
+| `DEFAULT_CATEGORIES` / `DEFAULT_PRIORITIES` | Seeded once per user on first load |
+| `DEFAULT_ACCOUNT_NAME` | `'Cash'` — must match `DEFAULT_ACCOUNT_NAME` in the (draft) Apps Script if that's ever revived |
 
-Groq's API key is **not** in `config.js` — it's entered by the user/admin at runtime (Settings → API key input, `saveApiKey()` in `chat-ai.js`) and stored in `localStorage['wangku_pool_key']`. This was presumably done so the key isn't baked into a public repo, though it does mean the key lives in `localStorage`, readable by anything with JS execution on the page.
+**Groq's API key is not here anymore.** It lives only in Vercel's environment variables (`GROQ_API_KEY`), read by `/api/ai-chat.js` and `/api/ai-scan.js` server-side. It used to be fetched by the client from a Supabase `settings` table row — that was a real, live exposure (anyone could read it from the public database with just the anon key) and is now closed: the table is fully locked down and nothing reads it.
 
-## `gas/wangku-backend.gs` — Apps Script constants
+## Vercel environment variables (server-side only)
 
-These are separate from the web app's config, live only inside the Apps Script project (or in the draft file in this repo, which currently has real values filled in — **do not commit that file with real keys to the public repo**):
-
-| Constant | Purpose |
+| Variable | Purpose |
 |---|---|
-| `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Same Supabase project as the web app |
-| `GROQ_API_KEY` | Groq key used for WhatsApp message parsing — **this one genuinely is a secret** and should live in Apps Script's Script Properties, not hardcoded, if you want it out of any repo entirely |
-| `FONNTE_TOKEN` | Fonnte device token — also a real secret |
-| `BACKUP_FOLDER_NAME` | Drive folder name for backups |
+| `GROQ_API_KEY` | Required for both `/api/ai-chat.js` and `/api/ai-scan.js` to function at all |
+| `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Optional overrides — both functions have the real values hardcoded as fallbacks (the anon key is public anyway), so these env vars aren't strictly required, but prefer setting them if you want one place to update if the project ever changes |
 
-## `localStorage` keys used across the app
+## Postgres-side secret (lives in the SQL, not in this repo's client code)
+
+The **Supabase JWT secret** (Dashboard → Project Settings → Data API → JWT Settings) is embedded directly inside three `SECURITY DEFINER` Postgres functions (`login_check`, `get_user_by_username`, `get_user_by_id`) that sign tokens. This is safe from remote exposure — PostgREST only exposes the `public` schema's tables/views/functions through its REST API, not function *source code* (`pg_proc`/`information_schema` aren't reachable via the anon key). Anyone with dashboard/SQL-editor access to the project can see it, which is expected (that's already a trusted level of access). If this secret is ever rotated in Supabase, **all three functions must be updated to match**, or every login will fail.
+
+## `localStorage` keys
 
 | Key | Set by | Purpose |
 |---|---|---|
-| `sdk_session` | `auth.js` | Cached logged-in user row |
+| `sdk_session` | `auth.js` | Cached logged-in user row (no `password_hash` — that column isn't even returned anymore) |
+| `sdk_token` | `auth.js` | The custom-signed JWT — this is what actually authorizes requests now |
 | `sdk_bio_user`, `sdk_bio_cred` | `auth.js` | WebAuthn biometric binding |
-| `wangku_pool_key` | `chat-ai.js` | Groq API key |
-| `wangku_autosync` | `settings.js` | Toggle: refresh data on open + after transactions |
+| `wangku_balance_hidden` | `dashboard.js` | Saldo show/hide toggle preference |
+| `wangku_autosync` | `settings.js` | Refresh-on-open + after-transaction toggle |
 | `wangku_notif` | `settings.js` | JSON blob: reminder/badge/target/overspend notification prefs |
-| `wangku_autodetect` | `settings.js` | Toggle: poll `detected_transactions` |
-| `wangku_count_target_balance` | `settings.js` | Toggle: include target `terkumpul` in Saldo Sekarang |
-| `wangku_last_trx_date` | `settings.js` | Used to compute the "badge" reminder dot and reminder notifications |
-| `wangku_overspend_notif_<month>`, `wangku_target_notif_<id>` | `settings.js` | De-dupe flags so the same notification doesn't repeat |
-| `theme` (or similar, in `ui-helpers.js`) | `toggleTheme()` | Light/dark preference |
+| `wangku_autodetect` | `settings.js` | Toggle: poll `detected_transactions` (see `ai.md` — the table itself is never populated by this codebase) |
+| `wangku_count_target_balance` | `settings.js` | Whether target `terkumpul` counts toward Saldo Sekarang |
+| `wangku_last_trx_date` | `settings.js` | Drives the reminder badge/notification de-dupe logic |
+| `wangku_pool_key` | `chat-ai.js` | **Dead code** — leftover from before the Groq-key move to Vercel; nothing reads this to make real API calls anymore, safe to remove entirely in a future cleanup |
+| theme preference | `ui-helpers.js` (`toggleTheme()`) | Light/dark |
 
-## Twa-manifest.json (Android)
+## Admin panel (`admin.html`) — separate token, separate storage keys
 
-`packageId`, `host`, signing key path/alias, theme colors, `startUrl` — see [deployment.md](./deployment.md) for how this feeds into the Bubblewrap build.
+| Key | Purpose |
+|---|---|
+| `wangku_admin_token` | The admin's own JWT (from the same `login_check` RPC, requiring `role='admin'`) |
+| `wangku_admin_user` | Cached admin user object |
+
+There is **no more shared static admin password** (`wangku_admin_pass`/`admin123` are gone) — every admin panel session now requires a real `role='admin'` account. See `database.md` for how new admin accounts get created (Settings → Kelola Admin, inserting a `role='admin'` row).
+
+## `twa-manifest.json` (Android)
+`packageId`, `host`, signing key path/alias, theme colors, `startUrl`. See `deployment.md`.

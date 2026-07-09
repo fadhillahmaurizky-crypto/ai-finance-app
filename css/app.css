@@ -89,12 +89,14 @@ input,select{font-family:var(--font)}
 
 /* HEADER */
 .statusbar{display:flex;justify-content:space-between;padding:10px 20px 4px;font-size:11px;color:var(--text3);font-family:monospace;flex-shrink:0;background:var(--bg2)}
-.header{background:var(--bg2);padding:12px 18px 16px;flex-shrink:0;border-bottom:1px solid var(--border)}
+.header{background:var(--bg);padding:12px 18px 16px;flex-shrink:0}
 .header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .greeting{font-size:12px;color:var(--text3)}
 .username{font-size:17px;font-weight:700;color:var(--text)}
 .hdr-actions{display:flex;gap:8px}
 .hdr-btn{width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:17px;cursor:pointer}
+.hdr-avatar-btn{overflow:hidden;padding:0}
+.hdr-avatar-btn img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .bal-card{background:linear-gradient(135deg,#00B26A,#007A48);border-radius:18px;padding:18px 20px;position:relative;overflow:hidden;cursor:pointer}
 .bal-card::before{content:'';position:absolute;top:-40px;right:-40px;width:140px;height:140px;background:rgba(255,255,255,.08);border-radius:50%}
 .bal-label{font-size:11px;color:rgba(255,255,255,.7);margin-bottom:4px}
@@ -105,6 +107,36 @@ input,select{font-family:var(--font)}
 .bal-pill{flex:1;background:rgba(0,0,0,.2);border-radius:10px;padding:8px 11px}
 .bal-pill-lbl{font-size:10px;color:rgba(255,255,255,.65);margin-bottom:2px}
 .bal-pill-val{font-size:13px;font-weight:600;color:#fff}
+.bal-detail-btn{background:rgba(255,255,255,.18);border:none;color:#fff;font-size:11px;font-weight:600;padding:6px 12px;border-radius:20px;display:flex;align-items:center;gap:3px;cursor:pointer;flex-shrink:0}
+.bal-trend{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.15);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;margin-top:8px}
+.bal-spark-wrap{position:absolute;top:56px;right:18px;width:40%;height:64px;opacity:.9;pointer-events:none}
+.bal-spark-wrap svg{width:100%;height:100%;display:block}
+
+/* INSIGHT CARD */
+.insight-card{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer}
+.insight-avatar{width:40px;height:40px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.insight-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px}
+.insight-text{font-size:12px;color:var(--text2);line-height:1.4;transition:opacity .16s ease}
+.insight-dots{display:flex;justify-content:center;gap:5px;margin-top:8px}
+.insight-dots span{width:6px;height:6px;border-radius:50%;background:var(--border2);transition:width .25s ease,background .25s ease}
+.insight-dots span.act{background:var(--green);width:16px;border-radius:3px}
+
+/* HEALTH + NEAREST TARGET */
+.home-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.health-card,.nearest-target-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:14px;box-shadow:var(--shadow);cursor:pointer;display:flex;flex-direction:column}
+.health-gauge-wrap{position:relative;width:64px;height:64px;flex-shrink:0}
+.health-gauge{width:100%;height:100%;transition:stroke-dasharray .6s ease}
+.health-score-wrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05}
+.health-score{font-size:20px;font-weight:800;color:var(--text)}
+.health-max{font-size:9px;color:var(--text3);margin-top:-1px}
+.health-label{text-align:center;font-size:12px;font-weight:700;color:var(--green);margin-bottom:2px}
+.health-sub{text-align:center;font-size:10px;color:var(--text3);line-height:1.4;flex:1}
+.nt-title{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.3px}
+.nt-name{font-size:14px;font-weight:700;color:var(--text);margin-top:8px}
+.nt-pct{font-size:11px;font-weight:700;color:var(--green);text-align:right;margin-bottom:8px}
+.nt-row{display:flex;justify-content:space-between;margin-top:auto}
+.nt-lbl{font-size:9px;color:var(--text3)}
+.nt-val{font-size:11px;font-weight:700;color:var(--text)}
 
 /* MINI BALANCE (shown on non-home pages, beside header buttons) */
 .header{transition:padding-bottom .3s ease}
@@ -279,6 +311,11 @@ input,select{font-family:var(--font)}
 /* SETTINGS */
 .set-section{margin-bottom:18px}
 .set-sec-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;padding:0 16px;margin-bottom:8px}
+.date-filter-row{display:flex;gap:8px;margin-top:8px}
+.date-filter-field{flex:1;display:flex;flex-direction:column;gap:3px}
+.date-filter-field label{font-size:10px;color:var(--text3);font-weight:600}
+.date-filter-field .f-input{padding:9px 10px;font-size:12px}
+.export-btn{background:var(--green-bg);border:1px solid var(--green);color:var(--green);font-size:11px;font-weight:600;padding:6px 12px;border-radius:9px;display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
 .page-back-hdr{display:flex;align-items:center;gap:10px;padding:14px 16px 10px}
 .page-back-btn{width:34px;height:34px;border-radius:10px;background:var(--bg2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;flex-shrink:0}
 .page-back-title{font-size:16px;font-weight:700;color:var(--text)}
@@ -317,7 +354,9 @@ input,select{font-family:var(--font)}
 .notif-hours:focus{border-color:var(--green)}
 .nav-badge-dot{position:absolute;top:-2px;right:-2px;width:9px;height:9px;background:#FF5757;border-radius:50%;border:1.5px solid var(--bg2);display:none}
 .nav-badge-dot.show{display:block}
-.plan-card{margin:0 16px 16px;border-radius:14px;padding:16px;border:1.5px solid var(--border);background:var(--bg2)}
+.plan-card{margin:0 16px 16px;border-radius:14px;padding:16px;border:1.5px solid var(--border);background:var(--bg2);position:relative}
+.plan-upgrade-pill{position:absolute;top:14px;right:14px;background:var(--green);color:#fff;border:none;font-size:11px;font-weight:700;padding:6px 14px;border-radius:20px;cursor:pointer;z-index:2}
+.inline-add-btn{background:var(--green-bg);border:1px solid var(--green);color:var(--green);font-size:11px;font-weight:600;padding:5px 11px;border-radius:9px;display:flex;align-items:center;gap:4px;cursor:pointer;text-transform:none;letter-spacing:normal}
 .plan-card.pro{background:linear-gradient(135deg,#0D1117,#1a2540);border-color:var(--green)}
 .plan-badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:8px}
 .plan-name{font-size:16px;font-weight:700;margin-bottom:4px}

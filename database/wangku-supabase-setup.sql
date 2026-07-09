@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   last_active      TIMESTAMPTZ
 );
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all users" ON public.users FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all users" ON public.users;
+CREATE POLICY "Allow all users" ON public.users FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -73,7 +74,8 @@ CREATE INDEX IF NOT EXISTS idx_trx_user    ON public.transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_trx_tanggal ON public.transactions(tanggal);
 CREATE INDEX IF NOT EXISTS idx_trx_jenis   ON public.transactions(jenis);
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all transactions" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all transactions" ON public.transactions;
+CREATE POLICY "Allow all transactions" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -90,7 +92,8 @@ CREATE TABLE IF NOT EXISTS public.targets (
 );
 CREATE INDEX IF NOT EXISTS idx_targets_user ON public.targets(user_id);
 ALTER TABLE public.targets ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all targets" ON public.targets FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all targets" ON public.targets;
+CREATE POLICY "Allow all targets" ON public.targets FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -107,7 +110,8 @@ CREATE TABLE IF NOT EXISTS public.orders (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all orders" ON public.orders FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all orders" ON public.orders;
+CREATE POLICY "Allow all orders" ON public.orders FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -118,7 +122,8 @@ CREATE TABLE IF NOT EXISTS public.settings (
   value  TEXT
 );
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all settings" ON public.settings;
+CREATE POLICY "Allow all settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -133,7 +138,8 @@ CREATE TABLE IF NOT EXISTS public.user_categories (
   UNIQUE(user_id, nama)
 );
 ALTER TABLE public.user_categories ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all categories" ON public.user_categories FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all categories" ON public.user_categories;
+CREATE POLICY "Allow all categories" ON public.user_categories FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -196,7 +202,8 @@ CREATE TABLE IF NOT EXISTS public.accounts (
   UNIQUE(user_id, nama)
 );
 ALTER TABLE public.accounts ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all accounts" ON public.accounts FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all accounts" ON public.accounts;
+CREATE POLICY "Allow all accounts" ON public.accounts FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================================
 -- [12] TRANSACTIONS: dukungan akun & jenis Transfer
@@ -221,7 +228,8 @@ CREATE TABLE IF NOT EXISTS public.user_priorities (
   UNIQUE(user_id, slug)
 );
 ALTER TABLE public.user_priorities ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all priorities" ON public.user_priorities FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all priorities" ON public.user_priorities;
+CREATE POLICY "Allow all priorities" ON public.user_priorities FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================================
 -- [14] DETECTED TRANSACTIONS (untuk fitur deteksi otomatis)
@@ -241,7 +249,8 @@ CREATE TABLE IF NOT EXISTS public.detected_transactions (
 );
 CREATE INDEX IF NOT EXISTS idx_detected_user_status ON public.detected_transactions(user_id, status);
 ALTER TABLE public.detected_transactions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Allow all detected_transactions" ON public.detected_transactions FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all detected_transactions" ON public.detected_transactions;
+CREATE POLICY "Allow all detected_transactions" ON public.detected_transactions FOR ALL USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -255,6 +264,364 @@ UPDATE public.accounts SET is_system=true WHERE is_default=true AND nama='Cash' 
 -- [16] KONTRIBUSI TARGET — tautkan transaksi tabungan ke target
 -- ============================================================
 ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS target_id UUID REFERENCES public.targets(id) ON DELETE SET NULL;
+
+
+-- ============================================================
+-- [17] KEAMANAN (FASE 1) — hentikan pembocoran password_hash & Groq key
+-- ============================================================
+-- Masalah yang diperbaiki blok ini:
+--  1) Tabel `settings` bisa dibaca siapa saja lewat anon key -> Groq key bocor.
+--     -> Kunci total tabel settings (tidak ada lagi yang butuh baca ini dari client
+--        setelah panggilan AI dipindah ke proxy server-side / Apps Script).
+--  2) Kolom users.password_hash bisa dibaca siapa saja (SELECT * / filter langsung)
+--     dengan satu salt statis yang sama untuk semua user -> memungkinkan dump
+--     seluruh hash password sekaligus.
+--     -> Cabut hak SELECT kolom password_hash dari role anon. Semua alur yang
+--        tadinya membandingkan password_hash langsung di client sekarang WAJIB
+--        lewat fungsi RPC di bawah (SECURITY DEFINER = jalan dengan hak pemilik
+--        fungsi, bukan hak anon, jadi tetap bisa baca/tulis password_hash secara
+--        internal walau anon sendiri tidak bisa).
+--  3) Alur lupa password sebelumnya memvalidasi OTP HANYA di JavaScript (variabel
+--     lokal), tidak pernah dicek ulang oleh server -> mudah dilewati.
+--     -> OTP sekarang disimpan (dalam bentuk hash, dengan masa berlaku + sekali
+--        pakai) di tabel password_reset_tokens, dan divalidasi di dalam fungsi
+--        confirm_password_reset(), bukan di JS.
+--
+-- CATATAN: ini BELUM memperbaiki isolasi antar-user di tabel transactions/
+-- accounts/targets/dll (RLS masih "allow all" di sana) — itu FASE 2, yang
+-- butuh sesi/JWT sungguhan supaya RLS tahu siapa yang sedang request.
+-- ============================================================
+
+-- --- Tabel token reset password (tidak pernah diakses langsung oleh client) ---
+CREATE TABLE IF NOT EXISTS public.password_reset_tokens (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  otp_hash   TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used       BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.password_reset_tokens ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "No direct access to reset tokens" ON public.password_reset_tokens;
+CREATE POLICY "No direct access to reset tokens" ON public.password_reset_tokens
+  FOR ALL USING (false) WITH CHECK (false);
+
+-- --- Login: verifikasi password di dalam DB, kembalikan user TANPA password_hash ---
+-- (DROP dulu — kalau script ini pernah dijalankan sampai blok [18], fungsi ini
+-- sudah berubah jadi RETURNS JSONB tunggal, jadi re-run dari sini akan gagal
+-- ganti tipe balik ke SETOF JSONB tanpa di-drop dulu)
+DROP FUNCTION IF EXISTS public.login_check(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS SETOF JSONB
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT to_jsonb(u) - 'password_hash'
+  FROM public.users u
+  WHERE u.username = p_username AND u.password_hash = p_password_hash
+  LIMIT 1;
+$$;
+
+-- --- Ambil profil (tanpa password_hash) berdasarkan username — dipakai login biometrik ---
+DROP FUNCTION IF EXISTS public.get_user_by_username(TEXT);
+CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
+RETURNS SETOF JSONB
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT to_jsonb(u) - 'password_hash'
+  FROM public.users u
+  WHERE u.username = p_username AND u.status = 'active'
+  LIMIT 1;
+$$;
+
+-- --- Ambil profil (tanpa password_hash) berdasarkan id — dipakai refresh sesi ---
+DROP FUNCTION IF EXISTS public.get_user_by_id(UUID);
+CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
+RETURNS SETOF JSONB
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT to_jsonb(u) - 'password_hash'
+  FROM public.users u
+  WHERE u.id = p_user_id AND u.status = 'active'
+  LIMIT 1;
+$$;
+
+-- --- Ganti password (butuh password lama yang benar) ---
+CREATE OR REPLACE FUNCTION public.change_password(p_user_id UUID, p_old_hash TEXT, p_new_hash TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_ok BOOLEAN;
+BEGIN
+  UPDATE public.users SET password_hash = p_new_hash, updated_at = NOW()
+    WHERE id = p_user_id AND password_hash = p_old_hash;
+  GET DIAGNOSTICS v_ok = ROW_COUNT;
+  RETURN v_ok > 0;
+END;
+$$;
+
+-- --- Lupa password, langkah 1: buat OTP, simpan HASH-nya saja (bukan plaintext) ---
+-- Mengembalikan OTP plaintext HANYA agar bisa dikirim lewat EmailJS dari client;
+-- OTP itu sendiri tidak pernah disimpan mentah di database.
+CREATE OR REPLACE FUNCTION public.create_password_reset(p_email TEXT)
+RETURNS TABLE(user_id UUID, full_name TEXT, otp TEXT)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_otp TEXT;
+BEGIN
+  SELECT u.id, u.full_name INTO v_user FROM public.users u
+    WHERE u.email = p_email AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+  v_otp := lpad(floor(random()*1000000)::text, 6, '0');
+  INSERT INTO public.password_reset_tokens(user_id, otp_hash, expires_at)
+    VALUES (v_user.id, encode(digest(v_otp || 'finly_salt_2024','sha256'),'hex'), NOW() + interval '10 minutes');
+  RETURN QUERY SELECT v_user.id, v_user.full_name, v_otp;
+END;
+$$;
+
+-- --- Lupa password, langkah 2: validasi OTP di server (bukan di JS) lalu set password baru ---
+CREATE OR REPLACE FUNCTION public.confirm_password_reset(p_user_id UUID, p_otp TEXT, p_new_hash TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_ok BOOLEAN;
+BEGIN
+  SELECT EXISTS(
+    SELECT 1 FROM public.password_reset_tokens t
+    WHERE t.user_id = p_user_id
+      AND t.otp_hash = encode(digest(p_otp || 'finly_salt_2024','sha256'),'hex')
+      AND t.used = false
+      AND t.expires_at > NOW()
+  ) INTO v_ok;
+  IF v_ok THEN
+    UPDATE public.password_reset_tokens SET used = true
+      WHERE user_id = p_user_id AND used = false;
+    UPDATE public.users SET password_hash = p_new_hash, updated_at = NOW() WHERE id = p_user_id;
+  END IF;
+  RETURN v_ok;
+END;
+$$;
+
+-- --- Pastikan role anon boleh MEMANGGIL fungsi-fungsi di atas (meski tidak
+-- boleh membaca password_hash langsung) ---
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
+GRANT EXECUTE ON FUNCTION public.change_password(UUID, TEXT, TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION public.create_password_reset(TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION public.confirm_password_reset(UUID, TEXT, TEXT) TO anon;
+
+-- --- Cabut akses baca langsung ke password_hash dari role anon ---
+-- (Fungsi-fungsi di atas tetap berfungsi normal karena SECURITY DEFINER
+--  berjalan dengan hak pemilik fungsi, bukan hak anon.)
+REVOKE SELECT (password_hash) ON public.users FROM anon;
+
+-- --- Kunci total tabel settings — tidak ada lagi client yang perlu membacanya
+-- setelah panggilan AI dipindah ke proxy server-side (lihat gas/wangku-backend.gs).
+-- SEBELUM menjalankan baris ini: pastikan panggilan Groq sudah lewat proxy,
+-- lalu HAPUS baris 'groq_api_key' dari tabel settings dan rotasi key Groq-nya.
+DROP POLICY IF EXISTS "Allow all settings" ON public.settings;
+CREATE POLICY "No public access to settings" ON public.settings
+  FOR ALL USING (false) WITH CHECK (false);
+
+
+-- ============================================================
+-- [18] KEAMANAN (FASE 2) — isolasi data per-user yang SUNGGUHAN
+-- ============================================================
+-- Fase 1 (blok 17) menutup kebocoran password_hash & kunci tabel settings,
+-- tapi tabel data (transactions, accounts, targets, dll) masih "USING (true)"
+-- alias siapa saja dengan anon key bisa baca/tulis milik SIAPAPUN. Blok ini
+-- memperbaiki itu dengan memberi setiap request identitas yang bisa dicek
+-- RLS, TANPA migrasi ke Supabase Auth penuh:
+--
+--   1) login_check() sekarang juga MENANDATANGANI token JWT kustom (pakai
+--      extension pgjwt + JWT Secret project ini), berisi claim `user_id`
+--      dan `app_role`. Token ini dikirim client sebagai Bearer token
+--      menggantikan anon key polos untuk semua request setelah login.
+--   2) Semua policy RLS di tabel data diganti agar hanya mengizinkan baris
+--      milik pemilik token (auth.jwt()->>'user_id' = user_id), ATAU token
+--      dengan app_role='admin' (dipakai admin.html setelah login sungguhan
+--      — lihat catatan di bawah, admin.html WAJIB diupdate untuk login
+--      lewat login_check juga, tidak lagi pakai password tunggal di
+--      localStorage).
+--   3) Registrasi akun baru (belum punya token) tetap diizinkan lewat INSERT
+--      langsung ke `users`, tapi WITH CHECK memaksa status='pending' dan
+--      role='user' — supaya orang tidak bisa daftar sendiri sebagai admin
+--      atau langsung status aktif lewat panggilan API mentah.
+--
+-- WAJIB DIJALANKAN SEKALI SEBELUM RELEASE PUBLIK. Setelah blok ini jalan,
+-- SEMUA sesi lama (localStorage sdk_session tanpa token) tidak lagi bisa
+-- baca/tulis data — user yang sedang login harus logout+login ulang sekali.
+-- Karena ini masih tahap testing (belum rilis publik), efeknya aman.
+-- ============================================================
+
+-- --- Extension untuk tanda tangan HMAC (dipakai untuk membuat JWT manual) ---
+-- CATATAN: awalnya blok ini memakai sign() dari extension `pgjwt`, tapi fungsi
+-- itu punya search_path internal sendiri yang tidak bisa dioverride dari sini,
+-- jadi gagal menemukan hmac() di setup Supabase ini. Diganti dengan fungsi
+-- tanda-tangan JWT manual di bawah, yang search_path-nya kita kontrol sendiri.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Base64url encode (tanpa padding, tanpa newline) — dipakai untuk bagian JWT.
+CREATE OR REPLACE FUNCTION public.wangku_b64url(data BYTEA)
+RETURNS TEXT
+LANGUAGE sql IMMUTABLE
+SET search_path = public, extensions
+AS $$
+  SELECT rtrim(replace(replace(replace(encode(data,'base64'), E'\n', ''), '+','-'), '/','_'), '=');
+$$;
+
+-- Tanda tangani JWT HS256 secara manual pakai hmac() dari pgcrypto.
+CREATE OR REPLACE FUNCTION public.wangku_sign_jwt(p_payload JSON, p_secret TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  header_b64 TEXT;
+  payload_b64 TEXT;
+  signature BYTEA;
+BEGIN
+  header_b64 := public.wangku_b64url(convert_to('{"alg":"HS256","typ":"JWT"}','utf8'));
+  payload_b64 := public.wangku_b64url(convert_to(p_payload::text,'utf8'));
+  signature := hmac(header_b64 || '.' || payload_b64, p_secret, 'sha256');
+  RETURN header_b64 || '.' || payload_b64 || '.' || public.wangku_b64url(signature);
+END;
+$$;
+
+-- --- Ganti login_check agar mengembalikan {user, token} ---
+-- (return type berubah dari SETOF JSONB jadi JSONB tunggal, jadi harus DROP dulu
+-- — CREATE OR REPLACE saja tidak diizinkan Postgres untuk ganti return type)
+DROP FUNCTION IF EXISTS public.login_check(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.password_hash = p_password_hash LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object(
+      'role','authenticated',
+      'sub', v_user.id::text,
+      'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),
+      'exp', extract(epoch from (now() + interval '30 days'))::integer
+    ),
+    -- GANTI dengan JWT Secret asli project ini: Supabase Dashboard ->
+    -- Project Settings -> Data API -> JWT Settings -> "JWT Secret"
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+
+-- --- get_user_by_username / get_user_by_id juga perlu mengeluarkan token baru
+-- (dipakai oleh login biometrik & refresh sesi) — sama, harus DROP dulu ---
+DROP FUNCTION IF EXISTS public.get_user_by_username(TEXT);
+CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.get_user_by_id(UUID);
+CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.id = p_user_id AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+
+-- --- Helper dipakai di semua policy di bawah: apakah token ini pemilik baris,
+-- atau admin? (mengembalikan boolean, aman dipanggil walau tanpa token) ---
+CREATE OR REPLACE FUNCTION public.is_owner_or_admin(p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE AS $$
+  SELECT
+    COALESCE((auth.jwt()->>'user_id')::uuid = p_user_id, false)
+    OR COALESCE(auth.jwt()->>'app_role','') = 'admin';
+$$;
+
+-- --- Users: hanya boleh lihat/ubah baris sendiri, atau admin boleh semua.
+-- INSERT (registrasi) tetap terbuka untuk anon TAPI dipaksa pending+user. ---
+DROP POLICY IF EXISTS "Allow all users" ON public.users;
+CREATE POLICY "Own row or admin - select" ON public.users FOR SELECT
+  USING (public.is_owner_or_admin(id));
+CREATE POLICY "Own row or admin - update" ON public.users FOR UPDATE
+  USING (public.is_owner_or_admin(id)) WITH CHECK (public.is_owner_or_admin(id));
+CREATE POLICY "Own row or admin - delete" ON public.users FOR DELETE
+  USING (public.is_owner_or_admin(id));
+CREATE POLICY "Public registration" ON public.users FOR INSERT TO anon
+  WITH CHECK (status = 'pending' AND role = 'user');
+CREATE POLICY "Admin can insert any" ON public.users FOR INSERT
+  WITH CHECK (COALESCE(auth.jwt()->>'app_role','') = 'admin');
+
+-- --- Semua tabel data: ganti "allow all" jadi milik-sendiri-atau-admin ---
+DROP POLICY IF EXISTS "Allow all transactions" ON public.transactions;
+CREATE POLICY "Own data or admin" ON public.transactions FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+DROP POLICY IF EXISTS "Allow all targets" ON public.targets;
+CREATE POLICY "Own data or admin" ON public.targets FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+DROP POLICY IF EXISTS "Allow all orders" ON public.orders;
+CREATE POLICY "Own data or admin" ON public.orders FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+DROP POLICY IF EXISTS "Allow all categories" ON public.user_categories;
+CREATE POLICY "Own data or admin" ON public.user_categories FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+DROP POLICY IF EXISTS "Allow all accounts" ON public.accounts;
+CREATE POLICY "Own data or admin" ON public.accounts FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+DROP POLICY IF EXISTS "Allow all priorities" ON public.user_priorities;
+CREATE POLICY "Own data or admin" ON public.user_priorities FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+DROP POLICY IF EXISTS "Allow all detected_transactions" ON public.detected_transactions;
+CREATE POLICY "Own data or admin" ON public.detected_transactions FOR ALL
+  USING (public.is_owner_or_admin(user_id)) WITH CHECK (public.is_owner_or_admin(user_id));
+
+-- --- Pastikan role authenticated punya hak akses tabel yang sama seperti anon
+-- (RLS di atas yang membatasi baris, bukan hak akses tabel) ---
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.transactions, public.targets,
+  public.orders, public.user_categories, public.accounts, public.user_priorities,
+  public.detected_transactions, public.users TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_owner_or_admin(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon, authenticated;
 
 
 -- ============================================================

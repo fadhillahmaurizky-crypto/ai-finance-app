@@ -1,42 +1,48 @@
 # Backend
 
-There is no traditional application server. "Backend" here means two things:
+No traditional application server. "Backend" means three things: Supabase (Postgres + custom RPC auth), two Vercel serverless functions (AI proxy), and a draft Google Apps Script (WhatsApp bot + Drive backup, unverified).
 
-## 1. Supabase (primary backend)
+## 1. Supabase — primary backend
 
-The app talks straight to Supabase's PostgREST API from the browser, via a small wrapper in `ui-helpers.js`:
+The app talks to PostgREST via a small wrapper in `ui-helpers.js`:
 
 ```js
-async function sb(path, method='GET', body=null) {
-  // fetch(`${SB_URL}/rest/v1/${path}`, { headers: { apikey, Authorization }, ... })
-}
+function authToken(){ return localStorage.getItem('sdk_token') || SB_KEY; }
+async function sb(path, method='GET', body=null){ /* Authorization: Bearer authToken() */ }
+async function rpc(fnName, params={}){ /* POST /rest/v1/rpc/fnName, same auth */ }
 ```
 
-Every query/mutation in the app is a call to `sb(...)`. There is no ORM, no server-side validation layer — filtering, sorting, and shaping all happen via PostgREST query-string syntax (`?user_id=eq.${id}&order=tanggal.desc`) written inline at each call site. See [api.md](./api.md) for the concrete endpoint patterns.
+After login, `authToken()` returns the custom-signed JWT (not the bare anon key) — this is what RLS policies actually check. Before login (or for a logged-out visitor), it falls back to the anon key, which is fine since the only things reachable pre-login are `login_check`, `create_password_reset`, `confirm_password_reset`, and self-registration (all `SECURITY DEFINER` or explicitly anon-scoped).
 
-**Auth is not Supabase Auth.** `users` is a plain table; login is a `SELECT ... WHERE username=... AND status='active'` followed by a client-side password comparison, and the result is cached in `localStorage`. This is called out in detail in [roadmap.md](./roadmap.md) — treat it as a known limitation, not a template to copy for new features.
+**Auth is not Supabase Auth.** See `database.md`'s "Custom auth & RLS" section for the full design and the reasoning behind it (short version: it was cheaper to hand-roll a JWT than migrate the whole user model, and it reuses the existing `users` table, EmailJS OTP flow, and admin tooling unchanged).
 
-## 2. Google Apps Script (`gas/wangku-backend.gs`)
+`sb()`/`rpc()` both handle `401` by calling `handleAuthExpired()` (in `app-core.js`), which clears the session and redirects to login with a toast — this fires if the JWT is invalid/expired (30-day expiry, no refresh flow yet — see `roadmap.md`).
 
-**Status: draft, unverified against the live script.** The repo does not contain the Apps Script that's actually deployed and wired to Fonnte — Apps Script projects aren't stored in this GitHub repo (they live in the Apps Script editor at script.google.com, unless pushed via `clasp`, which this project doesn't use). The `.gs` file in this repo was written from scratch based on the app's schema, as a proposal — before deploying it over the real one, diff it against whatever's actually live to make sure you don't drop working logic (e.g. admin notifications, token/usage tracking, or different message-parsing rules for the Basic-tier bot).
+## 2. Vercel serverless functions (`/api`) — this is where the Groq key lives now
 
-What it's designed to handle, once verified/merged:
+`/api/ai-chat.js` and `/api/ai-scan.js` are the **only** things that ever see `GROQ_API_KEY` (a Vercel environment variable, never in any file in this repo). Both:
+1. Take a `user_id` from the request body.
+2. Look up that user's `plan`/`role`/`tokens_used`/`tokens_limit` **server-side** via Supabase (so plan/limit gating can't be bypassed by a modified client).
+3. Call Groq with the server-side key.
+4. Return just the result (`reply`/`tokensUsed` for chat, `content`/`tokensUsed` for scan).
 
-- **`action:'backup'`** — receives a JSON payload from Settings → "Backup ke Google Drive" (built by `collectBackupPayload()` in `settings.js`) and writes it as a timestamped file into a `Wangku Backups` Drive folder.
-- **`action:'ping'`** — answers the autosync heartbeat (`pingSheetSync()` in `settings.js`), currently just a liveness check.
-- **Fonnte webhook** — receives an inbound WhatsApp message, looks up the user by `wa_number`, fetches that user's `accounts` and `user_categories` from Supabase, asks Groq to extract a transaction from the message text (with the user's real account/category names given as context so it doesn't hallucinate), resolves the account with a fallback keyword-match against the raw text, inserts into `transactions`, and replies via Fonnte's send API.
+Same-origin (both the static site and `/api` are on the same Vercel deployment), so there's no CORS complexity — this was a deliberate choice over routing AI calls through Google Apps Script, which has real, well-documented CORS/response-readability problems for this kind of browser-facing call.
 
-### Why the account-matching logic exists
-Originally reported gap: the bot could read transaction type/category/description/amount but not which **account** the money came from. The fix has two layers so it degrades gracefully:
-1. Ask the AI directly, giving it the user's real account list as context.
-2. If that comes back empty, scan the raw message text for any account name as a plain substring match.
-3. If both fail, fall back to the user's system `Cash` account.
+**Before this existed**, the Groq key was fetched by the client from a `settings` table row using the public anon key — which meant *anyone* who opened devtools on the live site could read it directly from the database, no login required. That table is now fully locked down (`FOR ALL USING (false)`) and nothing reads it anymore.
 
-## Fire-and-forget calls from the client
+## 3. Google Apps Script (`gas/wangku-backend.gs`) — DRAFT, UNVERIFIED
 
-`settings.js`'s `pingSheetSync()` and `backupToDrive()` call the Apps Script URL with `mode:'no-cors'` — the client can't read the response in that mode, so these are genuinely fire-and-forget. Don't build a feature that depends on reading the GAS response synchronously in the browser without changing this.
+**This is not confirmed to match what's actually deployed and wired to Fonnte.** Apps Script projects aren't stored in this GitHub repo — they live in the Apps Script editor (script.google.com), and this project doesn't use `clasp` to sync them to git. The `.gs` file here was written from scratch based on inferring behavior from the schema, as a *proposal*, not a diff/patch of the real thing. Before deploying it over whatever's live, get the actual source and reconcile — don't assume this file is authoritative.
 
-## What's NOT server-side here
-- No transaction validation beyond what the client does before calling `sb()`.
-- No rate limiting on AI calls beyond the client checking `user.tokens_used`/`tokens_limit` before making the request (i.e., trivially bypassable by anyone calling Groq directly with a captured key — not that anyone would bother, but worth knowing).
-- No image resizing/compression for receipt photos or avatar uploads — both are sent as raw base64.
+What it's designed to do, once verified:
+- **`action:'backup'`** — receives a JSON payload from... actually, **the manual/Drive backup feature in Settings was removed** per a later product decision (the app uses realtime Supabase storage, so a separate backup mechanism was deemed unnecessary). This handler in the `.gs` draft is now vestigial — flag this if picking the Fonnte work back up, since the client-side call it used to serve no longer exists.
+- **`action:'ping'`** — liveness check for `pingSheetSync()` in `settings.js` (autosync heartbeat).
+- **Fonnte webhook** — receives an inbound WhatsApp message, looks up the user by `wa_number`, fetches their `accounts`/`user_categories`, asks Groq to extract a transaction (with real account/category names as context), resolves the account with a text-match fallback if the AI misses it, inserts the transaction, replies via Fonnte. **On hold** per product decision — not deployed.
+
+## Fire-and-forget calls
+`pingSheetSync()` in `settings.js` calls the Apps Script URL with `mode:'no-cors'` — genuinely fire-and-forget, the client can't read the response in that mode.
+
+## What's NOT server-side
+- No transaction validation beyond client-side checks before calling `sb()`.
+- No image resizing/compression before upload (receipt photos, avatars) — sent as full-size base64.
+- No rate limiting beyond the plan/token check inside the two Vercel functions.
