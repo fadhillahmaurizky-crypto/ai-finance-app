@@ -733,6 +733,48 @@ CREATE TRIGGER trg_check_account_balance
 
 
 -- ============================================================
+-- [22] REGISTRASI: cek ketersediaan username/email tanpa butuh SELECT
+-- langsung ke tabel users sebagai anon.
+--
+-- Root cause asli dari "new row violates row-level security policy for
+-- table users" (BUKAN token sdk_token basi seperti dugaan awal — itu
+-- ternyata cuma perbaikan yang tidak salah tapi juga tidak cukup):
+-- sb()/sbAnon() selalu mengirim header `Prefer: return=representation`
+-- untuk setiap POST, supaya baris yang baru dibuat bisa langsung dibaca
+-- balik oleh client. Itu artinya Postgres juga harus mengevaluasi policy
+-- SELECT terhadap baris yang baru di-insert itu — dan tidak ada satupun
+-- policy SELECT di tabel users yang mengizinkan role anon melihat baris
+-- APAPUN (cuma "Own row or admin - select", yang butuh user_id di JWT
+-- cocok dengan baris itu — mustahil untuk request yang belum pernah login).
+-- Akibatnya INSERT-nya sendiri sebenarnya sah (lolos policy "Public
+-- registration"), tapi seluruh statement digagalkan Postgres karena tidak
+-- bisa memenuhi permintaan baca-balik itu. Ini dikonfirmasi langsung lewat
+-- MCP Supabase: INSERT identik TANPA klausa RETURNING berhasil; DENGAN
+-- RETURNING selalu gagal dengan pesan RLS yang sama persis dengan yang
+-- dilaporkan dari aplikasi.
+--
+-- Fix di sisi client (lihat auth.js): id di-generate di client
+-- (crypto.randomUUID()) lalu dikirim eksplisit di payload INSERT, dan POST
+-- registrasi memakai `Prefer: return=minimal` — jadi tidak pernah butuh
+-- policy SELECT sama sekali. Pre-check "username/email sudah dipakai?" di
+-- doRegister() punya masalah yang SAMA (SELECT langsung ke users sebagai
+-- anon selalu kosong, jadi tidak pernah benar-benar mendeteksi duplikat) —
+-- diganti dengan fungsi RPC SECURITY DEFINER di bawah ini, yang hanya
+-- mengembalikan boolean (bukan baris aslinya), supaya tidak perlu bikin
+-- policy SELECT baru yang membuka data pending-registration ke siapa saja
+-- yang punya anon key.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.check_registration_available(p_username TEXT, p_email TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT NOT EXISTS(
+    SELECT 1 FROM public.users u WHERE u.username = p_username OR u.email = p_email
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.check_registration_available(TEXT, TEXT) TO anon;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables

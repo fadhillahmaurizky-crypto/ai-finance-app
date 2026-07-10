@@ -46,8 +46,8 @@ async function doRegister(){
   if(!pw||pw.length<6){err.textContent='Password min. 6 karakter!';err.style.display='block';return;}
   btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Mengirim OTP...';
   try{
-    const ex=await sbAnon(`users?or=(username.eq.${un},email.eq.${email})&select=id`);
-    if(ex?.length){err.textContent='Username atau email sudah terdaftar!';err.style.display='block';btn.disabled=false;btn.innerHTML='<i class="ti ti-user-plus"></i> Buat Akun Gratis';return;}
+    const available=await rpcAnon('check_registration_available',{p_username:un,p_email:email});
+    if(!available){err.textContent='Username atau email sudah terdaftar!';err.style.display='block';btn.disabled=false;btn.innerHTML='<i class="ti ti-user-plus"></i> Buat Akun Gratis';return;}
     regOTP=String(Math.floor(100000+Math.random()*900000));
     regData={name,un,email,wa,pw};
     await sendEmailOTP(email,name,regOTP);
@@ -67,12 +67,12 @@ async function verifyRegOTP(){
   try{
     const h=await hp(regData.pw);
     const waFull=regData.wa.startsWith('62')?regData.wa:'62'+(regData.wa.startsWith('0')?regData.wa.substring(1):regData.wa);
-    const r=await sbAnon('users?select=id,username,full_name,email,wa_number','POST',{username:regData.un,full_name:regData.name,email:regData.email,wa_number:waFull,password_hash:h,role:'user',status:'pending',gas_user_id:waFull,plan:'free',tokens_limit:0,tokens_used:0});
-    if(!r||!r.length)throw new Error('Gagal membuat akun');
-    newUser={id:r[0].id,full_name:regData.name,username:regData.un,email:regData.email,wa_number:waFull};
+    const newId=crypto.randomUUID();
+    await sbAnon('users','POST',{id:newId,username:regData.un,full_name:regData.name,email:regData.email,wa_number:waFull,password_hash:h,role:'user',status:'pending',gas_user_id:waFull,plan:'free',tokens_limit:0,tokens_used:0},true);
+    newUser={id:newId,full_name:regData.name,username:regData.un,email:regData.email,wa_number:waFull};
     regOTP=null;regData=null;
     showPaymentFlow();
-  }catch(e){err.textContent=e.message.includes('duplicate')?'Username/email sudah terdaftar!':e.message;err.style.display='block';}
+  }catch(e){err.textContent=isDupError(e)?'Username/email sudah terdaftar!':e.message;err.style.display='block';}
 }
 
 async function sendEmailOTP(toEmail, nama, otp){

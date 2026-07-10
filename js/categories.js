@@ -2,9 +2,6 @@
 // KATEGORI (default + custom, semua bisa dikelola di halaman penuh)
 // ========================
 let kategoriList=[];
-// 23505 = kode SQLSTATE Postgres untuk unique_violation — lebih andal daripada
-// mencocokkan kata "unique" di teks pesan error (bisa berubah/berbeda format).
-function isDupError(e){return e&&(e.code==='23505'||(e.message||'').toLowerCase().includes('duplicate key')||(e.message||'').toLowerCase().includes('unique'));}
 async function seedDefaultCategories(){
   try{
     const existing=await sb(`user_categories?user_id=eq.${user.id}&is_default=eq.true&select=id&limit=1`);
