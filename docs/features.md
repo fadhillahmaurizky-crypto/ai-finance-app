@@ -50,7 +50,7 @@ Target (page-target)
 ├── Card per target: progress bar (amounts abbreviated with tap-to-reveal), deadline, edit/delete
 ├── "Tambah Tabungan" per card → records a pengeluaran transaction linked via target_id, bumps terkumpul (same balance check as Catat's Pengeluaran — blocked if the source account can't cover it)
 ├── "Tambah Target Baru" → target-modal (add/edit, "Selesai" success screen)
-└── "Split Bill" teaser card — **not a real feature**, a static "Coming Soon" placeholder (`.coming-card` in index.html) describing a future bill-splitting-with-friends idea. No data model, no backend, its only button just shows a "notify me" toast. Unrelated to any "split a payment across multiple accounts" concept — that would be a different feature if ever built (see `roadmap.md`)
+└── "Split Bill" teaser card — **not a real feature**, a static "Coming Soon" placeholder (`.coming-card` in index.html) describing a future bill-splitting-with-friends idea. No data model, no backend, its only button just shows a "notify me" toast. Unrelated to any "split a payment across multiple accounts" concept — that would be a different feature if ever built (see `roadmap.md`). **Hidden from users** behind the `FEATURE_SPLIT_BILL` flag in `config.js` (currently `false`) — code is kept, not deleted, per product decision; flip the flag to bring it back once there's a real workflow behind it
     Files: transactions.js (renderTargets, saveTarget, openContribute, submitContribution)
     DB: targets, transactions (target_id)
 

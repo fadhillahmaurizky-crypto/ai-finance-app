@@ -22,9 +22,11 @@ After login, `authToken()` returns the custom-signed JWT (not the bare anon key)
 
 `/api/ai-chat.js` and `/api/ai-scan.js` are the **only** things that ever see `GROQ_API_KEY` (a Vercel environment variable, never in any file in this repo). Both:
 1. Take a `user_id` from the request body.
-2. Look up that user's `plan`/`role`/`tokens_used`/`tokens_limit` **server-side** via Supabase (so plan/limit gating can't be bypassed by a modified client).
+2. Look up that user's `plan`/`role`/`tokens_used`/`tokens_limit` **server-side** via Supabase, using `SUPABASE_SERVICE_ROLE_KEY` (so plan/limit gating can't be bypassed by a modified client).
 3. Call Groq with the server-side key.
 4. Return just the result (`reply`/`tokensUsed` for chat, `content`/`tokensUsed` for scan).
+
+**Why service role, specifically, for step 2**: after the RLS migration (`database.md` block `[18]`), every table's policy requires `is_owner_or_admin(user_id)` — a claim proven by a real signed JWT. These two functions never receive a user's JWT, only a plain `user_id` string in the request body, so an anon-key-authenticated lookup here satisfies no RLS policy and silently returns zero rows — **this broke both AI features completely** (`"User tidak ditemukan"` for every user, every request) from the moment that RLS migration shipped until this was caught and fixed. `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS by design, which is exactly appropriate here: the Vercel function itself is the trusted party doing a legitimate server-side authorization check, not relaying a user's own request. Its use is deliberately scoped to just this one lookup in each file — not a general-purpose shortcut, and it must never reach client-facing code.
 
 Same-origin (both the static site and `/api` are on the same Vercel deployment), so there's no CORS complexity — this was a deliberate choice over routing AI calls through Google Apps Script, which has real, well-documented CORS/response-readability problems for this kind of browser-facing call.
 
