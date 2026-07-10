@@ -17,3 +17,18 @@ const PLANS={free:{label:'Free',price:'Rp 0/bulan',ai:false},basic:{label:'Basic
 const TOKEN_PACKS=[{id:'2M',tokens:2000000,price:'Rp 29.000/bln',label:'2 Juta Token'},{id:'5M',tokens:5000000,price:'Rp 39.000/bln',label:'5 Juta Token'}];
 const LIMITS={free:{ai:0,scan:0,label:'Free'},basic:{ai:0,scan:0,label:'Basic'},pro:{ai:50,scan:20,label:'Pro'},unlimited:{ai:-1,scan:-1,label:'Ultimate'}};
 
+const DEFAULT_ACCOUNT_NAME='Cash';
+const DEFAULT_CATEGORIES=[
+  {nama:'gaji',jenis:'pemasukan'},
+  {nama:'bonus',jenis:'pemasukan'},
+  {nama:'makan',jenis:'pengeluaran'},
+  {nama:'belanja',jenis:'pengeluaran'},
+  {nama:'elektronik',jenis:'pengeluaran'},
+  {nama:'pulsa',jenis:'pengeluaran'},
+  {nama:'paket_data',jenis:'pengeluaran'}
+];
+const DEFAULT_PRIORITIES=[
+  {nama:'Penting',slug:'penting'},
+  {nama:'Tidak Penting',slug:'tidak_penting'}
+];
+

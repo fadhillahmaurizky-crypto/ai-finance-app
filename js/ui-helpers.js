@@ -99,8 +99,28 @@ function checkOb(){if(localStorage.getItem('sdk_ob'))return false;document.getEl
 function nextOb(n){document.querySelectorAll('.ob-slide').forEach(s=>s.classList.remove('active'));document.getElementById('ob-'+n)?.classList.add('active');}
 function skipOb(){localStorage.setItem('sdk_ob','1');document.getElementById('ob-wrap').style.display='none';showLoginPage();}
 
-function rp(n){if(!n&&n!==0)return'—';const a=Math.abs(n);const s=a>=1e9?(a/1e9).toFixed(1)+'M':a>=1e6?(a/1e6).toFixed(1)+'jt':a>=1e3?(a/1e3).toFixed(0)+'rb':a.toString();return(n<0?'-':'')+'Rp '+s;}
+function rpFmt1(v){const r=Math.round(v*10)/10;return r%1===0?r.toFixed(0):r.toFixed(1);}
+function rp(n){if(!n&&n!==0)return'—';const a=Math.abs(n);const s=a>=1e9?rpFmt1(a/1e9)+'M':a>=1e6?rpFmt1(a/1e6)+'jt':a>=1e3?rpFmt1(a/1e3)+'rb':a.toString();return(n<0?'-':'')+'Rp '+s;}
 function rpF(n){return'Rp '+Number(n||0).toLocaleString('id-ID');}
+
+// ========================
+// JUMLAH DISINGKAT + TAP-UNTUK-LIHAT (transaksi list, kartu target — BUKAN Saldo Sekarang di Home)
+// ========================
+let qaRevealSeq=0,revealTimers={};
+function abbrAmountHtml(value,cls){
+  const id='amt-rv-'+(qaRevealSeq++);
+  const abbr=rp(value),full=rpF(value);
+  return `<span id="${id}" class="${cls||''}" data-full="${full.replace(/"/g,'&quot;')}" data-abbr="${abbr.replace(/"/g,'&quot;')}" data-revealed="0" onclick="event.stopPropagation();revealAmount(this,'${id}')" style="cursor:pointer">${abbr}</span>`;
+}
+function revealAmount(el,id){
+  clearTimeout(revealTimers[id]);
+  if(el.dataset.revealed==='1'){
+    el.textContent=el.dataset.abbr;el.dataset.revealed='0';
+    return;
+  }
+  el.textContent=el.dataset.full;el.dataset.revealed='1';
+  revealTimers[id]=setTimeout(()=>{el.textContent=el.dataset.abbr;el.dataset.revealed='0';},3000);
+}
 
 function installPWA(){if(dP){dP.prompt();dP.userChoice.then(()=>{dP=null;});}else showToast('Di Chrome: ⋮ → Add to homescreen');}
 

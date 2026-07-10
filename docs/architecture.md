@@ -34,11 +34,11 @@ ai-finance-app/
 │   ├── ai-chat.js                     # Vercel serverless function — proxies chat completions to Groq
 │   └── ai-scan.js                      # Vercel serverless function — proxies receipt-scan (vision) to Groq
 ├── database/
-│   └── wangku-supabase-setup.sql        # Full schema, additive migration blocks [1]…[18] (see database.md)
-├── gas/
-│   └── wangku-backend.gs                 # DRAFT ONLY — Apps Script for Fonnte webhook + Drive backup, unverified against the real live script (see backend.md)
+│   └── wangku-supabase-setup.sql        # Full schema, additive migration blocks [1]…[21] (see database.md)
 └── docs/                                  # You are here
 ```
+
+**No `gas/` folder exists in this repo** (not even in git history). A Google Apps Script backend (`wangku-backend.gs` — Fonnte webhook + Drive backup) was drafted during planning conversations but never actually committed here, pending a decision between building on Fonnte vs. switching to an Evolution API-based WhatsApp integration. Don't assume this file exists or try to reference it as if it were real code sitting in the repo — see `backend.md`/`ai.md` for what the *planned* design was.
 
 ## 2. Technology stack
 
@@ -46,7 +46,7 @@ ai-finance-app/
 - **Backend-as-a-service**: Supabase (Postgres via PostgREST). No custom application server.
 - **Auth**: Custom — not Supabase Auth. Login verifies a password hash inside a Postgres function and mints a hand-signed JWT (HS256, using the project's real Supabase JWT secret) that the client then uses as its Bearer token for everything else. See §4 and `database.md`'s RLS section.
 - **AI**: Groq API (`meta-llama/llama-4-scout-17b-16e-instruct` for receipt vision, a Llama 3.x chat model for the assistant) — called only from Vercel serverless functions, never from the browser.
-- **WhatsApp bot**: Fonnte + Google Apps Script (draft/unverified — see `backend.md`).
+- **WhatsApp bot**: Fonnte + Google Apps Script — **planning-stage draft only, no code committed to this repo** (see `backend.md`).
 - **Hosting**: Vercel, both the static site and the `/api` serverless functions.
 - **Android packaging**: Bubblewrap CLI → Trusted Web Activity (TWA), signed APK/AAB.
 - **Email**: EmailJS (OTP delivery for registration and password reset).
@@ -90,6 +90,8 @@ sequenceDiagram
 Biometric login (`get_user_by_username`) and session restore (`get_user_by_id`) follow the same pattern — both are RPCs that verify status/existence and mint a fresh token, so a legacy session (no token yet) gets silently upgraded to a real token the next time the app loads, without forcing a re-login.
 
 `admin.html` uses the **exact same `login_check` RPC**, just requiring `result.user.role === 'admin'`, and stores its own token separately. This replaced an earlier single shared static password that had nothing to do with real accounts.
+
+**This diagram covers server-side auth only.** After a successful `login_check`/`get_user_by_id`, the consumer app (not `admin.html`) inserts one more, purely local gate before `showApp()` runs: a PIN-lock screen (set-PIN on first use, verify-PIN thereafter), checked against a device-local `localStorage` value with no server round-trip at all. It's a second, local-only layer on top of everything above, not a replacement for any of it — see `frontend.md`'s "Local PIN lock" section for the full flow.
 
 Password itself: SHA-256 with a static, shared salt (`hp()` in `ui-helpers.js`) — this is flagged as a known weakness in `roadmap.md`, not something to copy as a pattern.
 

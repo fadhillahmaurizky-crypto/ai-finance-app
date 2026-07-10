@@ -35,7 +35,10 @@ The **Supabase JWT secret** (Dashboard → Project Settings → Data API → JWT
 | `sdk_session` | `auth.js` | Cached logged-in user row (no `password_hash` — that column isn't even returned anymore) |
 | `sdk_token` | `auth.js` | The custom-signed JWT — this is what actually authorizes requests now |
 | `sdk_bio_user`, `sdk_bio_cred` | `auth.js` | WebAuthn biometric binding |
+| `sdk_ob` | `ui-helpers.js` (`checkOb`/`skipOb`) | Whether the first-time onboarding carousel has been shown/skipped already — see `features.md` |
+| `wangku_pin` (`PIN_KEY`) | `ui-helpers.js` (`showPinScreen`/`pinSubmit`) | The local PIN-lock code — a device-side gate shown after login/session-restore, before `showApp()`. See `frontend.md`'s "Local PIN lock" section |
 | `wangku_balance_hidden` | `dashboard.js` | Saldo show/hide toggle preference |
+| `wangku_aksi_cepat` | `dashboard.js` (`getAksiCepatSelection`/`saveAksiCepat`) | JSON array of up to 5 shortcut ids shown in Home's Aksi Cepat row (user-editable via the "Edit" link) |
 | `wangku_autosync` | `settings.js` | Refresh-on-open + after-transaction toggle |
 | `wangku_notif` | `settings.js` | JSON blob: reminder/badge/target/overspend notification prefs |
 | `wangku_autodetect` | `settings.js` | Toggle: poll `detected_transactions` (see `ai.md` — the table itself is never populated by this codebase) |
