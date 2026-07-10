@@ -15,16 +15,16 @@ Home (page-home)
 │   └── Pemasukan Bulan Ini / Pengeluaran Bulan Ini pills
 ├── Insight dari WangkuAI — rule-based observations (not a live AI call), tap or swipe to cycle, fade transition
 ├── Alert banner (e.g. "Saldo kamu minus!") — rule-based, conditional
-├── Aksi Cepat — user-customizable via an "Edit" link next to the section title: checkbox picker over the pool (Catat, Tanya AI, Target, Laporan, Pindah Saldo, Kategori), capped at 5 visible, persisted to `wangku_aksi_cepat` localStorage. Default (nothing saved yet) = every pool item except Pindah Saldo
+├── Aksi Cepat — user-customizable via an "Edit" link next to the section title: picker over the pool (Catat, Pemasukan, Pengeluaran, Tanya AI, Target, Laporan, Pindah Saldo, Kategori) with per-row checkbox (visible/hidden, capped at 5) and ↑/↓ move buttons for reordering (not drag-and-drop), persisted as an ordered array to `wangku_aksi_cepat` localStorage. Default (nothing saved yet) = Catat/Tanya AI/Target/Laporan/Kategori — Pemasukan, Pengeluaran, and Pindah Saldo are pool-only, not shown by default
 ├── Kesehatan Keuangan — rule-based 0-100 health score gauge (title inside card, horizontal gauge+text layout)
-└── Target Terdekat — nearest-deadline incomplete target, progress bar
+└── Target Terdekat — nearest-deadline incomplete target, progress bar, terkumpul/target amounts abbreviated with tap-to-reveal (same convention as the Target page's cards)
     Files: index.html (page-home), dashboard.js (loadSummary, renderBalanceSparkline, computeInsights, computeHealthScore, renderHealthAndTarget, renderAksiCepat, openAksiCepatEdit, saveAksiCepat), transactions.js (loadTrx, filterHome)
 
 Transaksi Terakhir (bottom of Home)
 ├── Last 5 only
 ├── Filter: Semua / Pemasukan / Pengeluaran / Pindah Saldo (displayed label; stored `jenis` value is still `'transfer'`)
-└── Amounts abbreviated (`150rb`/`2.5jt`/`1.2M`) with tap-to-reveal full value
-    Files: transactions.js (loadTrx, filterHome, jenisLabel), ui-helpers.js (abbrAmountHtml, revealAmount)
+└── Amounts shown at full precision (`rpF()`) — **not** abbreviated; only target-card amounts (Target page + Home's Target Terdekat) use the abbreviated/tap-to-reveal treatment
+    Files: transactions.js (loadTrx, filterHome, jenisLabel)
 
 Catat (page-catat) — Add/Edit Transaction
 ├── Jenis: Pemasukan / Pengeluaran / Pindah Saldo (displayed label; stored `jenis` value is still `'transfer'`)
@@ -41,7 +41,7 @@ Transaksi (page-transaksi)
 ├── Filter: jenis tabs (Semua/Pemasukan/Pengeluaran/Pindah Saldo — displayed label; stored value still `'transfer'`)
 ├── Filter: date-range pickers (Dari / Sampai), default last 7 days — NOT preset buttons (changed from an earlier design)
 ├── Export Excel — client-side via SheetJS, exports whatever's currently filtered
-├── Amounts abbreviated with tap-to-reveal (same as Transaksi Terakhir)
+├── Amounts shown at full precision — not abbreviated (see Transaksi Terakhir above)
 ├── Tap a row → detail sheet → Edit / Hapus
 └── Floating "+" button → Catat
     Files: transactions.js (applyTransaksiFilter, exportToExcel, openTrxDetailById, editTrx, deleteTrx)

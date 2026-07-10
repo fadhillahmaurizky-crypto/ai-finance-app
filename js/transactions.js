@@ -27,7 +27,7 @@ function renderTxn(txns,cid){
     const ico=isT?'arrows-left-right':(IM[k]||'coin');
     const bg=isT?'var(--blue-bg)':(BG[k]||(isI?'var(--green-bg)':'var(--red-bg)'));
     const cl=isT?'var(--blue)':(CL[k]||(isI?'var(--green)':'var(--red)'));
-    return`<div class="txn-card" onclick="openTrxDetailById('${t.id}')"><div class="txn-ico" style="background:${bg};color:${cl}"><i class="ti ti-${ico}"></i></div><div class="txn-info"><div class="txn-name">${t.keterangan||t.kategori||'Transaksi'}</div><div class="txn-sub">${jenisLabel(t.jenis)} • ${t.kategori||''}</div></div><div class="txn-right"><div class="txn-amt ${isI?'inc':isT?'':'exp'}">${isI?'+':isT?'⇄ ':'-'}${abbrAmountHtml(t.nominal)}</div><div class="txn-time">${t.tanggal||''}</div></div></div>`;
+    return`<div class="txn-card" onclick="openTrxDetailById('${t.id}')"><div class="txn-ico" style="background:${bg};color:${cl}"><i class="ti ti-${ico}"></i></div><div class="txn-info"><div class="txn-name">${t.keterangan||t.kategori||'Transaksi'}</div><div class="txn-sub">${jenisLabel(t.jenis)} • ${t.kategori||''}</div></div><div class="txn-right"><div class="txn-amt ${isI?'inc':isT?'':'exp'}">${isI?'+':isT?'⇄ ':'-'}${rpF(t.nominal)}</div><div class="txn-time">${t.tanggal||''}</div></div></div>`;
   }).join('');
 }
 
@@ -193,6 +193,8 @@ async function submitContribution(){
 
 let editingTrxId=null;
 function goCatatTransfer(){resetTrxForm();goPage('catat');setJenis('transfer');}
+function goCatatPemasukan(){resetTrxForm();goPage('catat');setJenis('pemasukan');}
+function goCatatPengeluaran(){resetTrxForm();goPage('catat');setJenis('pengeluaran');}
 function setJenis(j){
   jenis=j;
   document.getElementById('btn-in').className='jenis-btn'+(j==='pemasukan'?' in':'');
