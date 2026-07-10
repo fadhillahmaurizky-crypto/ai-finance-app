@@ -2,6 +2,9 @@
 // KATEGORI (default + custom, semua bisa dikelola di halaman penuh)
 // ========================
 let kategoriList=[];
+// 23505 = kode SQLSTATE Postgres untuk unique_violation — lebih andal daripada
+// mencocokkan kata "unique" di teks pesan error (bisa berubah/berbeda format).
+function isDupError(e){return e&&(e.code==='23505'||(e.message||'').toLowerCase().includes('duplicate key')||(e.message||'').toLowerCase().includes('unique'));}
 async function seedDefaultCategories(){
   try{
     const existing=await sb(`user_categories?user_id=eq.${user.id}&is_default=eq.true&select=id&limit=1`);
@@ -44,7 +47,7 @@ async function saveKategoriQuick(){
     showToast('Kategori ditambahkan ✓','ok');
     await loadKategori();
     renderKategoriFullList();
-  }catch(e){showToast(e.message.includes('unique')?'Kategori sudah ada!':'Gagal: '+e.message,'err');}
+  }catch(e){showToast(isDupError(e)?`Kategori "${nama}" sudah ada di jenis ini.`:'Gagal: '+e.message,'err');}
 }
 
 // ------------------------
@@ -96,7 +99,7 @@ async function simpanEditKategori(id){
     showToast('Kategori diupdate ✓','ok');
     await loadKategori();
     renderKategoriFullList();
-  }catch(e){showToast(e.message.includes('unique')?'Nama sudah ada!':'Gagal: '+e.message,'err');}
+  }catch(e){showToast(isDupError(e)?`Kategori "${nama}" sudah ada di jenis ini.`:'Gagal: '+e.message,'err');}
 }
 async function saveKategoriFull(){
   const nama=document.getElementById('kat-full-nama').value.trim();
@@ -108,7 +111,7 @@ async function saveKategoriFull(){
     showToast('Kategori ditambahkan ✓','ok');
     await loadKategori();
     renderKategoriFullList();
-  }catch(e){showToast(e.message.includes('unique')?'Kategori sudah ada!':'Gagal: '+e.message,'err');}
+  }catch(e){showToast(isDupError(e)?`Kategori "${nama}" sudah ada di jenis ini.`:'Gagal: '+e.message,'err');}
 }
 async function delKategori(id){
   if(!confirm('Hapus kategori ini?'))return;
