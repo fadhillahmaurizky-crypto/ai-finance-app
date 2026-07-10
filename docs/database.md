@@ -1,6 +1,6 @@
 # Database
 
-Postgres via Supabase. Schema lives entirely in `database/wangku-supabase-setup.sql`, applied as **additive, numbered migration blocks** (`[1]` through `[18]` as of this writing). The file is designed to be re-run safely from the top at any time — every block uses `IF NOT EXISTS`/`DROP ... IF EXISTS` guards. That property was hard-won (see "Migration history & lessons" below) and must be preserved in any future block.
+Postgres via Supabase. Schema lives entirely in `database/wangku-supabase-setup.sql`, applied as **additive, numbered migration blocks** (`[1]` through `[21]` as of this writing). The file is designed to be re-run safely from the top at any time — every block uses `IF NOT EXISTS`/`DROP ... IF EXISTS` guards. That property was hard-won (see "Migration history & lessons" below) and must be preserved in any future block.
 
 ## ERD
 
@@ -28,12 +28,18 @@ erDiagram
         text plan "free | basic | pro | unlimited"
         text status "pending | active | banned"
         text role "'user' or 'admin' — admin bypasses row ownership in RLS"
+        text gas_user_id "WhatsApp number in GAS/Fonnte-friendly form, set at registration"
+        text avatar_color "fallback avatar color, unused now that avatar_url exists"
         int tokens_limit
         int tokens_used
+        text token_reset_month "reserved for a future token-reset-per-month flow, not currently read/written by the app"
         int ai_chat_count
         int ai_scan_count
+        text usage_month "month key ai_chat_count/ai_scan_count were last reset for, checked in showApp()"
         text avatar_url "base64 image"
         timestamptz trial_ends_at
+        timestamptz last_login "set on every successful doLogin()"
+        timestamptz last_active "column exists, currently unused by app code"
     }
 
     accounts {
@@ -136,7 +142,9 @@ The core ledger. `jenis='transfer'` rows move money between two of the user's ow
 `terkumpul` is a denormalized running total, incremented directly by app code (`submitContribution()` in `transactions.js`) whenever a contribution transaction is saved — **it is not computed by summing linked transactions at query time.** Any bulk import/backfill of transactions with `target_id` set must also patch `terkumpul` manually.
 
 ### `user_categories` / `user_priorities`
-Defaults are seeded as real rows (`is_default=true`) once per user, the first time they load the app with none present (`seedDefaultCategories()`/`seedDefaultPriorities()`). Every category/priority — default or custom — lives in one table and is editable/deletable through the same full-page UI (Settings → Kelola Kategori / Kelola Prioritas). Current default set: Pemasukan = Gaji, Bonus; Pengeluaran = Makan, Belanja, Elektronik, Pulsa, Paket Data. **This changed more than once during development** — users who signed up under an earlier default set were not retroactively migrated, since seeding only fires when zero `is_default` rows exist yet.
+Defaults are seeded as real rows (`is_default=true`) once per user, the first time they load the app with none present (`seedDefaultCategories()`/`seedDefaultPriorities()`), reading from `DEFAULT_CATEGORIES`/`DEFAULT_PRIORITIES` in `js/config.js`. Every category/priority — default or custom — lives in one table and is editable/deletable through the same full-page UI (Settings → Kelola Kategori / Kelola Prioritas). Current default set: Pemasukan = Gaji, Bonus; Pengeluaran = Makan, Belanja, Elektronik, Pulsa, Paket Data. **This changed more than once during development** — users who signed up under an earlier default set were not retroactively migrated, since seeding only fires when zero `is_default` rows exist yet.
+
+`user_categories` is unique on `(user_id, nama, jenis)` (block `[19]`) — not just `(user_id, nama)`. The narrower constraint used to block adding a category name that already existed under the other `jenis` (e.g. couldn't add "Arisan" as a Pengeluaran category if "Arisan" already existed as Pemasukan), which was both a bug report and a blocker for the same-name-different-jenis use case. Fixed once, for both.
 
 ### `orders`
 Payment proof submissions for plan upgrades, reviewed manually via `admin.html`.
@@ -147,6 +155,8 @@ Support table for "auto-detect transactions." **Nothing in this codebase writes 
 ### `password_reset_tokens`
 Backs the forgot-password flow. The OTP itself is generated inside Postgres (`create_password_reset`), returned once as plaintext so the client can email it via EmailJS, but only its **hash** is stored, with a 10-minute expiry and single-use flag, checked inside `confirm_password_reset`. This replaced an earlier version where the OTP was only ever checked in a JavaScript variable client-side — a real bypassable gap that's now closed.
 
+Both `create_password_reset` and `confirm_password_reset` call `digest()` from `pgcrypto`. They originally had `SET search_path = public` (no `extensions` schema), which made forgot-password fail end-to-end with `function digest(text, unknown) does not exist` — the same class of bug the `[18]` JWT-signing functions had already hit and fixed for themselves, just missed on these two. Both now use `SET search_path = public, extensions`.
+
 ### `settings`
 Generic key-value table. **Fully locked down** (`FOR ALL USING (false)`) — nothing reads or writes it anymore since the Groq key moved to a Vercel environment variable. If you're tempted to use this table for new config, reconsider; it has no access path left by design.
 
@@ -154,7 +164,7 @@ Generic key-value table. **Fully locked down** (`FOR ALL USING (false)`) — not
 
 This is the single most important thing to understand about this schema. It replaced an earlier state where **every table had `USING (true)`** — meaning the public Supabase anon key alone (necessarily embedded in client JS) could read and write *any* user's data. That's fixed now, via a from-scratch custom-auth layer (blocks `[17]` and `[18]`):
 
-1. **`login_check(username, password_hash)`** verifies the password inside a `SECURITY DEFINER` function (so the client never queries `password_hash` directly — that column's `SELECT` privilege is revoked from `anon` entirely) and returns `{user, token}`, where `token` is a JWT signed with the project's real JWT secret.
+1. **`login_check(username, password_hash)`** verifies the password inside a `SECURITY DEFINER` function (so the client never queries `password_hash` directly — that column's `SELECT` privilege is revoked from `anon` entirely) and returns `{user, token}`, where `token` is a JWT signed with the project's real JWT secret. As of block `[20]`, it also requires `status = 'active'`, matching `get_user_by_username`/`get_user_by_id`. Before that fix, a `pending`/`banned` account's correct password still got a validly-signed 30-day JWT back from the RPC itself — the web client discarded it (it checks `result.user.status` before persisting the token), but a direct call to the RPC (it's `GRANT`ed to `anon`) bypassed that client-side gate entirely.
 2. **The signing is hand-rolled**, not via the `pgjwt` extension — `pgjwt`'s `sign()` has its own fixed internal search path that can't be overridden by a caller, which caused real failures in practice (see migration history below). Instead, `wangku_sign_jwt()` builds the JWT manually (base64url header + payload + HMAC-SHA256 signature via `pgcrypto`'s `hmac()`), inside a function where the search path is fully controlled.
 3. **Every data table's policy** is `is_owner_or_admin(user_id)`: `(auth.jwt()->>'user_id')::uuid = user_id OR auth.jwt()->>'app_role' = 'admin'`.
 4. **Registration** (no token exists yet) is allowed via a separate `anon`-scoped `INSERT` policy on `users`, but `WITH CHECK (status = 'pending' AND role = 'user')` — someone can't self-register as an active admin via a raw API call.
@@ -166,12 +176,21 @@ This is the single most important thing to understand about this schema. It repl
 | `wangku_b64url(bytea)` | Base64url encode, no padding, no newlines |
 | `wangku_sign_jwt(payload json, secret text)` | Manual HS256 JWT signing |
 | `is_owner_or_admin(user_id uuid)` | The RLS predicate used everywhere |
-| `login_check(username, password_hash)` | Password verify + mint token |
+| `login_check(username, password_hash)` | Password verify + mint token (requires `status='active'`, block `[20]`) |
 | `get_user_by_username(username)` | Biometric login — mints a fresh token |
 | `get_user_by_id(user_id)` | Session restore — mints a fresh token (also silently upgrades pre-migration sessions) |
 | `change_password(user_id, old_hash, new_hash)` | Requires proof of the old password |
 | `create_password_reset(email)` | Step 1 of forgot-password — generates + stores hashed OTP |
 | `confirm_password_reset(user_id, otp, new_hash)` | Step 2 — validates OTP server-side, then resets |
+| `wangku_check_account_balance()` | Trigger function, block `[21]` — see "Per-account balance enforcement" below |
+
+## Per-account balance enforcement (block `[21]`)
+
+A `BEFORE INSERT OR UPDATE ON transactions` trigger (`trg_check_account_balance` → `wangku_check_account_balance()`) blocks a `pengeluaran` or `transfer` row from pushing its source account (`account_id`) negative. The balance it checks is **per-account, all-time** — `accounts.saldo_awal` plus that one account's own transaction history (not the aggregate Saldo Sekarang) — so a transfer/expense is only blocked if *its own* account can't cover it, even if another of the user's accounts has plenty. `pemasukan` rows are never restricted. On `UPDATE` (editing an existing transaction), the row being edited is excluded from its own balance recalculation so it doesn't double-count against itself.
+
+This is a safety net behind the primary UX, which is a client-side check in `js/transactions.js`/`js/accounts.js` (`getAccountBalance()`) that blocks submission with an inline toast before the request is even sent. Both layers use the same all-time balance model as Saldo Sekarang, deliberately, for consistency.
+
+**Note for future split-payment work:** this trigger and the client check both assume one transaction has exactly one source `account_id`. If a "split a single payment across multiple accounts" feature is ever built (see `roadmap.md`), this logic will need revisiting — it wasn't written to accommodate multiple source accounts per transaction.
 
 ## Migration history & lessons (worth reading before writing new migrations)
 
@@ -180,5 +199,7 @@ This took three rounds to get right on the actual live Supabase project, each su
 1. **`CREATE POLICY IF NOT EXISTS` is not valid syntax** — Postgres's `CREATE POLICY` has no `IF NOT EXISTS` clause at all (unlike `CREATE TABLE`/`CREATE INDEX`). Every policy in this file now uses `DROP POLICY IF EXISTS "name" ON table; CREATE POLICY "name" ON table ...` instead. This was a latent bug sitting in the schema from very early on that only surfaced once the file was run start-to-finish instead of block-by-block.
 2. **`CREATE OR REPLACE FUNCTION` cannot change a function's return type.** Several functions changed shape across blocks (`SETOF JSONB` → `JSONB`) as the auth design evolved. Every such redefinition needs an explicit `DROP FUNCTION IF EXISTS name(arg_types)` immediately before it — in **both** directions, since the file can be re-run on a database that's already at either end state.
 3. **`pgjwt`'s `sign()` has a search path you cannot override from your own function** — Postgres resolves names inside a *called* function using that function's own configured search path, not the caller's. No amount of `SET search_path` on our own functions fixed `sign()` failing to find `hmac()`. The actual fix was to stop depending on `pgjwt` and hand-roll the signing using `pgcrypto`'s `hmac()` directly inside a function we fully control.
+4. **The `extensions` search-path lesson from #3 doesn't automatically propagate to every function that calls a `pgcrypto` function.** `wangku_sign_jwt`/`wangku_b64url` got `SET search_path = public, extensions` when they were written (block `[18]`), but `create_password_reset`/`confirm_password_reset` (block `[17]`, calling `digest()`) were left with just `SET search_path = public` — which broke forgot-password in production with `function digest(text, unknown) does not exist`. Fixed by adding `extensions` to their search path too. **Any function that calls a `pgcrypto` function (`digest`, `hmac`, `crypt`, etc.) needs `extensions` in its `search_path`, full stop** — don't assume it's only relevant to the JWT-signing functions.
+5. **Postgres combines multiple *permissive* RLS policies on the same table/command with OR — a new restrictive policy existing does not disable an old permissive one sitting next to it.** This bit in practice: after block `[18]` should have replaced every table's `"Allow all ..."` (`USING (true)`) policy with `"Own data or admin"`, a live check of `pg_policies` found **both policies present simultaneously on every single data table** (plus `settings`) — meaning the `USING (true)` policy was still winning via OR, and RLS was providing *zero* actual isolation despite the correct policy also existing. This most likely happened because an early re-run only touched blocks that create the `"Allow all ..."` policies (blocks `[1]`–`[14]`, which are also `DROP POLICY IF EXISTS`+`CREATE POLICY`, so they're idempotent but will happily recreate the permissive policy if run again after block `[18]` already removed it) without also re-running block `[18]`'s drops. **Whenever verifying RLS on this schema, don't just confirm the intended policy exists — run `SELECT tablename, policyname, cmd FROM pg_policies WHERE schemaname='public' ORDER BY tablename, policyname;` and confirm no stray `"Allow all ..."` policy is sitting alongside it on any table.** A restrictive-looking policy existing is not proof that access is actually restricted.
 
-If a future migration hits `cannot change return type` or a `function ... does not exist` error from inside a third-party extension function, these are the first two things to check.
+If a future migration hits `cannot change return type` or a `function ... does not exist` error from inside a third-party extension function, these are the first things to check. And if anything about per-user isolation seems off, check `pg_policies` directly rather than trusting that the last migration you ran did what it said.

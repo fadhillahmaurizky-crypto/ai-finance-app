@@ -12,6 +12,19 @@ priorities.js → accounts.js → settings.js → boot.js
 
 `boot.js` runs last and kicks things off (service worker registration, splash screen). `showApp()` (in `app-core.js`) is what actually enters the app, called from `auth.js` after a successful login/session restore.
 
+## Onboarding carousel (first-time visitors)
+
+`#ob-wrap` in `index.html` is a 3-slide onboarding carousel (`checkOb()`/`nextOb()`/`skipOb()` in `ui-helpers.js`) shown before the login screen the very first time the app loads on a device — gated by the `sdk_ob` localStorage flag (`checkOb()` returns early and shows it if that key isn't set yet; `skipOb()`/reaching the last slide's "Mulai Sekarang" button sets it and reveals the login page). Purely a marketing/explainer screen — no auth or data implications, and it never reappears once `sdk_ob` is set.
+
+## Local PIN lock (second auth layer, on top of the JWT login)
+
+After a successful `login_check`/`get_user_by_id` (fresh login **or** silent session restore), the app does **not** go straight to `showApp()`. It shows `#pin-screen` (`showPinScreen()`/`pinSubmit()` in `ui-helpers.js`) first:
+- If `localStorage['wangku_pin']` isn't set yet, the user is asked to create one (`mode:'set'` → `mode:'confirm'`, both entries must match).
+- If a PIN already exists, the user must re-enter it (`mode:'verify'`) before `showApp()` runs.
+- `pinForgot()` clears the stored PIN and drops the user back to the login screen (there's no PIN-reset flow beyond "log in again").
+
+This is purely a **local, device-side gate** — it has nothing to do with the JWT/session model in `architecture.md` §4. It doesn't re-authenticate against Supabase in any way; it only decides whether `showApp()` is allowed to run on *this* device, after the real auth (login or silent session restore) has already succeeded.
+
 ## Layout structure — read this before adding anything to the header or Home page
 
 ```
@@ -35,7 +48,7 @@ The header's right-side "settings" button now doubles as a **profile picture** b
 | id | Purpose | Key JS |
 |---|---|---|
 | `page-home` | Balance card (with 7-day sparkline), AI insight card, alert banner, quick actions, Kesehatan Keuangan + Target Terdekat cards, recent transactions | `dashboard.js`, `transactions.js` |
-| `page-catat` | Add/edit transaction (Pemasukan / Pengeluaran / Transfer) | `transactions.js` |
+| `page-catat` | Add/edit transaction (Pemasukan / Pengeluaran / Pindah Saldo — displayed label; stored `jenis` value is still `'transfer'`) | `transactions.js` |
 | `page-transaksi` | Full transaction list — jenis filter tabs + **date-range pickers** (not preset buttons), Excel export button, FAB to add | `transactions.js` |
 | `page-target` | Target cards: progress, edit/delete, "Tambah Tabungan" contribution button per card | `transactions.js` |
 | `page-laporan` | Financial report: hero summary w/ MoM trend, savings-rate bar, category donuts, priority analysis, rule-based tips, per-category tables | `dashboard.js` |
@@ -46,14 +59,17 @@ The header's right-side "settings" button now doubles as a **profile picture** b
 
 - **Balance card**: "Saldo" label + eye icon (show/hide toggle, `toggleBalanceVisibility()`), a "Lihat Detail" pill button (opens the per-account breakdown modal), the amount, a trend badge ("+/-Rp X dari minggu lalu"), a **7-day sparkline** (smooth bezier curve, positioned absolutely in the upper-right corner of the card, ~40% width/64px tall — deliberately small and corner-positioned so it can never collide with the pemasukan/pengeluaran pills below it, which sit in normal document flow), then the two pills.
 - **Insight card** ("Insight dari WangkuAI"): rule-based (not a live AI call) — `computeInsights()` in `dashboard.js` compares this month's category spend to last month, checks savings rate, overspend, and "tidak penting" ratio, and produces up to 4 short observations. Cycles on tap **and** swipe (touch events bound in `dashboard.js`), with a fade transition and dot indicators. This card lives inside `#page-home`'s scrollable content — it must never be moved to be a sibling of `.header`/`.pages`, because that previously caused it to render pinned on every page (a real bug, since fixed).
+- **Aksi Cepat** is user-customizable: an "Edit" link next to the section title (`openAksiCepatEdit()` in `dashboard.js`) opens a checkbox picker over the shortcut pool (Catat, Tanya AI, Target, Laporan, Pindah Saldo, Kategori), capped at 5 visible slots, persisted to the `wangku_aksi_cepat` localStorage key (see `environment.md`). Default (no saved selection yet) is all pool items except Pindah Saldo — that one's still fully available, just not shown out of the box. `renderAksiCepat()` renders the `#qa-row` container from the saved/default selection on every `showApp()`.
 - **Kesehatan Keuangan / Target Terdekat**: two-column card row. Kesehatan Keuangan's title sits inside the card (same pattern as Target Terdekat), with a small horizontal layout — gauge on the left, label/subtext on the right (not stacked/centered).
 - **Header background** matches the body background (`var(--bg)`), not a distinct white card color.
+- **Amounts in tight rows** (transaction list rows, target-card amounts) are abbreviated (`rp()` in `ui-helpers.js` → `150rb`/`2.5jt`/`1.2M`) with tap-to-reveal (`abbrAmountHtml()`/`revealAmount()`): tapping shows the full `rpF()`-formatted value, which auto-reverts after ~3s or on a second tap. The Home Saldo Sekarang hero number is deliberately excluded from this — it always shows full precision via `rpF()` directly.
 
 ## Modals
 
 | id | Purpose |
 |---|---|
 | `add-kat-modal` / `add-pri-modal` | Quick-add only (from the Catat form's "+"); full management is the dedicated pages |
+| `aksi-cepat-modal` | Checkbox picker for which Aksi Cepat shortcuts show on Home (max 5), opened via the "Edit" link next to the section title |
 | `account-modal` | Add/edit account, with a "Selesai" success screen instead of auto-closing |
 | `target-modal` | Add/edit target, same success-screen pattern |
 | `target-contribute-modal` | "Tambah Tabungan" |

@@ -13,6 +13,8 @@ const IM={makan:'tools-kitchen-2',makanan:'tools-kitchen-2',belanja:'shopping-ba
 const BG={makan:'#FFF0F0',makanan:'#FFF0F0',belanja:'#FFF0FF',elektronik:'#EBF3FF',pulsa:'#F3EEFF',paket_data:'#EBF9FF',transportasi:'#EBF3FF',hiburan:'#F3EEFF',tagihan:'#FEF3C7',tabungan:'var(--amber-bg)',gaji:'var(--green-bg)',bonus:'var(--green-bg)',arisan:'var(--green-bg)',jualan:'var(--green-bg)',saldo_awal:'var(--green-bg)'};
 const CL={makan:'#EF4444',makanan:'#EF4444',belanja:'#EC4899',elektronik:'#2B7EF8',pulsa:'#8B5CF6',paket_data:'#06B6D4',transportasi:'#2B7EF8',hiburan:'#8B5CF6',tagihan:'#F59E0B',tabungan:'var(--amber)',gaji:'var(--green)',bonus:'var(--green)',arisan:'var(--green)',jualan:'var(--green)',saldo_awal:'var(--green)'};
 
+function jenisLabel(j){return j==='transfer'?'Pindah Saldo':j==='pemasukan'?'Pemasukan':j==='pengeluaran'?'Pengeluaran':(j||'');}
+
 let txnCache={};
 function renderTxn(txns,cid){
   const el=document.getElementById(cid);if(!el)return;
@@ -25,7 +27,7 @@ function renderTxn(txns,cid){
     const ico=isT?'arrows-left-right':(IM[k]||'coin');
     const bg=isT?'var(--blue-bg)':(BG[k]||(isI?'var(--green-bg)':'var(--red-bg)'));
     const cl=isT?'var(--blue)':(CL[k]||(isI?'var(--green)':'var(--red)'));
-    return`<div class="txn-card" onclick="openTrxDetailById('${t.id}')"><div class="txn-ico" style="background:${bg};color:${cl}"><i class="ti ti-${ico}"></i></div><div class="txn-info"><div class="txn-name">${t.keterangan||t.kategori||'Transaksi'}</div><div class="txn-sub">${t.jenis||''} • ${t.kategori||''}</div></div><div class="txn-right"><div class="txn-amt ${isI?'inc':isT?'':'exp'}">${isI?'+':isT?'⇄ ':'-'}${rpF(t.nominal)}</div><div class="txn-time">${t.tanggal||''}</div></div></div>`;
+    return`<div class="txn-card" onclick="openTrxDetailById('${t.id}')"><div class="txn-ico" style="background:${bg};color:${cl}"><i class="ti ti-${ico}"></i></div><div class="txn-info"><div class="txn-name">${t.keterangan||t.kategori||'Transaksi'}</div><div class="txn-sub">${jenisLabel(t.jenis)} • ${t.kategori||''}</div></div><div class="txn-right"><div class="txn-amt ${isI?'inc':isT?'':'exp'}">${isI?'+':isT?'⇄ ':'-'}${abbrAmountHtml(t.nominal)}</div><div class="txn-time">${t.tanggal||''}</div></div></div>`;
   }).join('');
 }
 
@@ -91,7 +93,7 @@ async function renderTargets(){
   if(typeof checkTargetNotif==='function')checkTargetNotif(targets);
   if(!targets.length){el.innerHTML='<div style="text-align:center;padding:24px 0;color:var(--text3);font-size:13px">Belum ada target. Buat yang pertama! 🎯</div>';return;}
   const IC=['🏠','✈️','📱','🚗','💍','💻','🎓','💰'];const CO=['var(--green)','var(--blue)','var(--amber)','#8B5CF6','#EC4899'];
-  el.innerHTML=targets.map((t,i)=>{const pct=Math.min(100,Math.round((t.terkumpul/t.nominal)*100));const col=CO[i%CO.length];const dl=t.deadline?new Date(t.deadline).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'Tanpa deadline';return`<div class="target-card"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:38px;height:38px;border-radius:12px;background:${col}20;color:${col};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${IC[i%IC.length]}</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">${t.nama}</div><div style="font-size:10px;color:var(--text3)">🗓️ ${dl}</div></div><div style="font-size:12px;font-weight:700;color:${col}">${pct}%</div><button onclick="openTargetEdit('${t.id}')" style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:4px"><i class="ti ti-pencil"></i></button><button onclick="delTarget('${t.id}')" style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:4px"><i class="ti ti-trash"></i></button></div><div class="target-progress"><div class="target-fill" style="width:${pct}%;background:${col}"></div></div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:10px"><span style="color:${col};font-weight:600">${rpF(t.terkumpul)}</span><span style="color:var(--text3)">Target: ${rpF(t.nominal)}</span></div>${pct>=100?'<div style="margin-bottom:10px;font-size:11px;color:var(--green);font-weight:600">🎉 Target tercapai!</div>':'<div style="margin-bottom:10px;font-size:11px;color:var(--text3)">Sisa: '+rpF(t.nominal-t.terkumpul)+'</div>'}<button onclick="openContribute('${t.id}')" style="width:100%;padding:9px;border-radius:10px;background:${col}15;border:1.5px dashed ${col};color:${col};font-size:12px;font-weight:600;cursor:pointer"><i class="ti ti-piggy-bank"></i> Tambah Tabungan</button></div>`;}).join('');
+  el.innerHTML=targets.map((t,i)=>{const pct=Math.min(100,Math.round((t.terkumpul/t.nominal)*100));const col=CO[i%CO.length];const dl=t.deadline?new Date(t.deadline).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'Tanpa deadline';return`<div class="target-card"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:38px;height:38px;border-radius:12px;background:${col}20;color:${col};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${IC[i%IC.length]}</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">${t.nama}</div><div style="font-size:10px;color:var(--text3)">🗓️ ${dl}</div></div><div style="font-size:12px;font-weight:700;color:${col}">${pct}%</div><button onclick="openTargetEdit('${t.id}')" style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:4px"><i class="ti ti-pencil"></i></button><button onclick="delTarget('${t.id}')" style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:4px"><i class="ti ti-trash"></i></button></div><div class="target-progress"><div class="target-fill" style="width:${pct}%;background:${col}"></div></div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:10px"><span style="color:${col};font-weight:600">${abbrAmountHtml(t.terkumpul)}</span><span style="color:var(--text3)">Target: ${abbrAmountHtml(t.nominal)}</span></div>${pct>=100?'<div style="margin-bottom:10px;font-size:11px;color:var(--green);font-weight:600">🎉 Target tercapai!</div>':'<div style="margin-bottom:10px;font-size:11px;color:var(--text3)">Sisa: '+abbrAmountHtml(t.nominal-t.terkumpul)+'</div>'}<button onclick="openContribute('${t.id}')" style="width:100%;padding:9px;border-radius:10px;background:${col}15;border:1.5px dashed ${col};color:${col};font-size:12px;font-weight:600;cursor:pointer"><i class="ti ti-piggy-bank"></i> Tambah Tabungan</button></div>`;}).join('');
 }
 
 let editingTargetId=null;
@@ -172,6 +174,10 @@ async function submitContribution(){
   const akun=document.getElementById('contrib-akun').value;
   if(!nom||nom<=0){showToast('Masukkan nominal!','err');return;}
   if(!akun){showToast('Pilih akun!','err');return;}
+  if(typeof getAccountBalance==='function'){
+    const saldoAkun=await getAccountBalance(akun);
+    if(saldoAkun<nom){showToast(`Saldo akun tidak cukup (saldo saat ini: ${rpF(saldoAkun)})`,'err');return;}
+  }
   try{
     await sb('transactions','POST',{user_id:user.id,jenis:'pengeluaran',nominal:nom,kategori:'tabungan',prioritas:'penting',keterangan:'Tabungan: '+t.nama,account_id:akun,target_id:t.id,tanggal:new Date().toISOString().substring(0,10)});
     await sb(`targets?id=eq.${t.id}&user_id=eq.${user.id}`,'PATCH',{terkumpul:(Number(t.terkumpul)||0)+nom});
@@ -220,13 +226,20 @@ async function submitTrx(){
     if(!dari||!tujuan){showToast('Pilih akun asal dan tujuan!','err');return;}
     if(dari===tujuan){showToast('Akun asal dan tujuan harus berbeda!','err');return;}
     payload.account_id=dari;payload.to_account_id=tujuan;payload.kategori='transfer';payload.prioritas='penting';
-    payload.keterangan=document.getElementById('f-ket').value||'Transfer antar akun';
+    payload.keterangan=document.getElementById('f-ket').value||'Pindah saldo antar akun';
   }else{
     const akun=document.getElementById('f-akun')?.value;
     const kat=document.getElementById('f-kat').value;const pri=document.getElementById('f-pri').value;const ket=document.getElementById('f-ket').value;
     if(!akun){showToast('Pilih akun!','err');return;}
     if(!kat){showToast('Pilih kategori!','err');return;}
     payload.account_id=akun;payload.kategori=kat;payload.prioritas=pri;payload.keterangan=ket;
+  }
+  if((jenis==='pengeluaran'||jenis==='transfer')&&typeof getAccountBalance==='function'){
+    const saldoAkun=await getAccountBalance(payload.account_id,editingTrxId);
+    if(saldoAkun<payload.nominal){
+      showToast(`Saldo akun tidak cukup (saldo saat ini: ${rpF(saldoAkun)})`,'err');
+      return;
+    }
   }
   btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Menyimpan...';
   try{
@@ -284,7 +297,7 @@ async function deleteTrx(id){
 function openTrxDetailById(id){
   const t=txnCache[id];if(!t)return;
   document.getElementById('trx-detail-title').textContent=t.keterangan||t.kategori||'Transaksi';
-  document.getElementById('trx-detail-sub').textContent=(t.jenis||'')+' • '+(t.kategori||'')+' • '+(t.tanggal||'');
+  document.getElementById('trx-detail-sub').textContent=jenisLabel(t.jenis)+' • '+(t.kategori||'')+' • '+(t.tanggal||'');
   const amtEl=document.getElementById('trx-detail-amt');
   const isI=t.jenis==='pemasukan',isT=t.jenis==='transfer';
   amtEl.textContent=(isI?'+':isT?'⇄ ':'-')+rpF(t.nominal);

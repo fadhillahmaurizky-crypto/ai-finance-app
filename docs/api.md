@@ -22,7 +22,7 @@ All calls go through `sb(path, method, body)` (table access) or `rpc(fnName, par
 ### RPC functions (`rpc()`)
 | Function | Purpose |
 |---|---|
-| `login_check(username, password_hash)` | Login — returns `{user, token}` |
+| `login_check(username, password_hash)` | Login — returns `{user, token}`, requires `status='active'` |
 | `get_user_by_username(username)` | Biometric login |
 | `get_user_by_id(user_id)` | Session restore |
 | `change_password(user_id, old_hash, new_hash)` | Requires proof of old password |
@@ -41,8 +41,8 @@ Both same-origin with the static site (no CORS handling needed).
 ## Groq API
 `https://api.groq.com/openai/v1/chat/completions` — called **only** from the two Vercel functions above. The browser never has a Groq key.
 
-## Google Apps Script Web App (draft/unverified)
-One deployed URL (`GAS` constant in `config.js`). `?action=ping` (liveness, called by `pingSheetSync()`) is the only thing actually in active use from the client today. The backup and Fonnte-webhook handlers are drafted but not confirmed live — see `backend.md`.
+## Google Apps Script Web App
+One deployed URL (`GAS` constant in `config.js`). Two actions are actually called from the client today: `?action=ping` (liveness, `pingSheetSync()` in `settings.js`) and `?action=notifyAdmin&msg=...` (`submitPayment()` in `payment.js`, pings an admin on WhatsApp after a paid-plan order is submitted). Both are fire-and-forget. The backup and Fonnte-webhook ideas were only ever drafted during planning, never committed to this repo as real code — see `backend.md`.
 
 ## Fonnte
 WhatsApp Business API. The web app itself only links out to `wa.me/<CS number>` for "Hubungi CS" — it doesn't call Fonnte's API directly; that would only happen from the (on-hold) Apps Script side.

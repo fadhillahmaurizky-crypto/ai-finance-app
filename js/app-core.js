@@ -38,7 +38,6 @@ function showApp(){
     renderSetAvatar();
     const isMaster=user.role==='admin'||user.username===MASTER;
     document.getElementById('master-section').style.display=isMaster?'block':'none';
-    document.getElementById('nav-admin').style.display=isMaster?'flex':'none';
     if(isMaster)updateApiStatus();
     const currentMonth=getMonth();
     if(user.usage_month!==currentMonth){
@@ -52,6 +51,7 @@ function showApp(){
     try{PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(av=>{const row=document.getElementById('bio-row');if(row)row.style.display=av?'flex':'none';if(av&&localStorage.getItem('sdk_bio_cred')){const bs=document.getElementById('bio-status');if(bs)bs.textContent='Fingerprint aktif ✓';}});}catch(e){}
   }
   loadSummary();loadTrx('semua','txn-home',5);
+  if(typeof renderAksiCepat==='function')renderAksiCepat();
   (async()=>{
     if(typeof ensureDefaultAccount==='function')await ensureDefaultAccount();
     if(typeof loadAccounts==='function')await loadAccounts();
