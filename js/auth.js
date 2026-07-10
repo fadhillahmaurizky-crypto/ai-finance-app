@@ -46,8 +46,8 @@ async function doRegister(){
   if(!pw||pw.length<6){err.textContent='Password min. 6 karakter!';err.style.display='block';return;}
   btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Mengirim OTP...';
   try{
-    const ex=await sb(`users?or=(username.eq.${un},email.eq.${email})&select=id`);
-    if(ex?.length){err.textContent='Username atau email sudah terdaftar!';err.style.display='block';btn.disabled=false;btn.innerHTML='<i class="ti ti-user-plus"></i> Buat Akun Gratis';return;}
+    const available=await rpcAnon('check_registration_available',{p_username:un,p_email:email});
+    if(!available){err.textContent='Username atau email sudah terdaftar!';err.style.display='block';btn.disabled=false;btn.innerHTML='<i class="ti ti-user-plus"></i> Buat Akun Gratis';return;}
     regOTP=String(Math.floor(100000+Math.random()*900000));
     regData={name,un,email,wa,pw};
     await sendEmailOTP(email,name,regOTP);
@@ -67,12 +67,12 @@ async function verifyRegOTP(){
   try{
     const h=await hp(regData.pw);
     const waFull=regData.wa.startsWith('62')?regData.wa:'62'+(regData.wa.startsWith('0')?regData.wa.substring(1):regData.wa);
-    const r=await sb('users?select=id,username,full_name,email,wa_number','POST',{username:regData.un,full_name:regData.name,email:regData.email,wa_number:waFull,password_hash:h,role:'user',status:'pending',gas_user_id:waFull,plan:'free',tokens_limit:0,tokens_used:0});
-    if(!r||!r.length)throw new Error('Gagal membuat akun');
-    newUser={id:r[0].id,full_name:regData.name,username:regData.un,email:regData.email,wa_number:waFull};
+    const newId=crypto.randomUUID();
+    await sbAnon('users','POST',{id:newId,username:regData.un,full_name:regData.name,email:regData.email,wa_number:waFull,password_hash:h,role:'user',status:'pending',gas_user_id:waFull,plan:'free',tokens_limit:0,tokens_used:0},true);
+    newUser={id:newId,full_name:regData.name,username:regData.un,email:regData.email,wa_number:waFull};
     regOTP=null;regData=null;
     showPaymentFlow();
-  }catch(e){err.textContent=e.message.includes('duplicate')?'Username/email sudah terdaftar!':e.message;err.style.display='block';}
+  }catch(e){err.textContent=isDupError(e)?'Username/email sudah terdaftar!':e.message;err.style.display='block';}
 }
 
 async function sendEmailOTP(toEmail, nama, otp){
@@ -104,7 +104,7 @@ async function sendForgotOTP(){
   if(!email||!email.includes('@')){err.textContent='Email tidak valid!';err.style.display='block';return;}
   btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Mencari...';
   try{
-    const rows=await rpc('create_password_reset',{p_email:email});
+    const rows=await rpcAnon('create_password_reset',{p_email:email});
     if(!rows||!rows.length)throw new Error('Email tidak terdaftar atau akun belum aktif!');
     fpUser={id:rows[0].user_id,full_name:rows[0].full_name};fpOTP=rows[0].otp;
     await sendEmailOTP(email,fpUser.full_name,fpOTP);
@@ -125,7 +125,7 @@ async function resetPW(){
   if(!np||np.length<6){err.textContent='Password min. 6 karakter!';err.style.display='block';return;}
   if(np!==cp){err.textContent='Password tidak cocok!';err.style.display='block';return;}
   try{
-    const ok=await rpc('confirm_password_reset',{p_user_id:fpUser.id,p_otp:fpOTP,p_new_hash:await hp(np)});
+    const ok=await rpcAnon('confirm_password_reset',{p_user_id:fpUser.id,p_otp:fpOTP,p_new_hash:await hp(np)});
     if(!ok)throw new Error('Kode OTP sudah kedaluwarsa atau tidak valid. Minta OTP baru.');
     showToast('Password direset! 🎉','ok');fpUser=null;fpOTP=null;['fp-s2','fp-s3'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});document.getElementById('fp-s1').style.display='block';['fp-phone','fp-np','fp-cp'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});switchTab('login');}
   catch(e){err.textContent='Gagal: '+e.message;err.style.display='block';}

@@ -25,6 +25,7 @@ sequenceDiagram
 - **Context gathering**: `updateCtx(sumData)` in `dashboard.js` rebuilds a plain-language summary (saldo, income, expense, category breakdowns) every time `loadSummary()` finishes, so chat always has fresh numbers without an extra fetch.
 - **Gating happens twice**: client-side (`canAI()`, instant feedback, skippable by a modified client) and server-side inside `/api/ai-chat.js` (the real check, using the user's actual DB row — this is what actually matters).
 - No tool calls, no agent loop — single-turn completion per message.
+- **The chat system prompt (`SYS` in `chat-ai.js`) has its own hardcoded category vocabulary** for the "catat transaksi via chat" JSON action — `makanan/transportasi/belanja/tagihan/hiburan/gaji/bonus/arisan/lainnya` — which diverges from the real seeded category set (`makan/belanja/elektronik/pulsa/paket_data`, `gaji/bonus`). This is a third place that needs to stay in sync with `DEFAULT_CATEGORIES`, beyond the two already tracked in `roadmap.md`'s dead-code/drift item — and it currently diverges the most of the three.
 
 ## 2. Receipt Scanning (`transactions.js` → `scanStruk()` → `/api/ai-scan.js`)
 
@@ -57,6 +58,6 @@ sequenceDiagram
 
 Settings → "Deteksi Transaksi Otomatis" polls the `detected_transactions` table every 15s for `status='pending'` rows and shows a confirm/dismiss popup. **Nothing in this codebase writes to that table.** A browser fundamentally cannot read another app's notifications (GoPay, bank apps) — that's an OS-level permission no web platform exposes. The intended design: a phone-side automation tool (Tasker/MacroDroid) posts directly to Supabase's REST API on notification-received; the popup lets the user correct/confirm before it becomes a real transaction. No AI is involved unless a parsing step is added to whatever posts into that table.
 
-## 4. Fonnte WhatsApp bot — on hold
+## 4. Fonnte WhatsApp bot — on hold, planning-stage only
 
-`gas/wangku-backend.gs` drafts a Llama-3.3 text-based parser that extracts `jenis/nominal/kategori/akun/prioritas/keterangan` from a WhatsApp message, with the user's real account/category names passed as context. **Explicitly on hold** by product decision, and **unverified against the real live script** — see `backend.md` before touching this.
+A Llama-3.3 text-based parser that would extract `jenis/nominal/kategori/akun/prioritas/keterangan` from a WhatsApp message, with the user's real account/category names passed as context, was drafted during planning conversations (referred to elsewhere as `gas/wangku-backend.gs`). **That file was never actually committed to this repo** — it doesn't exist here, not even in git history. The whole idea is **on hold**, pending a decision between building on Fonnte vs. switching to an Evolution API-based WhatsApp integration — see `backend.md` before assuming any of this is real, buildable-on code.

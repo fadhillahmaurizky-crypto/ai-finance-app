@@ -42,7 +42,7 @@ async function savePrioritasQuick(){
     showToast('Prioritas ditambahkan ✓','ok');
     await loadPrioritas();
     renderPrioritasFullList();
-  }catch(e){showToast(e.message.includes('unique')?'Prioritas sudah ada!':'Gagal: '+e.message,'err');}
+  }catch(e){showToast(isDupError(e)?`Prioritas "${nama}" sudah ada.`:'Gagal: '+e.message,'err');}
 }
 
 // ------------------------
@@ -82,7 +82,7 @@ async function simpanEditPrioritas(id){
     await sb(`user_priorities?id=eq.${id}&user_id=eq.${user.id}`,'PATCH',{nama,slug:slugify(nama)});
     showToast('Prioritas diupdate ✓','ok');
     await loadPrioritas();renderPrioritasFullList();
-  }catch(e){showToast(e.message.includes('unique')?'Nama sudah ada!':'Gagal: '+e.message,'err');}
+  }catch(e){showToast(isDupError(e)?`Prioritas "${nama}" sudah ada.`:'Gagal: '+e.message,'err');}
 }
 async function savePrioritasFull(){
   const nama=document.getElementById('pri-full-nama').value.trim();
@@ -92,7 +92,7 @@ async function savePrioritasFull(){
     document.getElementById('pri-full-nama').value='';
     showToast('Prioritas ditambahkan ✓','ok');
     await loadPrioritas();renderPrioritasFullList();
-  }catch(e){showToast(e.message.includes('unique')?'Prioritas sudah ada!':'Gagal: '+e.message,'err');}
+  }catch(e){showToast(isDupError(e)?`Prioritas "${nama}" sudah ada.`:'Gagal: '+e.message,'err');}
 }
 async function delPrioritas(id){
   if(!confirm('Hapus prioritas ini?'))return;

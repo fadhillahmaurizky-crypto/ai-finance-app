@@ -360,7 +360,7 @@ $$;
 -- OTP itu sendiri tidak pernah disimpan mentah di database.
 CREATE OR REPLACE FUNCTION public.create_password_reset(p_email TEXT)
 RETURNS TABLE(user_id UUID, full_name TEXT, otp TEXT)
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions AS $$
 DECLARE
   v_user RECORD;
   v_otp TEXT;
@@ -380,7 +380,7 @@ $$;
 -- --- Lupa password, langkah 2: validasi OTP di server (bukan di JS) lalu set password baru ---
 CREATE OR REPLACE FUNCTION public.confirm_password_reset(p_user_id UUID, p_otp TEXT, p_new_hash TEXT)
 RETURNS BOOLEAN
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions AS $$
 DECLARE v_ok BOOLEAN;
 BEGIN
   SELECT EXISTS(
@@ -622,6 +622,156 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.transactions, public.targets,
 GRANT EXECUTE ON FUNCTION public.is_owner_or_admin(UUID) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon, authenticated;
+
+
+-- ============================================================
+-- [19] KATEGORI: izinkan nama sama dipakai di jenis berbeda
+-- (mis. "Arisan" sebagai kategori Pemasukan sekaligus Pengeluaran).
+-- UNIQUE(user_id, nama) sebelumnya memblokir ini — dan juga menyebabkan
+-- gagal tambah kategori baru kalau namanya kebetulan sama dengan kategori
+-- default di jenis lain.
+-- ============================================================
+ALTER TABLE public.user_categories DROP CONSTRAINT IF EXISTS user_categories_user_id_nama_key;
+ALTER TABLE public.user_categories ADD CONSTRAINT user_categories_user_id_nama_jenis_key UNIQUE (user_id, nama, jenis);
+
+
+-- ============================================================
+-- [20] LOGIN_CHECK: samakan gerbang status='active' dengan
+-- get_user_by_username/get_user_by_id — sebelumnya login_check tidak
+-- mengecek status sama sekali, jadi akun pending/banned yang tahu password
+-- yang benar tetap mendapat JWT bertanda tangan valid dari RPC ini
+-- (klien memang membuang token itu setelah mengecek status, tapi
+-- panggilan API langsung ke RPC tidak melewati pengecekan klien itu).
+-- ============================================================
+DROP FUNCTION IF EXISTS public.login_check(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.password_hash = p_password_hash AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object(
+      'role','authenticated',
+      'sub', v_user.id::text,
+      'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),
+      'exp', extract(epoch from (now() + interval '30 days'))::integer
+    ),
+    -- GANTI dengan JWT Secret asli project ini: Supabase Dashboard ->
+    -- Project Settings -> Data API -> JWT Settings -> "JWT Secret"
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+
+
+-- ============================================================
+-- [21] SALDO PER-AKUN: cegah pengeluaran/transfer yang membuat saldo akun
+-- sumber jadi minus. Dicek server-side sebagai jaring pengaman di belakang
+-- pengecekan client-side (js/transactions.js) — bukan pengganti UX utama.
+-- Model saldo sama dengan Saldo Sekarang di database.md: saldo_awal akun +
+-- seluruh riwayat transaksi akun itu (all-time, bukan bulan berjalan).
+-- Hanya membatasi pengeluaran & transfer (sisi account_id/sumber);
+-- pemasukan tidak dibatasi.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.wangku_check_account_balance()
+RETURNS TRIGGER
+LANGUAGE plpgsql SET search_path = public AS $$
+DECLARE
+  v_saldo_awal NUMERIC;
+  v_masuk NUMERIC;
+  v_keluar NUMERIC;
+  v_transfer_in NUMERIC;
+  v_transfer_out NUMERIC;
+  v_saldo_akun NUMERIC;
+  v_exclude_id UUID;
+BEGIN
+  IF NEW.jenis NOT IN ('pengeluaran','transfer') OR NEW.account_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- Saat UPDATE, jangan hitung baris lama itu sendiri dua kali
+  v_exclude_id := CASE WHEN TG_OP = 'UPDATE' THEN OLD.id ELSE NULL END;
+
+  SELECT COALESCE(saldo_awal,0) INTO v_saldo_awal FROM public.accounts WHERE id = NEW.account_id;
+  IF NOT FOUND THEN
+    RETURN NEW; -- akun tidak ditemukan, biarkan FK constraint yang menangani
+  END IF;
+
+  SELECT
+    COALESCE(SUM(nominal) FILTER (WHERE jenis='pemasukan' AND account_id=NEW.account_id), 0),
+    COALESCE(SUM(nominal) FILTER (WHERE jenis='pengeluaran' AND account_id=NEW.account_id), 0),
+    COALESCE(SUM(nominal) FILTER (WHERE jenis='transfer' AND to_account_id=NEW.account_id), 0),
+    COALESCE(SUM(nominal) FILTER (WHERE jenis='transfer' AND account_id=NEW.account_id), 0)
+  INTO v_masuk, v_keluar, v_transfer_in, v_transfer_out
+  FROM public.transactions
+  WHERE user_id = NEW.user_id AND (v_exclude_id IS NULL OR id <> v_exclude_id);
+
+  v_saldo_akun := v_saldo_awal + v_masuk - v_keluar + v_transfer_in - v_transfer_out;
+
+  IF (v_saldo_akun - NEW.nominal) < 0 THEN
+    RAISE EXCEPTION 'Saldo akun tidak cukup untuk transaksi ini (saldo saat ini: %, nominal: %)', v_saldo_akun, NEW.nominal;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_check_account_balance ON public.transactions;
+CREATE TRIGGER trg_check_account_balance
+  BEFORE INSERT OR UPDATE ON public.transactions
+  FOR EACH ROW EXECUTE FUNCTION public.wangku_check_account_balance();
+
+
+-- ============================================================
+-- [22] REGISTRASI: cek ketersediaan username/email tanpa butuh SELECT
+-- langsung ke tabel users sebagai anon.
+--
+-- Root cause asli dari "new row violates row-level security policy for
+-- table users" (BUKAN token sdk_token basi seperti dugaan awal — itu
+-- ternyata cuma perbaikan yang tidak salah tapi juga tidak cukup):
+-- sb()/sbAnon() selalu mengirim header `Prefer: return=representation`
+-- untuk setiap POST, supaya baris yang baru dibuat bisa langsung dibaca
+-- balik oleh client. Itu artinya Postgres juga harus mengevaluasi policy
+-- SELECT terhadap baris yang baru di-insert itu — dan tidak ada satupun
+-- policy SELECT di tabel users yang mengizinkan role anon melihat baris
+-- APAPUN (cuma "Own row or admin - select", yang butuh user_id di JWT
+-- cocok dengan baris itu — mustahil untuk request yang belum pernah login).
+-- Akibatnya INSERT-nya sendiri sebenarnya sah (lolos policy "Public
+-- registration"), tapi seluruh statement digagalkan Postgres karena tidak
+-- bisa memenuhi permintaan baca-balik itu. Ini dikonfirmasi langsung lewat
+-- MCP Supabase: INSERT identik TANPA klausa RETURNING berhasil; DENGAN
+-- RETURNING selalu gagal dengan pesan RLS yang sama persis dengan yang
+-- dilaporkan dari aplikasi.
+--
+-- Fix di sisi client (lihat auth.js): id di-generate di client
+-- (crypto.randomUUID()) lalu dikirim eksplisit di payload INSERT, dan POST
+-- registrasi memakai `Prefer: return=minimal` — jadi tidak pernah butuh
+-- policy SELECT sama sekali. Pre-check "username/email sudah dipakai?" di
+-- doRegister() punya masalah yang SAMA (SELECT langsung ke users sebagai
+-- anon selalu kosong, jadi tidak pernah benar-benar mendeteksi duplikat) —
+-- diganti dengan fungsi RPC SECURITY DEFINER di bawah ini, yang hanya
+-- mengembalikan boolean (bukan baris aslinya), supaya tidak perlu bikin
+-- policy SELECT baru yang membuka data pending-registration ke siapa saja
+-- yang punya anon key.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.check_registration_available(p_username TEXT, p_email TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT NOT EXISTS(
+    SELECT 1 FROM public.users u WHERE u.username = p_username OR u.email = p_email
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.check_registration_available(TEXT, TEXT) TO anon;
 
 
 -- ============================================================

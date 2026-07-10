@@ -9,6 +9,89 @@ function checkAlerts(data){
 
 function countTargetInBalance(){return localStorage.getItem('wangku_count_target_balance')==='1';}
 
+// ========================
+// AKSI CEPAT — shortcut pool bisa dikustom lewat "Edit" (localStorage, maks 5 slot)
+// ========================
+const QA_POOL=[
+  {id:'catat',label:'Catat',icon:'plus',bg:'var(--green-bg)',color:'var(--green)',action:"resetTrxForm();goPage('catat')"},
+  {id:'pemasukan',label:'Pemasukan',icon:'arrow-down-circle',bg:'var(--green-bg)',color:'var(--green)',action:'goCatatPemasukan()'},
+  {id:'pengeluaran',label:'Pengeluaran',icon:'arrow-up-circle',bg:'var(--red-bg)',color:'var(--red)',action:'goCatatPengeluaran()'},
+  {id:'tanya-ai',label:'Tanya AI',icon:'robot',bg:'var(--blue-bg)',color:'var(--blue)',action:'openChat()'},
+  {id:'target',label:'Target',icon:'target',bg:'var(--amber-bg)',color:'var(--amber)',action:"goPage('target')"},
+  {id:'laporan',label:'Laporan',icon:'chart-bar',bg:'#F3EEFF',color:'#7C3AED',action:"goPage('laporan')"},
+  {id:'pindah-saldo',label:'Pindah Saldo',icon:'arrows-left-right',bg:'var(--blue-bg)',color:'var(--blue)',action:'goCatatTransfer()'},
+  {id:'kategori',label:'Kategori',icon:'tag',bg:'var(--green-bg)',color:'var(--green)',action:"goPage('kategori')"}
+];
+const QA_DEFAULT=['catat','tanya-ai','target','laporan','kategori'];
+function getAksiCepatSelection(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('wangku_aksi_cepat')||'null');
+    if(Array.isArray(saved)&&saved.length)return saved.filter(id=>QA_POOL.some(q=>q.id===id)).slice(0,5);
+  }catch(e){}
+  return QA_DEFAULT.slice();
+}
+function setAksiCepatSelection(ids){localStorage.setItem('wangku_aksi_cepat',JSON.stringify(ids.slice(0,5)));}
+function renderAksiCepat(){
+  const el=document.getElementById('qa-row');if(!el)return;
+  const sel=getAksiCepatSelection();
+  el.innerHTML=sel.map(id=>{
+    const q=QA_POOL.find(x=>x.id===id);if(!q)return'';
+    return `<div class="qa-item" onclick="${q.action}"><div class="qa-ico" style="background:${q.bg};color:${q.color}"><i class="ti ti-${q.icon}"></i></div><div class="qa-lbl">${q.label}</div></div>`;
+  }).join('');
+}
+
+// Urutan kerja saat modal edit terbuka: item terpilih (sesuai urutan tersimpan)
+// duluan, baru sisa pool yang belum dipilih. Tombol naik/turun (bukan drag-and-drop —
+// drag native HTML5 tidak reliable di touch/TWA tanpa polyfill tambahan) menggeser
+// posisi di array ini; checkbox hanya menentukan ikut tampil atau tidak.
+let qaEditOrder=[];
+function openAksiCepatEdit(){
+  const sel=getAksiCepatSelection();
+  const remaining=QA_POOL.map(q=>q.id).filter(id=>!sel.includes(id));
+  qaEditOrder=[...sel,...remaining];
+  renderAksiCepatEditList();
+  document.getElementById('aksi-cepat-modal').classList.add('open');
+}
+function renderAksiCepatEditList(){
+  const el=document.getElementById('qa-edit-list');if(!el)return;
+  const existing=el.querySelectorAll('input[type=checkbox]');
+  const sel=existing.length
+    ? new Set(Array.from(existing).filter(c=>c.checked).map(c=>c.dataset.qaId))
+    : new Set(getAksiCepatSelection());
+  el.innerHTML=qaEditOrder.map((id,i)=>{
+    const q=QA_POOL.find(x=>x.id===id);if(!q)return'';
+    const checked=sel.has(id);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 4px">
+      <input type="checkbox" data-qa-id="${q.id}" ${checked?'checked':''} onchange="onQaCheckChange(this)" style="width:18px;height:18px;accent-color:var(--green);flex-shrink:0"/>
+      <div class="qa-ico" style="background:${q.bg};color:${q.color};width:32px;height:32px;font-size:14px;flex-shrink:0"><i class="ti ti-${q.icon}"></i></div>
+      <span style="font-size:13px;color:var(--text);flex:1">${q.label}</span>
+      <button onclick="moveQaItem('${q.id}',-1)" ${i===0?'disabled':''} style="background:none;border:none;color:${i===0?'var(--border)':'var(--text3)'};font-size:16px;cursor:pointer;padding:4px"><i class="ti ti-chevron-up"></i></button>
+      <button onclick="moveQaItem('${q.id}',1)" ${i===qaEditOrder.length-1?'disabled':''} style="background:none;border:none;color:${i===qaEditOrder.length-1?'var(--border)':'var(--text3)'};font-size:16px;cursor:pointer;padding:4px"><i class="ti ti-chevron-down"></i></button>
+    </div>`;
+  }).join('');
+}
+function moveQaItem(id,dir){
+  const idx=qaEditOrder.indexOf(id);
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=qaEditOrder.length)return;
+  [qaEditOrder[idx],qaEditOrder[newIdx]]=[qaEditOrder[newIdx],qaEditOrder[idx]];
+  renderAksiCepatEditList();
+}
+function onQaCheckChange(cb){
+  const checked=document.querySelectorAll('#qa-edit-list input[type=checkbox]:checked');
+  if(checked.length>5){cb.checked=false;showToast('Maksimal 5 shortcut aktif','warn');return;}
+  renderAksiCepatEditList();
+}
+function saveAksiCepat(){
+  const checkedIds=new Set(Array.from(document.querySelectorAll('#qa-edit-list input[type=checkbox]:checked')).map(c=>c.dataset.qaId));
+  const ids=qaEditOrder.filter(id=>checkedIds.has(id));
+  if(!ids.length){showToast('Pilih minimal 1 shortcut!','err');return;}
+  setAksiCepatSelection(ids);
+  renderAksiCepat();
+  document.getElementById('aksi-cepat-modal').classList.remove('open');
+  showToast('Aksi Cepat diperbarui ✓','ok');
+}
+
 async function loadSummary(){
   document.getElementById('saldo').innerHTML='Memuat...';
   try{
@@ -269,8 +352,8 @@ function renderHealthAndTarget(){
   nameEl.textContent=nearest.nama;
   if(fillEl)fillEl.style.width=pct+'%';
   if(pctEl)pctEl.textContent=pct+'%';
-  if(tkEl)tkEl.textContent=rpF(nearest.terkumpul);
-  if(tgEl)tgEl.textContent=rpF(nearest.nominal);
+  if(tkEl)tkEl.innerHTML=abbrAmountHtml(nearest.terkumpul);
+  if(tgEl)tgEl.innerHTML=abbrAmountHtml(nearest.nominal);
 }
 
 // ========================

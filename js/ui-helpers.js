@@ -1,6 +1,30 @@
 function authToken(){return localStorage.getItem('sdk_token')||SB_KEY;}
-async function sb(path,method='GET',body=null){const o={method,headers:{'apikey':SB_KEY,'Authorization':'Bearer '+authToken(),'Content-Type':'application/json','Prefer':method==='POST'?'return=representation':''}};if(body)o.body=JSON.stringify(body);const r=await fetch(SB_URL+'/rest/v1/'+path,o);if(!r.ok){const e=await r.json();if(r.status===401&&typeof handleAuthExpired==='function')handleAuthExpired();throw new Error(e.message||'Error');}return r.status===204?null:r.json();}
-async function rpc(fnName,params={}){const r=await fetch(SB_URL+'/rest/v1/rpc/'+fnName,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+authToken(),'Content-Type':'application/json'},body:JSON.stringify(params)});if(!r.ok){const e=await r.json().catch(()=>({}));if(r.status===401&&typeof handleAuthExpired==='function')handleAuthExpired();throw new Error(e.message||'Error');}return r.status===204?null:r.json();}
+function throwSbError(e){const err=new Error(e.message||'Error');err.code=e.code;err.details=e.details;throw err;}
+// 23505 = kode SQLSTATE Postgres untuk unique_violation — lebih andal daripada
+// mencocokkan kata "unique" di teks pesan error (bisa berubah/berbeda format).
+function isDupError(e){return e&&(e.code==='23505'||(e.message||'').toLowerCase().includes('duplicate key')||(e.message||'').toLowerCase().includes('unique'));}
+async function sb(path,method='GET',body=null){const o={method,headers:{'apikey':SB_KEY,'Authorization':'Bearer '+authToken(),'Content-Type':'application/json','Prefer':method==='POST'?'return=representation':''}};if(body)o.body=JSON.stringify(body);const r=await fetch(SB_URL+'/rest/v1/'+path,o);if(!r.ok){const e=await r.json().catch(()=>({}));if(r.status===401&&typeof handleAuthExpired==='function')handleAuthExpired();throwSbError(e);}return r.status===204?null:r.json();}
+async function rpc(fnName,params={}){const r=await fetch(SB_URL+'/rest/v1/rpc/'+fnName,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+authToken(),'Content-Type':'application/json'},body:JSON.stringify(params)});if(!r.ok){const e=await r.json().catch(()=>({}));if(r.status===401&&typeof handleAuthExpired==='function')handleAuthExpired();throwSbError(e);}return r.status===204?null:r.json();}
+// Varian yang SELALU pakai anon key, tidak pernah authToken() — dipakai di alur
+// yang memang harus jalan sebagai anon (registrasi, forgot-password) supaya
+// sdk_token basi dari sesi sebelumnya (akun lain/sudah dihapus/kedaluwarsa)
+// tidak ikut terkirim dan bikin request itu dievaluasi sebagai role 'authenticated'
+// alih-alih 'anon' oleh RLS. Ini perbaikan yang tetap benar untuk dilakukan,
+// tapi TERNYATA BUKAN penyebab utama error "new row violates row-level
+// security policy" saat registrasi — root cause aslinya ada di parameter
+// minimal di bawah, lihat database.md block [22].
+//
+// minimal=true mengirim `Prefer: return=minimal` alih-alih 'return=representation'
+// (default untuk POST). WAJIB dipakai untuk INSERT ke `users` sebagai anon:
+// return=representation minta Postgres membaca balik baris yang baru dibuat,
+// yang berarti policy SELECT ikut dievaluasi — dan tidak ada policy SELECT
+// yang mengizinkan anon melihat baris APAPUN di users (termasuk yang baru saja
+// dibuatnya sendiri), jadi seluruh INSERT digagalkan meski datanya sah.
+// Caller yang butuh id baris yang baru dibuat harus generate id-nya sendiri
+// (crypto.randomUUID()) dan kirim eksplisit di payload, bukan mengandalkan
+// baca-balik dari server.
+async function sbAnon(path,method='GET',body=null,minimal){const o={method,headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':method==='POST'?(minimal?'return=minimal':'return=representation'):''}};if(body)o.body=JSON.stringify(body);const r=await fetch(SB_URL+'/rest/v1/'+path,o);if(!r.ok){const e=await r.json().catch(()=>({}));throwSbError(e);}if(r.status===204)return null;const t=await r.text().catch(()=>'');return t?JSON.parse(t):null;}
+async function rpcAnon(fnName,params={}){const r=await fetch(SB_URL+'/rest/v1/rpc/'+fnName,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'},body:JSON.stringify(params)});if(!r.ok){const e=await r.json().catch(()=>({}));throwSbError(e);}return r.status===204?null:r.json();}
 async function hp(p){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p+'finly_salt_2024'));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
 let poolKey='';
 async function loadPoolKey(){
@@ -99,8 +123,28 @@ function checkOb(){if(localStorage.getItem('sdk_ob'))return false;document.getEl
 function nextOb(n){document.querySelectorAll('.ob-slide').forEach(s=>s.classList.remove('active'));document.getElementById('ob-'+n)?.classList.add('active');}
 function skipOb(){localStorage.setItem('sdk_ob','1');document.getElementById('ob-wrap').style.display='none';showLoginPage();}
 
-function rp(n){if(!n&&n!==0)return'—';const a=Math.abs(n);const s=a>=1e9?(a/1e9).toFixed(1)+'M':a>=1e6?(a/1e6).toFixed(1)+'jt':a>=1e3?(a/1e3).toFixed(0)+'rb':a.toString();return(n<0?'-':'')+'Rp '+s;}
+function rpFmt1(v){const r=Math.round(v*10)/10;return r%1===0?r.toFixed(0):r.toFixed(1);}
+function rp(n){if(!n&&n!==0)return'—';const a=Math.abs(n);const s=a>=1e9?rpFmt1(a/1e9)+'M':a>=1e6?rpFmt1(a/1e6)+'jt':a>=1e3?rpFmt1(a/1e3)+'rb':a.toString();return(n<0?'-':'')+'Rp '+s;}
 function rpF(n){return'Rp '+Number(n||0).toLocaleString('id-ID');}
+
+// ========================
+// JUMLAH DISINGKAT + TAP-UNTUK-LIHAT (transaksi list, kartu target — BUKAN Saldo Sekarang di Home)
+// ========================
+let qaRevealSeq=0,revealTimers={};
+function abbrAmountHtml(value,cls){
+  const id='amt-rv-'+(qaRevealSeq++);
+  const abbr=rp(value),full=rpF(value);
+  return `<span id="${id}" class="${cls||''}" data-full="${full.replace(/"/g,'&quot;')}" data-abbr="${abbr.replace(/"/g,'&quot;')}" data-revealed="0" onclick="event.stopPropagation();revealAmount(this,'${id}')" style="cursor:pointer">${abbr}</span>`;
+}
+function revealAmount(el,id){
+  clearTimeout(revealTimers[id]);
+  if(el.dataset.revealed==='1'){
+    el.textContent=el.dataset.abbr;el.dataset.revealed='0';
+    return;
+  }
+  el.textContent=el.dataset.full;el.dataset.revealed='1';
+  revealTimers[id]=setTimeout(()=>{el.textContent=el.dataset.abbr;el.dataset.revealed='0';},3000);
+}
 
 function installPWA(){if(dP){dP.prompt();dP.userChoice.then(()=>{dP=null;});}else showToast('Di Chrome: ⋮ → Add to homescreen');}
 

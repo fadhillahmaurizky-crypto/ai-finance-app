@@ -37,6 +37,33 @@ function renderAccountSelects(){
 }
 
 // ------------------------
+// Saldo akun tunggal, all-time (dipakai untuk cek saldo cukup sebelum
+// pengeluaran/transfer disubmit) — sama modelnya dengan Saldo Sekarang
+// di database.md: saldo_awal + seluruh riwayat transaksi akun itu.
+// excludeTrxId dipakai saat edit transaksi, supaya nominal transaksi lama
+// tidak ikut terhitung dua kali.
+// ------------------------
+async function getAccountBalance(accountId,excludeTrxId){
+  if(!accountId)return 0;
+  const acc=(accountsList||[]).find(a=>a.id===accountId);
+  const saldoAwal=Number(acc?.saldo_awal)||0;
+  try{
+    const rows=await sb(`transactions?user_id=eq.${user.id}&or=(account_id.eq.${accountId},to_account_id.eq.${accountId})&select=id,jenis,nominal,account_id,to_account_id`);
+    let masuk=0,keluar=0,transferIn=0,transferOut=0;
+    (rows||[]).forEach(t=>{
+      if(excludeTrxId&&t.id===excludeTrxId)return;
+      const n=Number(t.nominal);
+      if(t.jenis==='transfer'){
+        if(t.account_id===accountId)transferOut+=n;
+        if(t.to_account_id===accountId)transferIn+=n;
+      }else if(t.jenis==='pemasukan'&&t.account_id===accountId){masuk+=n;}
+      else if(t.jenis==='pengeluaran'&&t.account_id===accountId){keluar+=n;}
+    });
+    return saldoAwal+masuk-keluar+transferIn-transferOut;
+  }catch(e){return saldoAwal;}
+}
+
+// ------------------------
 // Rincian saldo per akun (popup di Home)
 // ------------------------
 async function computeAccountBreakdown(){

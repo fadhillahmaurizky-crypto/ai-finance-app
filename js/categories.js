@@ -44,7 +44,7 @@ async function saveKategoriQuick(){
     showToast('Kategori ditambahkan ✓','ok');
     await loadKategori();
     renderKategoriFullList();
-  }catch(e){showToast(e.message.includes('unique')?'Kategori sudah ada!':'Gagal: '+e.message,'err');}
+  }catch(e){showToast(isDupError(e)?`Kategori "${nama}" sudah ada di jenis ini.`:'Gagal: '+e.message,'err');}
 }
 
 // ------------------------
@@ -96,7 +96,7 @@ async function simpanEditKategori(id){
     showToast('Kategori diupdate ✓','ok');
     await loadKategori();
     renderKategoriFullList();
-  }catch(e){showToast(e.message.includes('unique')?'Nama sudah ada!':'Gagal: '+e.message,'err');}
+  }catch(e){showToast(isDupError(e)?`Kategori "${nama}" sudah ada di jenis ini.`:'Gagal: '+e.message,'err');}
 }
 async function saveKategoriFull(){
   const nama=document.getElementById('kat-full-nama').value.trim();
@@ -108,7 +108,7 @@ async function saveKategoriFull(){
     showToast('Kategori ditambahkan ✓','ok');
     await loadKategori();
     renderKategoriFullList();
-  }catch(e){showToast(e.message.includes('unique')?'Kategori sudah ada!':'Gagal: '+e.message,'err');}
+  }catch(e){showToast(isDupError(e)?`Kategori "${nama}" sudah ada di jenis ini.`:'Gagal: '+e.message,'err');}
 }
 async function delKategori(id){
   if(!confirm('Hapus kategori ini?'))return;
