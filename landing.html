@@ -3,31 +3,33 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<meta name="description" content="Wangku — Catat keuangan lewat WhatsApp, analisa pakai AI. Gratis, mudah, langsung terasa manfaatnya."/>
-<title>Wangku — Keuangan Cerdas, Hidup Tenang</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+<meta name="description" content="Wangku — asisten keuangan pribadi yang hidup di WhatsApp kamu. Catat, pantau, dan tanya soal uangmu tanpa unduh aplikasi baru."/>
+<title>Wangku — Atur Uang, Semudah Berkirim Pesan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
 <style>
 /* ============================================================
-   TOKENS
+   TOKENS — Financial Zen palette (per spec §7, reused as-is)
    ============================================================ */
 :root {
-  --ink:        #0A0F1E;
-  --ink2:       #3D4860;
-  --ink3:       #8892A4;
-  --paper:      #F8F9FC;
-  --white:      #FFFFFF;
-  --green:      #00C47A;
-  --green-dk:   #009960;
-  --green-lt:   #E6FBF2;
-  --green-glow: rgba(0,196,122,.18);
+  --obsidian:   #0A0B0F;
+  --milk:       #FBFBFD;
+  --milk-2:     #F2F2F5;
+  --emerald:    #05E28E;
+  --emerald-deep:#00A868;
+  --emerald-tint:#E3FBF1;
+  --navy:       #0A0F1E;
+  --ink2:       rgba(10,11,15,.68);
+  --ink3:       rgba(10,11,15,.46);
+  --border:     rgba(10,11,15,.10);
   --wa:         #25D366;
   --amber:      #F59E0B;
   --blue:       #3B82F6;
-  --border:     #E8ECF4;
   --radius:     18px;
-  --font-display: 'DM Serif Display', serif;
+  --font-display: 'Inter', sans-serif;
   --font-body:    'Plus Jakarta Sans', sans-serif;
+  --font-serif:   'DM Serif Display', serif;
 }
 
 /* ============================================================
@@ -35,7 +37,7 @@
    ============================================================ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
-body { font-family: var(--font-body); background: var(--white); color: var(--ink); overflow-x: hidden; }
+body { font-family: var(--font-body); background: var(--milk); color: var(--obsidian); overflow-x: hidden; }
 img { max-width: 100%; }
 a { text-decoration: none; color: inherit; }
 button { font-family: var(--font-body); cursor: pointer; border: none; outline: none; }
@@ -47,228 +49,29 @@ nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 5%;
-  background: rgba(255,255,255,.85);
+  background: rgba(251,251,253,.85);
   backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(232,236,244,.6);
+  border-bottom: 1px solid rgba(10,11,15,.06);
   transition: background .3s;
 }
 .nav-logo { display: flex; align-items: center; gap: 10px; }
-.nav-logo-mark {
-  width: 38px; height: 38px;
-  background: linear-gradient(135deg, var(--green), var(--green-dk));
-  border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 12px var(--green-glow);
-}
-.nav-logo-mark svg { width: 22px; height: 22px; }
-.nav-brand { font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -.3px; }
-.nav-brand span { color: var(--green); }
+.nav-logo-mark { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.nav-logo-mark img { width: 100%; height: 100%; object-fit: contain; }
+.nav-brand { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--obsidian); letter-spacing: -.3px; }
+.nav-brand span { color: var(--emerald-deep); }
 .nav-links { display: flex; align-items: center; gap: 32px; }
 .nav-links a { font-size: 14px; font-weight: 500; color: var(--ink2); transition: color .2s; }
-.nav-links a:hover { color: var(--green); }
+.nav-links a:hover { color: var(--emerald-deep); }
 .nav-cta {
-  background: var(--green);
-  color: #fff;
+  background: var(--emerald); color: var(--obsidian);
   font-size: 13px; font-weight: 700;
   padding: 10px 20px; border-radius: 10px;
   transition: background .2s, transform .15s;
-  box-shadow: 0 2px 8px var(--green-glow);
+  box-shadow: 0 2px 10px rgba(5,226,142,.28);
 }
-.nav-cta:hover { background: var(--green-dk); transform: translateY(-1px); }
+.nav-cta:hover { background: var(--emerald-deep); color: #fff; transform: translateY(-1px); }
 .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; }
-.hamburger span { width: 22px; height: 2px; background: var(--ink); border-radius: 2px; }
-
-/* ============================================================
-   HERO
-   ============================================================ */
-.hero {
-  min-height: 100vh;
-  display: flex; align-items: center;
-  padding: 120px 5% 80px;
-  background: linear-gradient(160deg, #F0FDF7 0%, #FFFFFF 50%, #F5F7FF 100%);
-  position: relative; overflow: hidden;
-}
-.hero::before {
-  content: '';
-  position: absolute; top: -200px; right: -200px;
-  width: 700px; height: 700px;
-  background: radial-gradient(circle, rgba(0,196,122,.08) 0%, transparent 70%);
-  border-radius: 50%;
-}
-.hero::after {
-  content: '';
-  position: absolute; bottom: -100px; left: -100px;
-  width: 400px; height: 400px;
-  background: radial-gradient(circle, rgba(59,130,246,.06) 0%, transparent 70%);
-  border-radius: 50%;
-}
-.hero-inner { max-width: 1200px; margin: 0 auto; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; position: relative; z-index: 1; }
-.hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--green-lt); color: var(--green-dk);
-  font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
-  padding: 6px 14px; border-radius: 20px;
-  margin-bottom: 20px;
-  border: 1px solid rgba(0,196,122,.2);
-}
-.hero-eyebrow::before { content: ''; width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: blink 2s infinite; }
-@keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
-.hero-h1 {
-  font-family: var(--font-display);
-  font-size: clamp(38px, 5vw, 64px);
-  line-height: 1.1;
-  color: var(--ink);
-  margin-bottom: 20px;
-  letter-spacing: -.5px;
-}
-.hero-h1 em { font-style: italic; color: var(--green); }
-.hero-sub {
-  font-size: 16px; line-height: 1.7; color: var(--ink2);
-  margin-bottom: 36px; max-width: 480px;
-}
-.hero-sub strong { color: var(--ink); }
-.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 40px; }
-.btn-primary {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--green); color: #fff;
-  font-size: 15px; font-weight: 700;
-  padding: 14px 28px; border-radius: 13px;
-  box-shadow: 0 4px 20px var(--green-glow);
-  transition: all .2s;
-}
-.btn-primary:hover { background: var(--green-dk); transform: translateY(-2px); box-shadow: 0 8px 28px var(--green-glow); }
-.btn-secondary {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--white); color: var(--ink);
-  font-size: 15px; font-weight: 600;
-  padding: 14px 28px; border-radius: 13px;
-  border: 1.5px solid var(--border);
-  transition: all .2s;
-}
-.btn-secondary:hover { border-color: var(--green); color: var(--green); transform: translateY(-2px); }
-.hero-stats { display: flex; gap: 32px; }
-.hero-stat-val { font-size: 22px; font-weight: 800; color: var(--ink); letter-spacing: -.5px; }
-.hero-stat-lbl { font-size: 12px; color: var(--ink3); margin-top: 2px; font-weight: 500; }
-
-/* HERO PHONE MOCKUP */
-.hero-visual { display: flex; justify-content: center; align-items: center; position: relative; }
-.phone-wrap {
-  position: relative;
-  animation: float 4s ease-in-out infinite;
-}
-@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
-.phone-frame {
-  width: 280px;
-  background: var(--ink);
-  border-radius: 40px;
-  padding: 14px;
-  box-shadow: 0 30px 80px rgba(10,15,30,.25), 0 0 0 1px rgba(255,255,255,.1);
-  position: relative;
-}
-.phone-notch {
-  width: 80px; height: 6px;
-  background: #1a2035;
-  border-radius: 3px;
-  margin: 0 auto 12px;
-}
-.phone-screen {
-  background: #F7F8FA;
-  border-radius: 28px;
-  overflow: hidden;
-  min-height: 500px;
-}
-.phone-statusbar {
-  background: #fff;
-  padding: 8px 16px;
-  display: flex; justify-content: space-between;
-  font-size: 10px; font-weight: 600; color: var(--ink);
-  font-family: monospace;
-}
-.phone-header {
-  background: #fff;
-  padding: 10px 14px 14px;
-  border-bottom: 1px solid #E8ECF0;
-}
-.phone-greeting { font-size: 10px; color: #8A96A8; font-family: var(--font-body); }
-.phone-name { font-size: 14px; font-weight: 700; color: var(--ink); font-family: var(--font-body); }
-.phone-bal-card {
-  background: linear-gradient(135deg, #00C47A, #009960);
-  border-radius: 14px;
-  padding: 14px 16px;
-  margin-top: 10px;
-  position: relative;
-  overflow: hidden;
-}
-.phone-bal-card::before { content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;background:rgba(255,255,255,.08);border-radius:50% }
-.phone-bal-lbl { font-size: 9px; color: rgba(255,255,255,.7); font-family: var(--font-body); }
-.phone-bal-val { font-size: 22px; font-weight: 700; color: #fff; font-family: var(--font-body); letter-spacing: -.5px; }
-.phone-bal-row { display: flex; gap: 6px; margin-top: 10px; }
-.phone-bal-pill { flex: 1; background: rgba(0,0,0,.2); border-radius: 8px; padding: 6px 8px; }
-.phone-bal-pill-lbl { font-size: 8px; color: rgba(255,255,255,.65); font-family: var(--font-body); }
-.phone-bal-pill-val { font-size: 11px; font-weight: 600; color: #fff; font-family: var(--font-body); }
-.phone-body { padding: 10px 12px; }
-.phone-sec-title { font-size: 10px; font-weight: 600; color: #3D4860; margin: 10px 0 6px; font-family: var(--font-body); }
-.phone-qa-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 4px; }
-.phone-qa-item { background: #fff; border-radius: 10px; padding: 8px 4px; text-align: center; border: 1px solid #E8ECF0; }
-.phone-qa-ico { width: 24px; height: 24px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 12px; margin: 0 auto 4px; }
-.phone-qa-lbl { font-size: 7.5px; color: #3D4860; font-weight: 500; font-family: var(--font-body); }
-.phone-txn { background: #fff; border-radius: 10px; padding: 8px 10px; border: 1px solid #E8ECF0; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; }
-.phone-txn-ico { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-.phone-txn-info { flex: 1; }
-.phone-txn-name { font-size: 10px; font-weight: 600; color: var(--ink); font-family: var(--font-body); }
-.phone-txn-sub { font-size: 8.5px; color: #8A96A8; font-family: var(--font-body); }
-.phone-txn-amt { font-size: 11px; font-weight: 700; font-family: var(--font-body); }
-.phone-nav {
-  background: #fff;
-  border-top: 1px solid #E8ECF0;
-  padding: 8px 0;
-  display: flex;
-  margin-top: 4px;
-}
-.phone-nav-item { flex: 1; text-align: center; font-size: 7px; color: #8A96A8; font-family: var(--font-body); font-weight: 600; }
-.phone-nav-item.act { color: #00C47A; }
-.phone-nav-ico { font-size: 16px; display: block; margin-bottom: 2px; }
-
-/* FLOATING BADGES */
-.float-badge {
-  position: absolute;
-  background: #fff;
-  border-radius: 14px;
-  padding: 10px 14px;
-  box-shadow: 0 8px 32px rgba(10,15,30,.12);
-  border: 1px solid var(--border);
-  display: flex; align-items: center; gap: 8px;
-  animation: float2 3s ease-in-out infinite;
-}
-@keyframes float2 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
-.float-badge:nth-child(2) { animation-delay: 1s; }
-.float-badge:nth-child(3) { animation-delay: .5s; }
-.fb-left { top: 10%; left: -60px; }
-.fb-right { bottom: 20%; right: -50px; }
-.fb-top { top: -20px; right: 10px; }
-.fb-ico { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
-.fb-val { font-size: 13px; font-weight: 700; color: var(--ink); }
-.fb-lbl { font-size: 10px; color: var(--ink3); margin-top: 1px; }
-
-/* ============================================================
-   LOGO STRIP
-   ============================================================ */
-.logo-strip {
-  background: var(--paper);
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  padding: 20px 5%;
-  display: flex; align-items: center; justify-content: center; gap: 16px;
-  flex-wrap: wrap;
-}
-.logo-strip-label { font-size: 12px; color: var(--ink3); font-weight: 500; white-space: nowrap; }
-.tech-pill {
-  display: flex; align-items: center; gap: 7px;
-  background: var(--white); border: 1px solid var(--border);
-  border-radius: 20px; padding: 7px 14px;
-  font-size: 13px; font-weight: 600; color: var(--ink2);
-}
-.tech-pill i { font-size: 16px; }
+.hamburger span { width: 22px; height: 2px; background: var(--obsidian); border-radius: 2px; }
 
 /* ============================================================
    SECTIONS BASE
@@ -277,120 +80,282 @@ section { padding: 96px 5%; }
 .section-inner { max-width: 1200px; margin: 0 auto; }
 .section-eyebrow {
   font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-  color: var(--green); margin-bottom: 12px;
+  color: var(--emerald-deep); margin-bottom: 12px;
 }
 .section-title {
   font-family: var(--font-display);
   font-size: clamp(28px, 4vw, 46px);
-  line-height: 1.15; color: var(--ink);
-  margin-bottom: 16px; letter-spacing: -.3px;
+  font-weight: 800;
+  line-height: 1.15; color: var(--obsidian);
+  margin-bottom: 16px; letter-spacing: -.5px;
 }
-.section-title em { font-style: italic; color: var(--green); }
-.section-sub { font-size: 16px; line-height: 1.7; color: var(--ink2); max-width: 560px; }
+.section-title em { font-style: normal; color: var(--emerald-deep); }
+.section-sub, .section-body { font-size: 16px; line-height: 1.75; color: var(--ink2); max-width: 560px; }
 .text-center { text-align: center; }
-.text-center .section-sub { margin: 0 auto; }
+.text-center .section-sub, .text-center .section-body { margin: 0 auto; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+.placeholder-flag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
+  color: var(--amber); background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.25);
+  padding: 4px 10px; border-radius: 20px; margin-top: 14px;
+}
 
 /* ============================================================
-   HOW IT WORKS
+   HERO
    ============================================================ */
-#cara-kerja { background: var(--white); }
-.steps-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 32px; margin-top: 56px; }
-.step-card {
-  position: relative;
-  background: var(--paper);
-  border-radius: 20px;
-  padding: 32px 28px;
-  border: 1px solid var(--border);
-  transition: transform .2s, box-shadow .2s;
+.hero {
+  min-height: 100vh;
+  display: flex; align-items: center;
+  padding: 120px 5% 80px;
+  background: linear-gradient(160deg, var(--emerald-tint) 0%, var(--milk) 55%, var(--milk-2) 100%);
+  position: relative; overflow: hidden;
 }
-.step-card:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0,196,122,.1); }
-.step-num {
-  font-family: var(--font-display);
-  font-size: 64px;
-  color: rgba(0,196,122,.12);
-  line-height: 1;
-  position: absolute;
-  top: 16px; right: 20px;
-  font-style: italic;
+.hero::before {
+  content: '';
+  position: absolute; top: -200px; right: -200px;
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(5,226,142,.12) 0%, transparent 70%);
+  border-radius: 50%;
 }
-.step-ico {
-  width: 52px; height: 52px;
-  border-radius: 14px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 26px;
+.hero-inner { max-width: 1200px; margin: 0 auto; width: 100%; display: grid; grid-template-columns: 1.1fr 1fr; gap: 80px; align-items: center; position: relative; z-index: 1; }
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--emerald-tint); color: var(--emerald-deep);
+  font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+  padding: 6px 14px; border-radius: 20px;
   margin-bottom: 20px;
+  border: 1px solid rgba(5,226,142,.25);
 }
-.step-title { font-size: 18px; font-weight: 700; color: var(--ink); margin-bottom: 10px; }
-.step-desc { font-size: 14px; line-height: 1.65; color: var(--ink2); }
-.step-arrow {
-  position: absolute;
-  top: 50%; right: -20px;
-  transform: translateY(-50%);
-  color: var(--green);
-  font-size: 20px;
-  z-index: 1;
+.hero-eyebrow::before { content: ''; width: 6px; height: 6px; background: var(--emerald); border-radius: 50%; animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+.hero-h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(38px, 5vw, 60px);
+  line-height: 1.08;
+  color: var(--obsidian);
+  margin-bottom: 20px;
+  letter-spacing: -1px;
 }
+.hero-h1 span { color: var(--emerald-deep); }
+.hero-sub {
+  font-size: 17px; line-height: 1.7; color: var(--ink2);
+  margin-bottom: 36px; max-width: 480px;
+}
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 40px; }
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--emerald); color: var(--obsidian);
+  font-size: 15px; font-weight: 700;
+  padding: 14px 28px; border-radius: 13px;
+  box-shadow: 0 4px 20px rgba(5,226,142,.28);
+  transition: all .2s;
+}
+.btn-primary:hover { background: var(--emerald-deep); color: #fff; transform: translateY(-2px); box-shadow: 0 8px 28px rgba(5,226,142,.32); }
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--milk); color: var(--obsidian);
+  font-size: 15px; font-weight: 600;
+  padding: 14px 28px; border-radius: 13px;
+  border: 1.5px solid var(--border);
+  transition: all .2s;
+}
+.btn-secondary:hover { border-color: var(--emerald); color: var(--emerald-deep); transform: translateY(-2px); }
+
+/* WHATSAPP MOCKUP — placeholder for real screenshot, see TODO in HTML */
+.wa-mockup {
+  position: relative;
+  animation: float 4s ease-in-out infinite;
+  max-width: 320px; margin: 0 auto;
+}
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+.wa-frame {
+  background: var(--obsidian);
+  border-radius: 32px;
+  padding: 10px;
+  box-shadow: 0 30px 80px rgba(10,11,15,.25), 0 0 0 1px rgba(255,255,255,.06);
+}
+.wa-screen { background: #E5DDD5; border-radius: 24px; overflow: hidden; }
+.wa-header {
+  background: #075E54; color: #fff;
+  padding: 14px 16px; display: flex; align-items: center; gap: 10px;
+}
+.wa-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--emerald); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: var(--obsidian); }
+.wa-header-name { font-size: 13px; font-weight: 700; }
+.wa-header-sub { font-size: 10px; opacity: .75; }
+.wa-body { padding: 16px 12px; min-height: 260px; display: flex; flex-direction: column; gap: 8px; justify-content: flex-end; }
+.wa-bubble { max-width: 78%; padding: 8px 12px; border-radius: 10px; font-size: 12.5px; line-height: 1.5; box-shadow: 0 1px 1px rgba(0,0,0,.08); }
+.wa-bubble.out { align-self: flex-end; background: #DCF8C6; border-bottom-right-radius: 2px; }
+.wa-bubble.in { align-self: flex-start; background: #fff; border-bottom-left-radius: 2px; }
+.wa-time { font-size: 9px; color: rgba(10,11,15,.4); text-align: right; margin-top: 3px; }
 
 /* ============================================================
-   FEATURES
+   PROBLEM STORY / WHY FAIL — illustrated, non-product visuals
    ============================================================ */
-#fitur { background: var(--paper); }
+#problem { background: var(--milk); }
+.receipt-illustration {
+  background: #fff; border-radius: 4px; padding: 28px 22px;
+  box-shadow: 0 20px 60px rgba(10,11,15,.1); max-width: 260px; margin: 0 auto;
+  font-family: monospace; color: var(--ink2); font-size: 12px; line-height: 2;
+  position: relative;
+  transform: rotate(-2deg);
+}
+.receipt-illustration::before, .receipt-illustration::after {
+  content: ''; position: absolute; left: 0; right: 0; height: 10px;
+  background: repeating-linear-gradient(-45deg, #fff 0 6px, transparent 6px 12px);
+}
+.receipt-illustration::before { top: -5px; }
+.receipt-illustration::after { bottom: -5px; }
+.receipt-line { display: flex; justify-content: space-between; border-bottom: 1px dashed #eee; }
+.receipt-line.faded { color: #ccc; }
+.receipt-total { border-top: 2px dashed #ccc; margin-top: 8px; padding-top: 8px; font-weight: 700; color: var(--obsidian); display: flex; justify-content: space-between; }
+.receipt-q { position: absolute; top: 40%; right: -14px; font-size: 34px; color: var(--amber); font-family: var(--font-display); font-weight: 800; }
+
+#why-fail { background: var(--milk-2); }
+.cluttered-mockup {
+  background: #fff; border-radius: 16px; padding: 18px; box-shadow: 0 20px 60px rgba(10,11,15,.08);
+  max-width: 320px; margin: 0 auto; border: 1px solid var(--border);
+}
+.cluttered-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; margin-bottom: 8px; }
+.cluttered-tab { background: #F2F2F5; border-radius: 6px; height: 34px; }
+.cluttered-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-top: 10px; }
+.cluttered-cell { background: #F2F2F5; border-radius: 6px; height: 44px; border: 1px solid var(--border); }
+.cluttered-badge { position: absolute; background: #FEE2E2; color: #DC2626; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
+
+/* ============================================================
+   DEMO SECTION — message → chart transitions
+   ============================================================ */
+#demo { background: var(--milk); }
+.demo-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; margin-top: 56px; }
+.demo-card { background: #fff; border-radius: 20px; padding: 20px; border: 1px solid var(--border); }
+.demo-msg { background: #DCF8C6; border-radius: 10px; padding: 8px 12px; font-size: 12.5px; margin-bottom: 14px; display: inline-block; }
+.demo-arrow { text-align: center; color: var(--ink3); font-size: 18px; margin: 6px 0; }
+.demo-result { background: var(--milk-2); border-radius: 12px; padding: 14px; }
+.demo-result-label { font-size: 11px; color: var(--ink3); margin-bottom: 8px; font-weight: 600; }
+.demo-bar-row { display: flex; align-items: flex-end; gap: 6px; height: 60px; }
+.demo-bar { flex: 1; background: linear-gradient(180deg, var(--emerald), var(--emerald-deep)); border-radius: 4px 4px 0 0; }
+.demo-bar.up { background: linear-gradient(180deg, var(--emerald), var(--emerald-deep)); }
+.demo-cat-pill { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 6px 12px; font-size: 12px; font-weight: 600; }
+.demo-progress-track { background: #E5E7EB; border-radius: 20px; height: 10px; overflow: hidden; }
+.demo-progress-fill { background: linear-gradient(90deg, var(--emerald), var(--emerald-deep)); height: 100%; border-radius: 20px; }
+
+/* ============================================================
+   PROOF STRIP (new)
+   ============================================================ */
+#proof { background: var(--obsidian); padding: 56px 5%; }
+.proof-card {
+  max-width: 780px; margin: 0 auto;
+  display: flex; align-items: center; gap: 24px;
+  flex-wrap: wrap;
+}
+.proof-avatar {
+  width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-deep));
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-serif); font-size: 22px; color: var(--obsidian); font-weight: 700;
+}
+.proof-quote { font-family: var(--font-serif); font-style: italic; font-size: 19px; line-height: 1.6; color: #fff; }
+.proof-attr { margin-top: 10px; font-size: 13px; color: rgba(255,255,255,.5); font-family: var(--font-body); }
+.proof-flag { color: var(--amber); }
+
+/* ============================================================
+   UNDERSTAND / MINI EXAMPLES
+   ============================================================ */
+#understand { background: var(--milk-2); }
+.mini-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; margin-top: 40px; }
+.mini-card { background: #fff; border-radius: 18px; padding: 22px; border: 1px solid var(--border); }
+.mini-ico { width: 40px; height: 40px; border-radius: 12px; background: var(--emerald-tint); color: var(--emerald-deep); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 14px; }
+.mini-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.mini-desc { font-size: 13px; color: var(--ink2); line-height: 1.6; }
+
+/* ============================================================
+   DASHBOARD SHOWCASE — highest-priority real-screenshot slot
+   ============================================================ */
+#dashboard { background: var(--milk); }
+.dash-mockup {
+  background: #fff; border-radius: 22px; border: 1px solid var(--border);
+  box-shadow: 0 30px 80px rgba(10,11,15,.1); padding: 22px; max-width: 480px; margin: 0 auto;
+}
+.dash-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.dash-bal-lbl { font-size: 11px; color: var(--ink3); }
+.dash-bal-val { font-family: var(--font-display); font-size: 26px; font-weight: 800; color: var(--obsidian); }
+.dash-pill { background: var(--emerald-tint); color: var(--emerald-deep); font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 20px; }
+.dash-chart-row { display: flex; align-items: flex-end; gap: 10px; height: 100px; margin: 20px 0; padding: 0 4px; }
+.dash-chart-bar { flex: 1; border-radius: 6px 6px 0 0; background: var(--milk-2); position: relative; }
+.dash-chart-bar.hi { background: linear-gradient(180deg, var(--emerald), var(--emerald-deep)); }
+.dash-cat-list { display: flex; flex-direction: column; gap: 10px; }
+.dash-cat-item { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+.dash-cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dash-cat-name { flex: 1; color: var(--ink2); }
+.dash-cat-val { font-weight: 700; color: var(--obsidian); }
+
+/* ============================================================
+   AI ASSISTANT
+   ============================================================ */
+#ai-assistant { background: var(--milk-2); }
+.ai-chat-mockup { background: #fff; border-radius: 22px; border: 1px solid var(--border); box-shadow: 0 30px 80px rgba(10,11,15,.1); padding: 20px; max-width: 420px; margin: 0 auto; }
+.ai-bubble { border-radius: 14px; padding: 12px 14px; font-size: 13px; line-height: 1.6; margin-bottom: 12px; max-width: 88%; }
+.ai-bubble.user { background: var(--milk-2); margin-left: auto; border-bottom-right-radius: 4px; }
+.ai-bubble.bot { background: var(--emerald-tint); border-bottom-left-radius: 4px; }
+.ai-progress-wrap { margin-top: 8px; }
+.ai-progress-lbl { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--emerald-deep); font-weight: 700; margin-bottom: 5px; }
+
+/* ============================================================
+   FEATURE GRID
+   ============================================================ */
+#fitur { background: var(--milk); }
 .features-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 24px; margin-top: 56px; }
 .feature-card {
-  background: var(--white);
-  border-radius: 20px;
-  padding: 28px;
-  border: 1px solid var(--border);
-  display: flex; gap: 18px;
+  background: var(--milk-2); border-radius: 20px; padding: 28px;
+  border: 1px solid var(--border); display: flex; gap: 18px;
   transition: transform .2s, box-shadow .2s;
 }
-.feature-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(10,15,30,.07); }
-.feature-card.highlight {
-  background: linear-gradient(135deg, #F0FDF7, #E6FBF2);
-  border-color: rgba(0,196,122,.3);
-}
+.feature-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(10,11,15,.06); }
 .feature-ico-wrap {
-  width: 48px; height: 48px; flex-shrink: 0;
-  border-radius: 14px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 24px;
+  width: 48px; height: 48px; flex-shrink: 0; border-radius: 14px;
+  background: var(--emerald-tint); color: var(--emerald-deep);
+  display: flex; align-items: center; justify-content: center; font-size: 24px;
 }
-.feature-title { font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+.feature-title { font-size: 16px; font-weight: 700; color: var(--obsidian); margin-bottom: 8px; }
 .feature-desc { font-size: 13px; line-height: 1.65; color: var(--ink2); }
-.feature-tag {
-  display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .5px;
-  text-transform: uppercase; padding: 3px 8px; border-radius: 6px;
-  margin-top: 8px;
-}
+
+/* ============================================================
+   PRIVACY & SECURITY
+   ============================================================ */
+#privacy { background: var(--obsidian); color: #fff; }
+#privacy .section-title { color: #fff; }
+#privacy .section-sub { color: rgba(255,255,255,.55); }
+.privacy-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; margin-top: 56px; }
+.privacy-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 26px; }
+.privacy-ico { width: 42px; height: 42px; border-radius: 12px; background: rgba(5,226,142,.15); color: var(--emerald); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 16px; }
+.privacy-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+.privacy-desc { font-size: 13px; line-height: 1.65; color: rgba(255,255,255,.55); }
+
+/* ============================================================
+   TESTIMONIALS
+   ============================================================ */
+#testimoni { background: var(--milk-2); }
+.testi-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; margin-top: 56px; }
+.testi-card { background: #fff; border-radius: 20px; padding: 28px; border: 1px solid var(--border); }
+.testi-text { font-family: var(--font-serif); font-style: italic; font-size: 15px; line-height: 1.7; color: var(--ink2); margin-bottom: 20px; }
+.testi-author { display: flex; align-items: center; gap: 10px; }
+.testi-av { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--obsidian); flex-shrink: 0; background: var(--emerald-tint); }
+.testi-name { font-size: 13px; font-weight: 700; color: var(--obsidian); }
+.testi-job { font-size: 11px; color: var(--ink3); margin-top: 1px; }
 
 /* ============================================================
    PRICING
    ============================================================ */
-#harga { background: var(--white); }
+#harga { background: var(--milk); }
 .pricing-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; margin-top: 56px; }
-.price-card {
-  background: var(--paper);
-  border-radius: 20px;
-  padding: 32px 28px;
-  border: 1.5px solid var(--border);
-  position: relative;
-  transition: transform .2s;
-}
+.price-card { background: var(--milk-2); border-radius: 20px; padding: 32px 28px; border: 1.5px solid var(--border); position: relative; transition: transform .2s; }
 .price-card:hover { transform: translateY(-4px); }
-.price-card.featured {
-  background: linear-gradient(160deg, #0A0F1E, #1a2540);
-  border-color: var(--green);
-  box-shadow: 0 8px 40px rgba(0,196,122,.2);
-}
-.price-badge {
-  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-  background: var(--green); color: #fff;
-  font-size: 11px; font-weight: 700; padding: 4px 14px; border-radius: 20px;
-  white-space: nowrap;
-}
+.price-card.featured { background: linear-gradient(160deg, var(--obsidian), #1a2540); border-color: var(--emerald); box-shadow: 0 8px 40px rgba(5,226,142,.2); }
+.price-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--emerald); color: var(--obsidian); font-size: 11px; font-weight: 700; padding: 4px 14px; border-radius: 20px; white-space: nowrap; }
 .price-plan { font-size: 12px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--ink3); margin-bottom: 12px; }
 .price-card.featured .price-plan { color: rgba(255,255,255,.5); }
-.price-amount { font-family: var(--font-display); font-size: 42px; color: var(--ink); line-height: 1; margin-bottom: 4px; }
+.price-amount { font-family: var(--font-display); font-size: 38px; font-weight: 800; color: var(--obsidian); line-height: 1; margin-bottom: 4px; }
 .price-card.featured .price-amount { color: #fff; }
 .price-amount span { font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--ink3); }
 .price-card.featured .price-amount span { color: rgba(255,255,255,.5); }
@@ -399,111 +364,75 @@ section { padding: 96px 5%; }
 .price-features { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
 .price-features li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--ink2); }
 .price-card.featured .price-features li { color: rgba(255,255,255,.8); }
-.price-features li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+.price-features li::before { content: '✓'; color: var(--emerald-deep); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+.price-card.featured .price-features li::before { color: var(--emerald); }
 .price-features li.no::before { content: '✗'; color: #ccc; }
 .price-features li.no { color: var(--ink3); }
 .price-card.featured .price-features li.no { color: rgba(255,255,255,.3); }
-.price-btn {
-  width: 100%; padding: 13px;
-  border-radius: 12px;
-  font-size: 14px; font-weight: 700;
-  transition: all .2s;
-  text-align: center;
-  display: block;
-  border: 1.5px solid var(--border);
-  background: transparent;
-  color: var(--ink);
-}
-.price-btn:hover { border-color: var(--green); color: var(--green); }
-.price-btn.cta {
-  background: var(--green); color: #fff;
-  border-color: var(--green);
-  box-shadow: 0 4px 16px var(--green-glow);
-}
-.price-btn.cta:hover { background: var(--green-dk); }
+.price-btn { width: 100%; padding: 13px; border-radius: 12px; font-size: 14px; font-weight: 700; transition: all .2s; text-align: center; display: block; border: 1.5px solid var(--border); background: transparent; color: var(--obsidian); }
+.price-btn:hover { border-color: var(--emerald); color: var(--emerald-deep); }
+.price-btn.cta { background: var(--emerald); color: var(--obsidian); border-color: var(--emerald); box-shadow: 0 4px 16px rgba(5,226,142,.28); }
+.price-btn.cta:hover { background: var(--emerald-deep); color: #fff; }
+.token-info { margin-top: 32px; background: var(--milk-2); border-radius: 16px; padding: 20px 24px; border: 1.5px solid var(--border); text-align: center; }
+.token-info-title { font-size: 13px; font-weight: 700; color: var(--obsidian); margin-bottom: 8px; }
+.token-info-body { font-size: 13px; color: var(--ink2); line-height: 1.7; max-width: 480px; margin: 0 auto; }
+.token-cards { display: flex; justify-content: center; gap: 16px; margin-top: 14px; flex-wrap: wrap; }
+.token-card { background: #fff; border-radius: 12px; padding: 12px 20px; border: 1.5px solid var(--border); text-align: center; }
+.token-card-price { font-size: 16px; font-weight: 700; color: var(--emerald-deep); }
+.token-card-lbl { font-size: 11px; color: var(--ink3); }
 
 /* ============================================================
-   TESTIMONIALS
+   FAQ
    ============================================================ */
-#testimoni { background: var(--paper); }
-.testi-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; margin-top: 56px; }
-.testi-card {
-  background: var(--white);
-  border-radius: 20px;
-  padding: 28px;
-  border: 1px solid var(--border);
-}
-.testi-stars { color: #F59E0B; font-size: 14px; margin-bottom: 14px; }
-.testi-text { font-size: 14px; line-height: 1.7; color: var(--ink2); margin-bottom: 20px; font-style: italic; }
-.testi-author { display: flex; align-items: center; gap: 10px; }
-.testi-av { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0; }
-.testi-name { font-size: 13px; font-weight: 700; color: var(--ink); }
-.testi-job { font-size: 11px; color: var(--ink3); margin-top: 1px; }
+#faq { background: var(--milk-2); }
+.faq-list { max-width: 760px; margin: 48px auto 0; display: flex; flex-direction: column; gap: 12px; }
+.faq-item { background: #fff; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.faq-q { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; cursor: pointer; font-size: 15px; font-weight: 700; color: var(--obsidian); }
+.faq-q i { color: var(--emerald-deep); transition: transform .25s; flex-shrink: 0; }
+.faq-item.open .faq-q i { transform: rotate(180deg); }
+.faq-a { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
+.faq-a-inner { padding: 0 24px 20px; font-size: 14px; line-height: 1.7; color: var(--ink2); }
+.faq-item.open .faq-a { max-height: 240px; }
 
 /* ============================================================
    CTA SECTION
    ============================================================ */
-#cta {
-  background: linear-gradient(135deg, var(--ink) 0%, #1a2540 100%);
-  text-align: center;
-  position: relative; overflow: hidden;
-}
-#cta::before { content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(0,196,122,.12) 0%,transparent 70%);border-radius:50% }
+#cta { background: linear-gradient(135deg, var(--obsidian) 0%, #1a2540 100%); text-align: center; position: relative; overflow: hidden; }
+#cta::before { content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(5,226,142,.14) 0%,transparent 70%);border-radius:50% }
 .cta-inner { position: relative; z-index: 1; max-width: 700px; margin: 0 auto; }
-.cta-title { font-family: var(--font-display); font-size: clamp(28px,4vw,52px); color: #fff; margin-bottom: 16px; line-height: 1.15; }
-.cta-title em { font-style: italic; color: var(--green); }
+.cta-title { font-family: var(--font-display); font-weight: 800; font-size: clamp(28px,4vw,50px); color: #fff; margin-bottom: 16px; line-height: 1.15; letter-spacing: -.5px; }
+.cta-title span { color: var(--emerald); }
 .cta-sub { font-size: 16px; color: rgba(255,255,255,.6); margin-bottom: 36px; line-height: 1.7; }
 .cta-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-.btn-wa {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--wa); color: #fff;
-  font-size: 15px; font-weight: 700;
-  padding: 14px 28px; border-radius: 13px;
-  box-shadow: 0 4px 20px rgba(37,211,102,.3);
-  transition: all .2s;
-}
+.btn-wa { display: inline-flex; align-items: center; gap: 8px; background: var(--wa); color: #fff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 13px; box-shadow: 0 4px 20px rgba(37,211,102,.3); transition: all .2s; }
 .btn-wa:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(37,211,102,.4); }
-.btn-white {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(255,255,255,.1); color: #fff;
-  font-size: 15px; font-weight: 600;
-  padding: 14px 28px; border-radius: 13px;
-  border: 1.5px solid rgba(255,255,255,.2);
-  backdrop-filter: blur(8px);
-  transition: all .2s;
-}
+.btn-white { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.1); color: #fff; font-size: 15px; font-weight: 600; padding: 14px 28px; border-radius: 13px; border: 1.5px solid rgba(255,255,255,.2); backdrop-filter: blur(8px); transition: all .2s; }
 .btn-white:hover { background: rgba(255,255,255,.15); transform: translateY(-2px); }
 
 /* ============================================================
    FOOTER
    ============================================================ */
-footer {
-  background: var(--ink);
-  padding: 56px 5% 32px;
-  color: rgba(255,255,255,.5);
-}
+footer { background: var(--obsidian); padding: 56px 5% 32px; color: rgba(255,255,255,.5); }
 .footer-inner { max-width: 1200px; margin: 0 auto; }
 .footer-top { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
 .footer-brand { margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
 .footer-desc { font-size: 13px; line-height: 1.7; color: rgba(255,255,255,.4); max-width: 280px; }
 .footer-col-title { font-size: 12px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: rgba(255,255,255,.7); margin-bottom: 16px; }
 .footer-col a { display: block; font-size: 13px; color: rgba(255,255,255,.4); margin-bottom: 8px; transition: color .2s; }
-.footer-col a:hover { color: var(--green); }
+.footer-col a:hover { color: var(--emerald); }
 .footer-bottom { border-top: 1px solid rgba(255,255,255,.08); padding-top: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 12px; }
 .footer-copy { color: rgba(255,255,255,.3); }
 .footer-links { display: flex; gap: 20px; }
 .footer-links a { color: rgba(255,255,255,.3); transition: color .2s; }
-.footer-links a:hover { color: var(--green); }
+.footer-links a:hover { color: var(--emerald); }
 
 /* ============================================================
    RESPONSIVE
    ============================================================ */
 @media(max-width:1024px){
-  .hero-inner { grid-template-columns: 1fr; gap: 48px; }
+  .hero-inner, .two-col { grid-template-columns: 1fr; gap: 48px; }
   .hero-visual { order: -1; }
-  .fb-left, .fb-right { display: none; }
-  .steps-grid { grid-template-columns: 1fr; }
-  .step-arrow { display: none; }
+  .demo-grid, .mini-grid, .privacy-grid { grid-template-columns: 1fr; }
   .pricing-grid, .testi-grid { grid-template-columns: 1fr 1fr; }
   .footer-top { grid-template-columns: 1fr 1fr; }
 }
@@ -515,6 +444,7 @@ footer {
   .features-grid { grid-template-columns: 1fr; }
   .pricing-grid, .testi-grid { grid-template-columns: 1fr; }
   .footer-top { grid-template-columns: 1fr; }
+  .proof-card { flex-direction: column; text-align: center; }
   section { padding: 64px 5%; }
 }
 
@@ -530,113 +460,59 @@ footer {
 <!-- NAV -->
 <nav id="navbar">
   <div class="nav-logo">
-    <div class="nav-logo-mark" style="background:transparent">
-      <img src="logo.png" style="width:52px;height:52px;object-fit:contain;border-radius:12px"/>
-    </div>
+    <div class="nav-logo-mark"><img src="logo.png" alt="Wangku"/></div>
     <span class="nav-brand">Wang<span>ku</span></span>
   </div>
   <div class="nav-links">
-    <a href="#cara-kerja">Cara Kerja</a>
+    <a href="#demo">Cara Kerja</a>
     <a href="#fitur">Fitur</a>
     <a href="#harga">Harga</a>
     <a href="#testimoni">Testimoni</a>
+    <a href="#faq">FAQ</a>
   </div>
-  <a href="#cta" class="nav-cta">Coba Gratis</a>
+  <a href="https://wa.me/6285727318698" class="nav-cta" target="_blank">Mulai Chat, Gratis</a>
   <div class="hamburger" onclick="toggleMenu()">
     <span></span><span></span><span></span>
   </div>
 </nav>
 
-<!-- HERO -->
+<!-- 1. HERO -->
 <section class="hero" id="hero">
   <div class="hero-inner">
     <div class="hero-content">
-      <div class="hero-eyebrow">✦ Didukung Claude AI · Terhubung WhatsApp</div>
-      <h1 class="hero-h1">
-        Catat keuangan<br>
-        <em>semudah chat</em><br>
-        WhatsApp
-      </h1>
-      <p class="hero-sub">
-        <strong>Wangku</strong> mengubah pesan WhatsApp biasamu jadi laporan keuangan cerdas — dianalisa AI, real-time, tanpa ribet.
-      </p>
+      <div class="hero-eyebrow">✦ Hidup di WhatsApp kamu</div>
+      <h1 class="hero-h1">Atur uang. <span>Semudah</span><br>berkirim pesan.</h1>
+      <p class="hero-sub">Wangku adalah asisten keuangan pribadi yang hidup di WhatsApp kamu. Nggak perlu unduh aplikasi baru, nggak perlu ribet.</p>
       <div class="hero-actions">
-        <a href="#cta" class="btn-primary"><i class="ti ti-brand-whatsapp"></i> Mulai Gratis Sekarang</a>
-        <a href="#cara-kerja" class="btn-secondary"><i class="ti ti-play"></i> Lihat cara kerjanya</a>
-      </div>
-      <div class="hero-stats">
-        <div>
-          <div class="hero-stat-val">100%</div>
-          <div class="hero-stat-lbl">Via WhatsApp</div>
-        </div>
-        <div style="width:1px;background:var(--border)"></div>
-        <div>
-          <div class="hero-stat-val">AI</div>
-          <div class="hero-stat-lbl">Powered Analysis</div>
-        </div>
-        <div style="width:1px;background:var(--border)"></div>
-        <div>
-          <div class="hero-stat-val">Gratis</div>
-          <div class="hero-stat-lbl">Untuk memulai</div>
-        </div>
+        <a href="https://wa.me/6285727318698" class="btn-primary" target="_blank"><i class="ti ti-brand-whatsapp"></i> Mulai Chat, Gratis</a>
+        <a href="#demo" class="btn-secondary"><i class="ti ti-play"></i> Lihat cara kerjanya</a>
       </div>
     </div>
 
     <div class="hero-visual">
-      <div class="phone-wrap">
-        <!-- Floating badges -->
-        <div class="float-badge fb-left">
-          <div class="fb-ico" style="background:#E6FBF2;color:#00C47A"><i class="ti ti-trending-up"></i></div>
-          <div><div class="fb-val" style="color:#00C47A">+Rp 5jt</div><div class="fb-lbl">Gaji masuk ✓</div></div>
-        </div>
-        <div class="float-badge fb-right">
-          <div class="fb-ico" style="background:#EBF3FF;color:#3B82F6"><i class="ti ti-robot"></i></div>
-          <div><div class="fb-val">AI Analisa</div><div class="fb-lbl">Keuangan sehat 💚</div></div>
-        </div>
-
-        <!-- Phone frame -->
-        <div class="phone-frame">
-          <div class="phone-notch"></div>
-          <div class="phone-screen">
-            <div class="phone-statusbar"><span>09:41</span><span>📶 🔋</span></div>
-            <div class="phone-header">
-              <div class="phone-greeting">Selamat pagi 👋</div>
-              <div class="phone-name">Maurizky Fadhillah</div>
-              <div class="phone-bal-card">
-                <div class="phone-bal-lbl">Saldo Sekarang</div>
-                <div class="phone-bal-val">Rp 4.250.000</div>
-                <div class="phone-bal-row">
-                  <div class="phone-bal-pill"><div class="phone-bal-pill-lbl">↓ Pemasukan</div><div class="phone-bal-pill-val">Rp 8jt</div></div>
-                  <div class="phone-bal-pill"><div class="phone-bal-pill-lbl">↑ Keluar</div><div class="phone-bal-pill-val">Rp 3.75jt</div></div>
-                </div>
+      <!-- TODO(engineering): replace with real screenshot per spec §6.1 —
+           actual WhatsApp conversation with the Fonnte-connected Wangku bot showing
+           "Nasi padang 25rb" → "Tercatat ✅ Sisa budget makanmu minggu ini Rp125.000."
+           Placeholder mockup below approximates this exchange until captured. -->
+      <div class="wa-mockup fade-up">
+        <div class="wa-frame">
+          <div class="wa-screen">
+            <div class="wa-header">
+              <div class="wa-avatar">W</div>
+              <div>
+                <div class="wa-header-name">Wangku</div>
+                <div class="wa-header-sub">online</div>
               </div>
             </div>
-            <div class="phone-body">
-              <div class="phone-sec-title">Aksi Cepat</div>
-              <div class="phone-qa-row">
-                <div class="phone-qa-item"><div class="phone-qa-ico" style="background:#E6FBF2;color:#00C47A">＋</div><div class="phone-qa-lbl">Catat</div></div>
-                <div class="phone-qa-item"><div class="phone-qa-ico" style="background:#EBF3FF;color:#3B82F6">🤖</div><div class="phone-qa-lbl">AI</div></div>
-                <div class="phone-qa-item"><div class="phone-qa-ico" style="background:#FEF3C7;color:#F59E0B">🎯</div><div class="phone-qa-lbl">Target</div></div>
-                <div class="phone-qa-item"><div class="phone-qa-ico" style="background:#F3EEFF;color:#7C3AED">📊</div><div class="phone-qa-lbl">Laporan</div></div>
+            <div class="wa-body">
+              <div>
+                <div class="wa-bubble out">Nasi padang 25rb</div>
+                <div class="wa-time">09:41</div>
               </div>
-              <div class="phone-sec-title">Transaksi Terakhir</div>
-              <div class="phone-txn">
-                <div class="phone-txn-ico" style="background:#FFF0F0;color:#EF4444">🍜</div>
-                <div class="phone-txn-info"><div class="phone-txn-name">Makan siang</div><div class="phone-txn-sub">Pengeluaran • makanan</div></div>
-                <div class="phone-txn-amt" style="color:#EF4444">-Rp 35rb</div>
+              <div>
+                <div class="wa-bubble in">Tercatat ✅ Sisa budget makanmu minggu ini Rp125.000.</div>
+                <div class="wa-time">09:41</div>
               </div>
-              <div class="phone-txn">
-                <div class="phone-txn-ico" style="background:#E6FBF2;color:#00C47A">💰</div>
-                <div class="phone-txn-info"><div class="phone-txn-name">Gaji bulan ini</div><div class="phone-txn-sub">Pemasukan • gaji</div></div>
-                <div class="phone-txn-amt" style="color:#00C47A">+Rp 5jt</div>
-              </div>
-            </div>
-            <div class="phone-nav">
-              <div class="phone-nav-item act"><span class="phone-nav-ico">🏠</span>Beranda</div>
-              <div class="phone-nav-item"><span class="phone-nav-ico">≡</span>Transaksi</div>
-              <div class="phone-nav-item"><span class="phone-nav-ico" style="font-size:18px">📷</span>Foto</div>
-              <div class="phone-nav-item" style="color:#3B82F6"><span class="phone-nav-ico">🤖</span>AI</div>
-              <div class="phone-nav-item"><span class="phone-nav-ico">⚙️</span>Setting</div>
             </div>
           </div>
         </div>
@@ -645,115 +521,326 @@ footer {
   </div>
 </section>
 
-<!-- TECH STRIP -->
-<div class="logo-strip">
-  <span class="logo-strip-label">Ditenagai oleh teknologi terpercaya:</span>
-  <div class="tech-pill"><i class="ti ti-brand-whatsapp" style="color:#25D366"></i> WhatsApp</div>
-  <div class="tech-pill"><i class="ti ti-robot" style="color:#7C3AED"></i> Claude AI</div>
-  <div class="tech-pill"><i class="ti ti-brand-google" style="color:#4285F4"></i> Google Sheets</div>
-  <div class="tech-pill"><i class="ti ti-database" style="color:#3ECF8E"></i> Supabase</div>
-  <div class="tech-pill"><i class="ti ti-brand-github" style="color:#333"></i> GitHub Pages</div>
-</div>
-
-<!-- CARA KERJA -->
-<section id="cara-kerja">
-  <div class="section-inner">
-    <div class="text-center fade-up">
-      <div class="section-eyebrow">Cara Kerja</div>
-      <h2 class="section-title">3 langkah, <em>selesai</em></h2>
-      <p class="section-sub">Tidak perlu install app rumit. Cukup WhatsApp yang sudah ada di HP kamu.</p>
+<!-- 2. PROBLEM STORY -->
+<section id="problem">
+  <div class="section-inner two-col">
+    <div class="fade-up">
+      <div class="section-eyebrow">Hal yang jarang kita akui</div>
+      <h2 class="section-title">Ke mana perginya uang kamu?</h2>
+      <p class="section-body">Kita semua pernah ngalamin ini. Akhir bulan tiba, dan saldo tabungan nggak sesuai sama yang kamu ingat. Bocor-bocor kecil yang nggak tercatat itu musuh terbesar masa depan keuanganmu.</p>
     </div>
-    <div class="steps-grid">
-      <div class="step-card fade-up" style="transition-delay:.1s">
-        <div class="step-num">1</div>
-        <div class="step-ico" style="background:#E6FBF2;color:#00C47A"><i class="ti ti-brand-whatsapp"></i></div>
-        <div class="step-title">Kirim pesan ke bot</div>
-        <div class="step-desc">Ketik saja "makan 35rb" atau "gaji 5jt" ke nomor bot Wangku di WhatsApp. Tidak perlu format khusus.</div>
-        <div class="step-arrow"><i class="ti ti-arrow-right"></i></div>
+    <div class="fade-up" style="position:relative">
+      <div class="receipt-illustration">
+        <div class="receipt-line"><span>Kopi</span><span>15.000</span></div>
+        <div class="receipt-line"><span>Parkir</span><span>5.000</span></div>
+        <div class="receipt-line faded"><span>???</span><span>???</span></div>
+        <div class="receipt-line faded"><span>???</span><span>???</span></div>
+        <div class="receipt-line"><span>Ojek online</span><span>18.000</span></div>
+        <div class="receipt-line faded"><span>???</span><span>???</span></div>
+        <div class="receipt-total"><span>Total?</span><span>¯\_(ツ)_/¯</span></div>
       </div>
-      <div class="step-card fade-up" style="transition-delay:.2s">
-        <div class="step-num">2</div>
-        <div class="step-ico" style="background:#EBF3FF;color:#3B82F6"><i class="ti ti-database"></i></div>
-        <div class="step-title">Otomatis tercatat</div>
-        <div class="step-desc">AI memproses pesanmu — kategori, prioritas, dan saldo dihitung otomatis. Tersimpan real-time di Google Sheets kamu.</div>
-        <div class="step-arrow"><i class="ti ti-arrow-right"></i></div>
-      </div>
-      <div class="step-card fade-up" style="transition-delay:.3s">
-        <div class="step-num">3</div>
-        <div class="step-ico" style="background:#F3EEFF;color:#7C3AED"><i class="ti ti-chart-pie-2"></i></div>
-        <div class="step-title">Analisa di dashboard</div>
-        <div class="step-desc">Buka app Wangku, lihat grafik, tanya AI tentang kondisi keuanganmu, dan capai target tabunganmu.</div>
+      <div class="receipt-q">?</div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. WHY FINANCE APPS FAIL -->
+<section id="why-fail">
+  <div class="section-inner two-col">
+    <div class="fade-up" style="order:2">
+      <div class="section-eyebrow">Mengapa aplikasi lain gagal</div>
+      <h2 class="section-title">Aplikasi keuangan biasa terasa seperti pekerjaan kantoran.</h2>
+      <p class="section-body">Terlalu banyak klik, terlalu banyak kategori. Ujung-ujungnya kamu berhenti mencatat karena prosesnya lebih capek daripada belanjanya sendiri.</p>
+    </div>
+    <div class="fade-up" style="order:1;position:relative">
+      <div class="cluttered-mockup">
+        <div class="cluttered-badge" style="top:-10px;right:10px">32 kategori</div>
+        <div class="cluttered-row">
+          <div class="cluttered-tab"></div><div class="cluttered-tab"></div><div class="cluttered-tab"></div><div class="cluttered-tab"></div><div class="cluttered-tab"></div>
+        </div>
+        <div class="cluttered-grid">
+          <div class="cluttered-cell"></div><div class="cluttered-cell"></div><div class="cluttered-cell"></div><div class="cluttered-cell"></div>
+          <div class="cluttered-cell"></div><div class="cluttered-cell"></div><div class="cluttered-cell"></div><div class="cluttered-cell"></div>
+          <div class="cluttered-cell"></div><div class="cluttered-cell"></div><div class="cluttered-cell"></div><div class="cluttered-cell"></div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- FITUR -->
+<!-- 4. WHATSAPP DEMO -->
+<section id="demo">
+  <div class="section-inner">
+    <div class="text-center fade-up">
+      <div class="section-eyebrow">Cara kerja</div>
+      <h2 class="section-title">Chat masuk. Data terstruktur.</h2>
+      <p class="section-sub">WangkuAI paham cara ngomong sehari-hari kamu — bukan format baku, bukan kode komputer.</p>
+    </div>
+    <!-- TODO(engineering): replace demo-msg bubbles + demo-result blocks with real screenshots
+         per spec §6.1/§6.2 (3 short WA chat screenshots + matching real dashboard views). -->
+    <div class="demo-grid">
+      <div class="demo-card fade-up" style="transition-delay:.1s">
+        <div class="demo-msg">"Gajian 10jt"</div>
+        <div class="demo-arrow"><i class="ti ti-arrow-down"></i></div>
+        <div class="demo-result">
+          <div class="demo-result-label">Pemasukan bulan ini</div>
+          <div class="demo-bar-row">
+            <div class="demo-bar" style="height:35%"></div>
+            <div class="demo-bar" style="height:45%"></div>
+            <div class="demo-bar" style="height:40%"></div>
+            <div class="demo-bar up" style="height:90%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="demo-card fade-up" style="transition-delay:.2s">
+        <div class="demo-msg">"Makan siang 35rb"</div>
+        <div class="demo-arrow"><i class="ti ti-arrow-down"></i></div>
+        <div class="demo-result">
+          <div class="demo-result-label">Kategori ter-update</div>
+          <div class="demo-cat-pill"><i class="ti ti-soup"></i> Makanan · Rp870rb bulan ini</div>
+        </div>
+      </div>
+      <div class="demo-card fade-up" style="transition-delay:.3s">
+        <div class="demo-msg">"Nabung 500rb buat iPhone"</div>
+        <div class="demo-arrow"><i class="ti ti-arrow-down"></i></div>
+        <div class="demo-result">
+          <div class="demo-result-label">Target: iPhone — 64%</div>
+          <div class="demo-progress-track"><div class="demo-progress-fill" style="width:64%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. PROOF STRIP (NEW) -->
+<!-- TODO(product): unverified quote — per spec §5.5, this must be a real quote from an
+     actual early tester before shipping. Flagged during rebuild (arif confirmed treat-as-placeholder
+     on 2026-07-11). Do not present as a live testimonial until verified. -->
+<section id="proof">
+  <div class="section-inner proof-card fade-up">
+    <div class="proof-avatar">B</div>
+    <div>
+      <div class="proof-quote">"Dipakai buat keuangan keluarga, lima orang. Dalam dua bulan tabungan naik dua kali lipat dari biasanya."</div>
+      <div class="proof-attr">Budi S. · Kepala Keluarga, Surabaya <span class="proof-flag">· belum diverifikasi</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 6. HOW WANGKU UNDERSTANDS YOU -->
+<section id="understand">
+  <div class="section-inner">
+    <div class="text-center fade-up">
+      <div class="section-eyebrow">Kecerdasan di balik WangkuAI</div>
+      <h2 class="section-title">Ia mengerti konteks, bukan sekadar kata.</h2>
+      <p class="section-sub">"Beli bensin tadi pagi 50rb" — WangkuAI tahu ini kejadian tadi pagi, otomatis masuk kategori "Transportasi," dan saldo kamu langsung ter-update.</p>
+    </div>
+    <!-- TODO(engineering): swap mini-cards below for real screenshots of these three moments
+         in the app/bot per spec §5.6, if available before ship. -->
+    <div class="mini-grid">
+      <div class="mini-card fade-up" style="transition-delay:.1s">
+        <div class="mini-ico"><i class="ti ti-clock"></i></div>
+        <div class="mini-title">Paham waktu kejadian</div>
+        <div class="mini-desc">"Tadi pagi" langsung dikenali sebagai transaksi hari ini, tanpa kamu perlu ketik tanggal.</div>
+      </div>
+      <div class="mini-card fade-up" style="transition-delay:.2s">
+        <div class="mini-ico"><i class="ti ti-category"></i></div>
+        <div class="mini-title">Kategori otomatis</div>
+        <div class="mini-desc">"Bensin" langsung masuk kategori "Transportasi" — kamu nggak perlu pilih sendiri.</div>
+      </div>
+      <div class="mini-card fade-up" style="transition-delay:.3s">
+        <div class="mini-ico"><i class="ti ti-camera"></i></div>
+        <div class="mini-title">Baca struk belanja</div>
+        <div class="mini-desc">Foto struk, WangkuAI baca detailnya dan isi transaksinya buat kamu.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7. DASHBOARD SHOWCASE -->
+<section id="dashboard">
+  <div class="section-inner two-col">
+    <div class="fade-up">
+      <div class="section-eyebrow">Ketenangan finansial</div>
+      <h2 class="section-title">Kejelasan adalah kemewahan baru.</h2>
+      <p class="section-body">Dashboard yang dirancang buat ketenangan pikiran. Lihat tren pengeluaran dan pertumbuhan aset kamu dalam satu tampilan yang enak dilihat.</p>
+    </div>
+    <!-- TODO(engineering): HIGH PRIORITY per spec §6.2 — replace with a real screenshot of the
+         actual Wangku dashboard (Beranda/Laporan view) from a demo/seed account. This is the
+         section most undermined by an approximation, per spec §5.7. -->
+    <div class="fade-up">
+      <div class="dash-mockup">
+        <div class="dash-top">
+          <div>
+            <div class="dash-bal-lbl">Saldo Sekarang</div>
+            <div class="dash-bal-val">Rp 4.250.000</div>
+          </div>
+          <div class="dash-pill">+18% bulan ini</div>
+        </div>
+        <div class="dash-chart-row">
+          <div class="dash-chart-bar" style="height:40%"></div>
+          <div class="dash-chart-bar" style="height:55%"></div>
+          <div class="dash-chart-bar" style="height:35%"></div>
+          <div class="dash-chart-bar hi" style="height:85%"></div>
+          <div class="dash-chart-bar" style="height:50%"></div>
+          <div class="dash-chart-bar" style="height:65%"></div>
+        </div>
+        <div class="dash-cat-list">
+          <div class="dash-cat-item"><span class="dash-cat-dot" style="background:var(--emerald)"></span><span class="dash-cat-name">Makanan</span><span class="dash-cat-val">Rp870rb</span></div>
+          <div class="dash-cat-item"><span class="dash-cat-dot" style="background:var(--blue)"></span><span class="dash-cat-name">Transportasi</span><span class="dash-cat-val">Rp420rb</span></div>
+          <div class="dash-cat-item"><span class="dash-cat-dot" style="background:var(--amber)"></span><span class="dash-cat-name">Tagihan</span><span class="dash-cat-val">Rp650rb</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8. AI ASSISTANT -->
+<section id="ai-assistant">
+  <div class="section-inner two-col">
+    <div class="fade-up">
+      <div class="section-eyebrow">Sekretaris finansial pribadi</div>
+      <h2 class="section-title">Tanya apa saja. Dapatkan jawabannya.</h2>
+      <p class="section-body">"Sisa budget jajanku minggu ini berapa ya?" atau "Bulan depan aku udah bisa beli iPhone belum?" WangkuAI membaca data keuanganmu dan kasih jawaban yang jujur, bukan basa-basi.</p>
+    </div>
+    <!-- TODO(engineering): replace with real screenshot of the actual AI Chat feature per
+         spec §6.3, ideally reproducing this exact exchange. -->
+    <div class="fade-up">
+      <div class="ai-chat-mockup">
+        <div class="ai-bubble user">Bulan depan aku udah bisa beli iPhone belum ya?</div>
+        <div class="ai-bubble bot">
+          Kayaknya bisa! Lihat dari kebiasaan nabungmu bulan ini, target kamu bakal tercapai sekitar 5 minggu lagi.
+          <div class="ai-progress-wrap">
+            <div class="ai-progress-lbl"><span>Target: iPhone</span><span>64%</span></div>
+            <div class="demo-progress-track"><div class="demo-progress-fill" style="width:64%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9. FEATURE GRID -->
 <section id="fitur">
   <div class="section-inner">
     <div class="text-center fade-up">
-      <div class="section-eyebrow">Fitur Unggulan</div>
-      <h2 class="section-title">Semua yang kamu butuhkan,<br><em>tidak lebih, tidak kurang</em></h2>
+      <div class="section-eyebrow">Semua yang kamu butuhkan</div>
+      <h2 class="section-title">Bukan cuma fitur.<br>Ini yang berubah buat kamu.</h2>
     </div>
-    <div class="features-grid" style="margin-top:56px">
-      <div class="feature-card highlight fade-up" style="transition-delay:.1s">
-        <div class="feature-ico-wrap" style="background:#E6FBF2;color:#00C47A"><i class="ti ti-robot"></i></div>
+    <div class="features-grid">
+      <div class="feature-card fade-up" style="transition-delay:.1s">
+        <div class="feature-ico-wrap"><i class="ti ti-camera"></i></div>
         <div>
-          <div class="feature-title">AI Finansial Pribadi</div>
-          <div class="feature-desc">Tanya Claude AI tentang kondisi keuanganmu. Dapat insight langsung berdasarkan data transaksi nyata kamu — bukan saran generik.</div>
-          <span class="feature-tag" style="background:#E6FBF2;color:#00C47A">🔥 Killer Feature</span>
+          <div class="feature-title">Nggak Pernah Lupa Catat</div>
+          <div class="feature-desc">Foto struknya aja, WangkuAI yang baca dan isi detailnya buat kamu.</div>
+        </div>
+      </div>
+      <div class="feature-card fade-up" style="transition-delay:.15s">
+        <div class="feature-ico-wrap"><i class="ti ti-target"></i></div>
+        <div>
+          <div class="feature-title">Lihat Impianmu Makin Dekat</div>
+          <div class="feature-desc">Pasang target — HP baru, liburan, dana darurat — dan pantau progressnya tiap hari.</div>
         </div>
       </div>
       <div class="feature-card fade-up" style="transition-delay:.2s">
-        <div class="feature-ico-wrap" style="background:#EBF3FF;color:#3B82F6"><i class="ti ti-brand-whatsapp"></i></div>
+        <div class="feature-ico-wrap"><i class="ti ti-wallet"></i></div>
         <div>
-          <div class="feature-title">Catat Lewat WhatsApp</div>
-          <div class="feature-desc">Kirim "makan 35rb" atau "gojek 18rb" — langsung tercatat. No app switching, pakai WA yang sudah ada.</div>
-          <span class="feature-tag" style="background:#EBF3FF;color:#3B82F6">⚡ Super Cepat</span>
+          <div class="feature-title">Semua Uangmu, Satu Layar</div>
+          <div class="feature-desc">Rekening, e-wallet, sampai kas tunai — nggak usah pindah-pindah aplikasi.</div>
+        </div>
+      </div>
+      <div class="feature-card fade-up" style="transition-delay:.25s">
+        <div class="feature-ico-wrap"><i class="ti ti-brand-whatsapp"></i></div>
+        <div>
+          <div class="feature-title">Tau Kondisi Keuanganmu Tiap Minggu</div>
+          <div class="feature-desc">Ringkasan otomatis nyampe ke WhatsApp, tanpa kamu harus buka apa-apa.</div>
         </div>
       </div>
       <div class="feature-card fade-up" style="transition-delay:.3s">
-        <div class="feature-ico-wrap" style="background:#FEF3C7;color:#F59E0B"><i class="ti ti-camera"></i></div>
+        <div class="feature-ico-wrap"><i class="ti ti-file-spreadsheet"></i></div>
         <div>
-          <div class="feature-title">Scan Struk Otomatis</div>
-          <div class="feature-desc">Foto struk belanja → AI baca dan isi form otomatis. Tidak perlu input manual satu per satu.</div>
-          <span class="feature-tag" style="background:#FEF3C7;color:#F59E0B">📸 AI Vision</span>
+          <div class="feature-title">Datamu, Bawa Ke Mana Aja</div>
+          <div class="feature-desc">Unduh seluruh riwayat transaksi ke Excel kapan pun kamu butuh.</div>
         </div>
       </div>
-      <div class="feature-card fade-up" style="transition-delay:.4s">
-        <div class="feature-ico-wrap" style="background:#F3EEFF;color:#7C3AED"><i class="ti ti-target"></i></div>
+      <div class="feature-card fade-up" style="transition-delay:.35s">
+        <div class="feature-ico-wrap"><i class="ti ti-lock"></i></div>
         <div>
-          <div class="feature-title">Target Tabungan</div>
-          <div class="feature-desc">Set target — beli HP baru, liburan, atau dana darurat. Pantau progress dengan visual yang motivasi kamu.</div>
-          <span class="feature-tag" style="background:#F3EEFF;color:#7C3AED">🎯 Goal Tracker</span>
-        </div>
-      </div>
-      <div class="feature-card fade-up" style="transition-delay:.5s">
-        <div class="feature-ico-wrap" style="background:#FFF0F0;color:#EF4444"><i class="ti ti-chart-bar"></i></div>
-        <div>
-          <div class="feature-title">Laporan Real-Time</div>
-          <div class="feature-desc">Dashboard rapi dengan grafik pengeluaran per kategori, trend bulanan, dan perbandingan pemasukan vs pengeluaran.</div>
-          <span class="feature-tag" style="background:#FFF0F0;color:#EF4444">📊 Live Data</span>
-        </div>
-      </div>
-      <div class="feature-card fade-up" style="transition-delay:.6s">
-        <div class="feature-ico-wrap" style="background:#E6FBF2;color:#00C47A"><i class="ti ti-fingerprint"></i></div>
-        <div>
-          <div class="feature-title">Login Aman & Cepat</div>
-          <div class="feature-desc">Login pakai username/password, atau fingerprint untuk akses instan. Lupa password? Reset via OTP WhatsApp.</div>
-          <span class="feature-tag" style="background:#E6FBF2;color:#00C47A">🔒 Aman</span>
+          <div class="feature-title">Isi Chat-mu Tetap Cuma Buat Kamu</div>
+          <div class="feature-desc">Enkripsi end-to-end di setiap transaksi yang kamu catat.</div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- PRICING -->
+<!-- 10. PRIVACY & SECURITY -->
+<section id="privacy">
+  <div class="section-inner">
+    <div class="text-center fade-up">
+      <div class="section-eyebrow" style="color:var(--emerald)">Jaminan setara perbankan</div>
+      <h2 class="section-title">Data kamu tetap jadi rahasia kamu.</h2>
+    </div>
+    <div class="privacy-grid">
+      <div class="privacy-card fade-up" style="transition-delay:.1s">
+        <div class="privacy-ico"><i class="ti ti-shield-lock"></i></div>
+        <div class="privacy-title">Chat-mu tetap privat</div>
+        <div class="privacy-desc">Setiap pesan dienkripsi end-to-end sebelum diproses — secara desain, isinya nggak bisa dibaca manusia mana pun.</div>
+      </div>
+      <div class="privacy-card fade-up" style="transition-delay:.2s">
+        <div class="privacy-ico"><i class="ti ti-ban"></i></div>
+        <div class="privacy-title">Nggak ada iklan pihak ketiga</div>
+        <div class="privacy-desc">Kami nggak jual atau bagikan datamu ke pengiklan. Nggak ada model bisnis di baliknya, titik.</div>
+      </div>
+      <div class="privacy-card fade-up" style="transition-delay:.3s">
+        <div class="privacy-ico"><i class="ti ti-download"></i></div>
+        <div class="privacy-title">Datamu tetap milikmu</div>
+        <div class="privacy-desc">Bisa ekspor semua riwayat transaksimu kapan pun, atau hapus akun beserta seluruh datanya permanen.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 11. TESTIMONIALS -->
+<!-- TODO(product): quotes below are unverified — per spec §5.11, confirm these are real
+     tester quotes before shipping (arif confirmed treat-as-placeholder on 2026-07-11). -->
+<section id="testimoni">
+  <div class="section-inner">
+    <div class="text-center fade-up">
+      <div class="section-eyebrow">Testimoni <span style="color:var(--amber)">(belum diverifikasi)</span></div>
+      <h2 class="section-title">Kata mereka yang sudah<br>merasakannya</h2>
+    </div>
+    <div class="testi-grid">
+      <div class="testi-card fade-up" style="transition-delay:.1s">
+        <div class="testi-text">"Akhirnya ada cara catat uang yang gak berasa kerja kantoran. Tinggal chat, langsung keliatan sisa budget."</div>
+        <div class="testi-author">
+          <div class="testi-av">R</div>
+          <div><div class="testi-name">Rafi A.</div><div class="testi-job">Freelancer · Jakarta</div></div>
+        </div>
+      </div>
+      <div class="testi-card fade-up" style="transition-delay:.2s">
+        <div class="testi-text">"Fitur scan struk itu game changer. Belanja, foto, selesai. Gak ada lagi alasan lupa catat."</div>
+        <div class="testi-author">
+          <div class="testi-av">D</div>
+          <div><div class="testi-name">Dinda P.</div><div class="testi-job">Mahasiswi · Bandung</div></div>
+        </div>
+      </div>
+      <div class="testi-card fade-up" style="transition-delay:.3s">
+        <div class="testi-text">"Awalnya cuma iseng coba. Sekarang tiap pagi otomatis kepikiran cek saldo dulu — jadi kebiasaan baik yang nggak sengaja kebentuk."</div>
+        <div class="testi-author">
+          <div class="testi-av">B</div>
+          <div><div class="testi-name">Bagas W.</div><div class="testi-job">Karyawan Swasta · Yogyakarta</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 12. PRICING -->
 <section id="harga">
   <div class="section-inner">
     <div class="text-center fade-up">
       <div class="section-eyebrow">Harga</div>
-      <h2 class="section-title">Langganan <em>bulanan</em>, batal kapan saja</h2>
+      <h2 class="section-title">Langganan bulanan, batal kapan saja</h2>
       <p class="section-sub">Coba gratis 1 bulan, lalu pilih paket yang cocok. Tagihan bulanan, tanpa kontrak jangka panjang.</p>
     </div>
     <div class="pricing-grid">
@@ -769,7 +856,7 @@ footer {
           <li class="no">AI Chat Finansial</li>
           <li class="no">Scan Struk AI</li>
         </ul>
-        <a href="#cta" class="price-btn">Mulai Gratis</a>
+        <a href="https://wa.me/6285727318698" class="price-btn" target="_blank">Mulai Gratis</a>
       </div>
       <div class="price-card fade-up" style="transition-delay:.1s">
         <div class="price-plan">Basic</div>
@@ -784,7 +871,7 @@ footer {
           <li class="no">AI Chat Finansial</li>
           <li class="no">Scan Struk AI</li>
         </ul>
-        <a href="#cta" class="price-btn">Berlangganan</a>
+        <a href="https://wa.me/6285727318698" class="price-btn" target="_blank">Berlangganan</a>
       </div>
       <div class="price-card featured fade-up" style="transition-delay:.2s">
         <div class="price-badge">✦ Paling Populer</div>
@@ -798,7 +885,7 @@ footer {
           <li>Token AI bulanan (terbatas)</li>
           <li>Catat via chat AI langsung</li>
         </ul>
-        <a href="#cta" class="price-btn cta">Berlangganan</a>
+        <a href="https://wa.me/6285727318698" class="price-btn cta" target="_blank">Berlangganan</a>
       </div>
       <div class="price-card fade-up" style="transition-delay:.3s">
         <div class="price-plan">Ultimate</div>
@@ -810,77 +897,68 @@ footer {
           <li>Priority support via WhatsApp</li>
           <li>Akses fitur baru lebih awal</li>
         </ul>
-        <a href="#cta" class="price-btn">Berlangganan</a>
+        <a href="https://wa.me/6285727318698" class="price-btn" target="_blank">Berlangganan</a>
       </div>
     </div>
 
-    <!-- Token info -->
-    <div class="fade-up" style="margin-top:32px;background:var(--bg,#F7F8FA);border-radius:16px;padding:20px 24px;border:1.5px solid #E8ECF0;text-align:center">
-      <div style="font-size:13px;font-weight:700;color:#0D1117;margin-bottom:8px">🤖 Tentang Token AI</div>
-      <div style="font-size:13px;color:#3D4A5C;line-height:1.7;max-width:480px;margin:0 auto">
+    <div class="token-info fade-up">
+      <div class="token-info-title">🤖 Tentang Token AI</div>
+      <div class="token-info-body">
         Token adalah satuan pemakaian AI. 1 pesan chat ≈ 200–500 token. 1 scan struk ≈ 500–1.000 token.<br>
         <strong>2 Juta token</strong> ≈ 2.000–4.000 percakapan AI per bulan — lebih dari cukup untuk pemakaian harian.
       </div>
-      <div style="display:flex;justify-content:center;gap:16px;margin-top:14px;flex-wrap:wrap">
-        <div style="background:#fff;border-radius:12px;padding:12px 20px;border:1.5px solid #E8ECF0;text-align:center">
-          <div style="font-size:16px;font-weight:700;color:#00B26A">Rp 35.000</div>
-          <div style="font-size:11px;color:#8A96A8">2 Juta Token / bulan</div>
-        </div>
-        <div style="background:#fff;border-radius:12px;padding:12px 20px;border:1.5px solid #E8ECF0;text-align:center">
-          <div style="font-size:16px;font-weight:700;color:#7C3AED">Rp 59.000</div>
-          <div style="font-size:11px;color:#8A96A8">5 Juta Token / bulan</div>
-        </div>
+      <div class="token-cards">
+        <div class="token-card"><div class="token-card-price">Rp 35.000</div><div class="token-card-lbl">2 Juta Token / bulan</div></div>
+        <div class="token-card"><div class="token-card-price">Rp 59.000</div><div class="token-card-lbl">5 Juta Token / bulan</div></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- TESTIMONI -->
-<section id="testimoni">
+<!-- 13. FAQ -->
+<!-- Note(engineering): no FAQ section existed in the prior landing.html to carry over — authored
+     new per spec §5.13. No vendor names (Supabase/GCP/Vercel/Claude/Anthropic) used, per hard constraint. -->
+<section id="faq">
   <div class="section-inner">
     <div class="text-center fade-up">
-      <div class="section-eyebrow">Testimoni</div>
-      <h2 class="section-title">Kata mereka yang sudah<br><em>merasakannya</em></h2>
+      <div class="section-eyebrow">FAQ</div>
+      <h2 class="section-title">Masih ada yang mengganjal?</h2>
     </div>
-    <div class="testi-grid">
-      <div class="testi-card fade-up" style="transition-delay:.1s">
-        <div class="testi-stars">★★★★★</div>
-        <div class="testi-text">"Akhirnya ada aplikasi keuangan yang masuk akal! Gak perlu install ini itu, tinggal WA bot-nya, langsung keliatan saldo. AI-nya juga beneran kasih saran yang useful."</div>
-        <div class="testi-author">
-          <div class="testi-av" style="background:#00C47A">R</div>
-          <div><div class="testi-name">Rafi A.</div><div class="testi-job">Freelancer · Jakarta</div></div>
-        </div>
+    <div class="faq-list">
+      <div class="faq-item fade-up">
+        <div class="faq-q" onclick="toggleFaq(this)">Apakah WangkuAI baca semua chat WhatsApp aku?<i class="ti ti-chevron-down"></i></div>
+        <div class="faq-a"><div class="faq-a-inner">Nggak. WangkuAI cuma memproses pesan yang kamu kirim langsung ke nomor bot Wangku, bukan chat pribadimu yang lain. Setiap pesan ke bot dienkripsi end-to-end sebelum diproses.</div></div>
       </div>
-      <div class="testi-card fade-up" style="transition-delay:.2s">
-        <div class="testi-stars">★★★★★</div>
-        <div class="testi-text">"Fitur scan struk game changer banget. Sekarang setiap belanja tinggal foto, langsung masuk. Gak ada lagi lupa catat."</div>
-        <div class="testi-author">
-          <div class="testi-av" style="background:#3B82F6">D</div>
-          <div><div class="testi-name">Dinda P.</div><div class="testi-job">Mahasiswi · Bandung</div></div>
-        </div>
+      <div class="faq-item fade-up">
+        <div class="faq-q" onclick="toggleFaq(this)">Data keuanganku disimpan di mana?<i class="ti ti-chevron-down"></i></div>
+        <div class="faq-a"><div class="faq-a-inner">Di infrastruktur cloud yang aman dengan standar enkripsi setara perbankan. Kamu bisa ekspor atau hapus seluruh datamu kapan pun lewat pengaturan akun.</div></div>
       </div>
-      <div class="testi-card fade-up" style="transition-delay:.3s">
-        <div class="testi-stars">★★★★★</div>
-        <div class="testi-text">"Saya pakai buat keluarga, 5 orang. Sekarang semua transaksi keliatan, bisa tau mana yang boros. Dalam 2 bulan bisa nabung 2x lipat dari biasanya!"</div>
-        <div class="testi-author">
-          <div class="testi-av" style="background:#F59E0B">B</div>
-          <div><div class="testi-name">Budi S.</div><div class="testi-job">Kepala Keluarga · Surabaya</div></div>
-        </div>
+      <div class="faq-item fade-up">
+        <div class="faq-q" onclick="toggleFaq(this)">Bisa batal langganan kapan aja?<i class="ti ti-chevron-down"></i></div>
+        <div class="faq-a"><div class="faq-a-inner">Bisa. Semua paket berbayar bertagihan bulanan tanpa kontrak jangka panjang — batal kapan pun langsung dari pengaturan akun, tanpa penalti.</div></div>
+      </div>
+      <div class="faq-item fade-up">
+        <div class="faq-q" onclick="toggleFaq(this)">Gimana cara mulai pakai Wangku?<i class="ti ti-chevron-down"></i></div>
+        <div class="faq-a"><div class="faq-a-inner">Chat nomor Wangku di WhatsApp, kirim transaksi pertamamu seperti biasa ("makan siang 25rb"), dan akun kamu otomatis aktif di paket Free. Upgrade kapan pun kamu butuh fitur AI.</div></div>
+      </div>
+      <div class="faq-item fade-up">
+        <div class="faq-q" onclick="toggleFaq(this)">Apa bedanya Wangku dengan aplikasi keuangan lain?<i class="ti ti-chevron-down"></i></div>
+        <div class="faq-a"><div class="faq-a-inner">Nggak ada aplikasi baru buat diinstal dan dipelajari. Kamu cukup chat seperti biasa, dan WangkuAI yang mengurus kategorisasi, perhitungan, dan laporannya.</div></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- CTA -->
+<!-- 14. FINAL CTA -->
 <section id="cta">
   <div class="section-inner">
     <div class="cta-inner fade-up">
-      <div class="section-eyebrow" style="color:rgba(0,196,122,.8)">Mulai Sekarang</div>
-      <h2 class="cta-title">Saldo kamu lebih besar<br>dari yang kamu <em>kira</em></h2>
+      <div class="section-eyebrow" style="color:rgba(5,226,142,.85)">Mulai Sekarang</div>
+      <h2 class="cta-title">Siap untuk hidup<br>tanpa rasa <span>cemas</span>?</h2>
       <p class="cta-sub">Bergabung dengan pengguna Wangku yang sudah lebih sadar keuangannya. Gratis, tidak perlu kartu kredit.</p>
       <div class="cta-actions">
-        <a href="https://fadhillahmaurizky-crypto.github.io/ai-finance-app" class="btn-primary" target="_blank"><i class="ti ti-rocket"></i> Buka Aplikasi Sekarang</a>
-        <a href="https://wa.me/6285727318698" class="btn-wa" target="_blank"><i class="ti ti-brand-whatsapp"></i> Chat dengan Admin</a>
+        <a href="https://wa.me/6285727318698" class="btn-wa" target="_blank"><i class="ti ti-brand-whatsapp"></i> Chat dengan Wangku</a>
+        <a href="index.html" class="btn-white"><i class="ti ti-rocket"></i> Buka Aplikasi Web</a>
       </div>
     </div>
   </div>
@@ -892,35 +970,35 @@ footer {
     <div class="footer-top">
       <div>
         <div class="footer-brand">
-          <img src="logo.png" style="width:36px;height:36px;object-fit:contain;border-radius:8px"/>
-          <span style="font-size:18px;font-weight:800;color:#fff">Wang<span style="color:var(--green)">ku</span></span>
+          <img src="logo.png" style="width:36px;height:36px;object-fit:contain;border-radius:8px" alt="Wangku"/>
+          <span style="font-family:var(--font-display);font-size:18px;font-weight:800;color:#fff">Wang<span style="color:var(--emerald)">ku</span></span>
         </div>
-        <p class="footer-desc">Pencatat keuangan berbasis AI yang terhubung langsung dengan WhatsApp. Simpel, cerdas, dan efektif.</p>
+        <p class="footer-desc">Asisten keuangan pribadi yang hidup di WhatsApp kamu. Simpel, cerdas, dan terasa langsung manfaatnya.</p>
       </div>
       <div class="footer-col">
         <div class="footer-col-title">Produk</div>
         <a href="#fitur">Fitur</a>
         <a href="#harga">Harga</a>
-        <a href="#cara-kerja">Cara Kerja</a>
+        <a href="#demo">Cara Kerja</a>
         <a href="#testimoni">Testimoni</a>
       </div>
       <div class="footer-col">
         <div class="footer-col-title">Dukungan</div>
-        <a href="https://wa.me/6285727318698">WhatsApp Support</a>
+        <a href="https://wa.me/6285727318698" target="_blank">WhatsApp Support</a>
         <a href="#cta">Hubungi Kami</a>
-        <a href="#">FAQ</a>
+        <a href="#faq">FAQ</a>
       </div>
       <div class="footer-col">
         <div class="footer-col-title">Legal</div>
         <a href="#">Kebijakan Privasi</a>
         <a href="#">Syarat & Ketentuan</a>
-        <a href="#">Keamanan Data</a>
+        <a href="#privacy">Keamanan Data</a>
       </div>
     </div>
     <div class="footer-bottom">
-      <div class="footer-copy">© 2024 Wangku. Dibuat dengan ❤️ di Indonesia.</div>
+      <div class="footer-copy">© 2026 Wangku. Dibuat dengan ❤️ di Indonesia.</div>
       <div class="footer-links">
-        <a href="https://wa.me/6285727318698"><i class="ti ti-brand-whatsapp"></i></a>
+        <a href="https://wa.me/6285727318698" target="_blank"><i class="ti ti-brand-whatsapp"></i></a>
         <a href="#"><i class="ti ti-brand-instagram"></i></a>
         <a href="#"><i class="ti ti-brand-tiktok"></i></a>
       </div>
@@ -938,7 +1016,7 @@ document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 // Navbar scroll
 window.addEventListener('scroll', () => {
   const nav = document.getElementById('navbar');
-  nav.style.background = window.scrollY > 20 ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.85)';
+  nav.style.background = window.scrollY > 20 ? 'rgba(251,251,253,.95)' : 'rgba(251,251,253,.85)';
 });
 
 // Mobile menu
@@ -950,10 +1028,15 @@ function toggleMenu() {
   links.style.top = '70px';
   links.style.left = '0';
   links.style.right = '0';
-  links.style.background = '#fff';
+  links.style.background = '#FBFBFD';
   links.style.padding = '20px';
-  links.style.borderBottom = '1px solid #E8ECF4';
+  links.style.borderBottom = '1px solid rgba(10,11,15,.08)';
   links.style.gap = '16px';
+}
+
+// FAQ accordion
+function toggleFaq(el) {
+  el.parentElement.classList.toggle('open');
 }
 
 // Smooth scroll for nav links
