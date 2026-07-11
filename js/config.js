@@ -32,3 +32,6 @@ const DEFAULT_PRIORITIES=[
   {nama:'Tidak Penting',slug:'tidak_penting'}
 ];
 
+// Feature flags — flip to true to re-enable, no other code change needed.
+const FEATURE_SPLIT_BILL=false; // Split Bill teaser (Target page): no backend, kept for a future release
+

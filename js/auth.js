@@ -13,6 +13,7 @@ async function doLogin(){
     if(result.user.status==='pending')throw new Error('Akun menunggu aktivasi admin. Hubungi admin via WhatsApp 😊');
     if(result.user.status==='banned')throw new Error('Akun kamu dinonaktifkan. Hubungi admin.');
     if(result.user.status!=='active')throw new Error('Akun tidak aktif. Hubungi admin.');
+    if(typeof resetSessionState==='function')resetSessionState();
     user=result.user;localStorage.setItem('sdk_token',result.token);
     await sb(`users?id=eq.${user.id}`,'PATCH',{last_login:new Date().toISOString()});
     localStorage.setItem('sdk_session',JSON.stringify(user));
@@ -46,8 +47,8 @@ async function doRegister(){
   if(!pw||pw.length<6){err.textContent='Password min. 6 karakter!';err.style.display='block';return;}
   btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Mengirim OTP...';
   try{
-    const ex=await sbAnon(`users?or=(username.eq.${un},email.eq.${email})&select=id`);
-    if(ex?.length){err.textContent='Username atau email sudah terdaftar!';err.style.display='block';btn.disabled=false;btn.innerHTML='<i class="ti ti-user-plus"></i> Buat Akun Gratis';return;}
+    const available=await rpcAnon('check_registration_available',{p_username:un,p_email:email});
+    if(!available){err.textContent='Username atau email sudah terdaftar!';err.style.display='block';btn.disabled=false;btn.innerHTML='<i class="ti ti-user-plus"></i> Buat Akun Gratis';return;}
     regOTP=String(Math.floor(100000+Math.random()*900000));
     regData={name,un,email,wa,pw};
     await sendEmailOTP(email,name,regOTP);
@@ -67,12 +68,12 @@ async function verifyRegOTP(){
   try{
     const h=await hp(regData.pw);
     const waFull=regData.wa.startsWith('62')?regData.wa:'62'+(regData.wa.startsWith('0')?regData.wa.substring(1):regData.wa);
-    const r=await sbAnon('users?select=id,username,full_name,email,wa_number','POST',{username:regData.un,full_name:regData.name,email:regData.email,wa_number:waFull,password_hash:h,role:'user',status:'pending',gas_user_id:waFull,plan:'free',tokens_limit:0,tokens_used:0});
-    if(!r||!r.length)throw new Error('Gagal membuat akun');
-    newUser={id:r[0].id,full_name:regData.name,username:regData.un,email:regData.email,wa_number:waFull};
+    const newId=crypto.randomUUID();
+    await sbAnon('users','POST',{id:newId,username:regData.un,full_name:regData.name,email:regData.email,wa_number:waFull,password_hash:h,role:'user',status:'pending',gas_user_id:waFull,plan:'free',tokens_limit:0,tokens_used:0},true);
+    newUser={id:newId,full_name:regData.name,username:regData.un,email:regData.email,wa_number:waFull};
     regOTP=null;regData=null;
     showPaymentFlow();
-  }catch(e){err.textContent=e.message.includes('duplicate')?'Username/email sudah terdaftar!':e.message;err.style.display='block';}
+  }catch(e){err.textContent=isDupError(e)?'Username/email sudah terdaftar!':e.message;err.style.display='block';}
 }
 
 async function sendEmailOTP(toEmail, nama, otp){
@@ -131,7 +132,7 @@ async function resetPW(){
   catch(e){err.textContent='Gagal: '+e.message;err.style.display='block';}
 }
 
-async function doBiometric(){const su=localStorage.getItem('sdk_bio_user');if(!su){showToast('Login manual dulu!','err');return;}try{const a=await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rpId:window.location.hostname,userVerification:'required',timeout:60000}});if(a){const result=await rpc('get_user_by_username',{p_username:su});if(!result||!result.user)throw new Error('User tidak ditemukan');user=result.user;localStorage.setItem('sdk_token',result.token);localStorage.setItem('sdk_session',JSON.stringify(user));showApp();}}catch(e){if(e.name!=='NotAllowedError')showToast('Fingerprint gagal','err');}}
+async function doBiometric(){const su=localStorage.getItem('sdk_bio_user');if(!su){showToast('Login manual dulu!','err');return;}try{const a=await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rpId:window.location.hostname,userVerification:'required',timeout:60000}});if(a){const result=await rpc('get_user_by_username',{p_username:su});if(!result||!result.user)throw new Error('User tidak ditemukan');if(typeof resetSessionState==='function')resetSessionState();user=result.user;localStorage.setItem('sdk_token',result.token);localStorage.setItem('sdk_session',JSON.stringify(user));showApp();}}catch(e){if(e.name!=='NotAllowedError')showToast('Fingerprint gagal','err');}}
 
 async function setupBiometric(){if(!user)return;try{const av=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();if(!av){showToast('Perangkat tidak mendukung','err');return;}const c=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:'Wangku',id:window.location.hostname},user:{id:new TextEncoder().encode(user.id),name:user.username,displayName:user.full_name},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'},timeout:60000}});if(c){localStorage.setItem('sdk_bio_user',user.username);localStorage.setItem('sdk_bio_cred',c.id);document.getElementById('bio-status').textContent='Fingerprint aktif ✓';showToast('Fingerprint aktif! 👆','ok');}}catch(e){if(e.name!=='NotAllowedError')showToast('Gagal setup fingerprint','err');}}
 
