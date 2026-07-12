@@ -775,6 +775,40 @@ GRANT EXECUTE ON FUNCTION public.check_registration_available(TEXT, TEXT) TO ano
 
 
 -- ============================================================
+-- [23] KATEGORI: uniqueness case-insensitive
+-- ============================================================
+-- Bug: menambah kategori dengan nama yang sama persis (case-insensitive)
+-- dengan yang sudah ada TIDAK selalu ditolak. UNIQUE(user_id, nama, jenis)
+-- dari block [19] itu sendiri sudah benar SESUAI DEFINISINYA — tapi
+-- perbandingan Postgres itu case-SENSITIVE by default. DEFAULT_CATEGORIES
+-- di-seed lowercase ('bonus'), sementara UI menampilkannya dengan huruf
+-- pertama besar ('Bonus') murni untuk tampilan (charAt(0).toUpperCase()),
+-- tanpa pernah mengubah nilai yang tersimpan. User yang mengira "Bonus"
+-- adalah kategori yang sama dan mengetiknya manual lewat form tambah
+-- kategori sebenarnya membuat STRING YANG BERBEDA secara harfiah, yang
+-- lolos dari constraint lama tanpa terdeteksi -- baru terdeteksi kalau
+-- ada percobaan KEDUA dengan ejaan (termasuk kapitalisasi) yang sama
+-- persis dengan baris "duplikat" yang sudah lolos itu.
+--
+-- Dikonfirmasi lewat query langsung ke produksi: 3 pasang duplikat
+-- ditemukan ('gaji'/'Gaji', 'bonus'/'Bonus' x2), semuanya identik byte-
+-- per-byte kecuali huruf pertama -- bukan whitespace/karakter tersembunyi.
+-- Baris is_default=false (versi kapital, buatan user) dihapus manual
+-- sekali di produksi setelah dikonfirmasi tidak ada transaksi yang
+-- mereferensikan nama itu persis.
+--
+-- Fix: ganti constraint exact-match dengan unique index case-insensitive.
+-- Client (categories.js) juga di-lowercase-kan sebelum insert/update
+-- sebagai lapisan kedua, supaya nama yang tersimpan konsisten dan tampilan
+-- "Judul Kasus" tetap benar dari charAt(0).toUpperCase() yang sudah ada.
+-- ============================================================
+ALTER TABLE public.user_categories DROP CONSTRAINT IF EXISTS user_categories_user_id_nama_jenis_key;
+DROP INDEX IF EXISTS public.user_categories_user_id_nama_ci_jenis_key;
+CREATE UNIQUE INDEX user_categories_user_id_nama_ci_jenis_key
+  ON public.user_categories (user_id, lower(nama), jenis);
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables
