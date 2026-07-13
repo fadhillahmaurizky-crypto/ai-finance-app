@@ -119,7 +119,9 @@ No state library. Global mutable variables in `js/state.js`:
 let user=null, chatHist=[], loading=false, sumData=null, jenis='pemasukan',
     targets=[], dP, fpUser=null, fpOTP=null, aiChat=0, aiScan=0;
 ```
-Plus module-level `let` in `accounts.js` (`accountsList`), `categories.js` (`kategoriList`), `priorities.js` (`prioritasList`), and several in `transactions.js` (`txnCache`, `txAllFilter`, `txAllList`, `editingTrxId`, `editingTargetId`, `contributingTargetId`). Anything that needs to survive a reload goes to `localStorage` — full key list in `environment.md`, including the newer `sdk_token` (JWT), `wangku_balance_hidden`, `wangku_count_target_balance`.
+Plus module-level `let` in `accounts.js` (`accountsList`), `categories.js` (`kategoriList`), `priorities.js` (`prioritasList`), `chat-ai.js` (`ctx`), and several in `transactions.js` (`txnCache`, `txAllFilter`, `txAllList`, `editingTrxId`, `editingTargetId`, `contributingTargetId`). Anything that needs to survive a reload goes to `localStorage` — full key list in `environment.md`, including the newer `sdk_token` (JWT), `wangku_balance_hidden`, `wangku_count_target_balance`.
+
+**All of these are explicitly cleared by `resetSessionState()`** (`app-core.js`), called from `logout()`, `handleAuthExpired()`, and at the start of a successful `doLogin()`/`doBiometric()` (`auth.js`). This exists because these globals used to persist across a login→logout→login transition within the same tab (no page reload) — logging in as a second user on a device previously used by someone else would render that previous user's balance/targets/health-score/AI-chat-context momentarily or persistently, purely from stale in-memory state, even though every server response was correctly scoped per-user the whole time. **If you add a new module-level cache of per-user data, add it to `resetSessionState()` too** — it's the single place this needs to happen, not something each new feature can assume is handled elsewhere.
 
 ## 10. Component hierarchy
 No framework components. `index.html` holds every "page" and every modal as sibling `<div>`s; JS toggles `.active`/`.open` classes. Full inventory in `frontend.md`.

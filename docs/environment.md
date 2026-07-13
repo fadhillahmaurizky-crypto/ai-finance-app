@@ -22,7 +22,8 @@ No `.env` for the static site — everything's a hardcoded JS constant in `js/co
 | Variable | Purpose |
 |---|---|
 | `GROQ_API_KEY` | Required for both `/api/ai-chat.js` and `/api/ai-scan.js` to function at all |
-| `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Optional overrides — both functions have the real values hardcoded as fallbacks (the anon key is public anyway), so these env vars aren't strictly required, but prefer setting them if you want one place to update if the project ever changes |
+| `SUPABASE_URL` | Optional override — both functions have the real value hardcoded as a fallback, so this isn't strictly required, but prefer setting it if you want one place to update if the project ever changes |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Required** for both functions — used *only* for the internal plan/token lookup query (see `backend.md`). Get the real value from Supabase Dashboard → Project Settings → API → `service_role` secret, and set it directly in Vercel's environment variables. **Never hardcode this one** (unlike the anon key, which is public by design) and never let it reach any client-facing code path. |
 
 ## Postgres-side secret (lives in the SQL, not in this repo's client code)
 

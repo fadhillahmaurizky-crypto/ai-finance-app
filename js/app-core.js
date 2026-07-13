@@ -66,10 +66,31 @@ function showApp(){
   if(typeof refreshBadge==='function')refreshBadge();
 }
 
-function logout(){localStorage.removeItem('sdk_session');localStorage.removeItem('sdk_token');user=null;showLoginPage();}
+// Bersihkan semua cache in-memory milik user sebelumnya. Dipanggil di logout()
+// dan lagi di awal login sukses (doLogin()/doBiometric()) sebagai jaring
+// pengaman kedua — supaya data user lama tidak pernah kepakai/kerender
+// sesaat untuk user baru di device/tab yang sama tanpa reload halaman.
+function resetSessionState(){
+  sumData=null;targets=[];chatHist=[];
+  if(typeof ctx!=='undefined')ctx='';
+  if(typeof accountsList!=='undefined')accountsList=[];
+  if(typeof editingAccountId!=='undefined')editingAccountId=null;
+  if(typeof kategoriList!=='undefined')kategoriList=[];
+  if(typeof prioritasList!=='undefined')prioritasList=[];
+  if(typeof txnCache!=='undefined')txnCache={};
+  if(typeof txAllList!=='undefined')txAllList=[];
+  if(typeof txAllFilter!=='undefined')txAllFilter={jenis:'semua'};
+  if(typeof editingTrxId!=='undefined')editingTrxId=null;
+  if(typeof editingTargetId!=='undefined')editingTargetId=null;
+  if(typeof contributingTargetId!=='undefined')contributingTargetId=null;
+  if(typeof insightList!=='undefined'){insightList=[];insightIdx=0;}
+}
+
+function logout(){resetSessionState();localStorage.removeItem('sdk_session');localStorage.removeItem('sdk_token');user=null;showLoginPage();}
 let authExpiredHandled=false;
 function handleAuthExpired(){
   if(authExpiredHandled)return;authExpiredHandled=true;
+  resetSessionState();
   localStorage.removeItem('sdk_session');localStorage.removeItem('sdk_token');user=null;
   showLoginPage();
   if(typeof showToast==='function')showToast('Sesi kamu berakhir, silakan login lagi','warn');

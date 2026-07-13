@@ -311,8 +311,11 @@ async function renderBalanceSparkline(){
 // KESEHATAN KEUANGAN + TARGET TERDEKAT
 // ========================
 function computeHealthScore(s){
-  let score=100;
   const tM=s.totalMasuk||0,tK=s.totalKeluar||0;
+  // Belum ada transaksi bulan ini sama sekali — jangan hitung skor, savingsRate=0
+  // akan jatuh ke bracket "rendah" dan salah menandai akun baru sebagai kurang sehat.
+  if(tM===0&&tK===0)return{score:null,label:'Belum ada data',color:'var(--text3)',savingsRate:0,noData:true};
+  let score=100;
   const savingsRate=tM>0?((tM-tK)/tM)*100:(tK>0?-100:0);
   if(s.saldo<0)score-=30;
   if(savingsRate<0)score-=30;else if(savingsRate<10)score-=15;else if(savingsRate<20)score-=5;
@@ -324,17 +327,26 @@ function computeHealthScore(s){
   else if(score>=60){label='Cukup Baik 🙂';color='var(--amber)';}
   else if(score>=40){label='Perlu Perhatian 😐';color='#F97316';}
   else{label='Waspada 😟';color='var(--red)';}
-  return{score,label,color,savingsRate};
+  return{score,label,color,savingsRate,noData:false};
 }
 
 function renderHealthAndTarget(){
   if(!sumData)return;
   const h=computeHealthScore(sumData.summary);
-  const scoreEl=document.getElementById('health-score');const labelEl=document.getElementById('health-label');const subEl=document.getElementById('health-sub');const arc=document.getElementById('health-arc');
-  if(scoreEl)scoreEl.textContent=h.score;
-  if(labelEl){labelEl.textContent=h.label;labelEl.style.color=h.color;}
-  if(subEl)subEl.textContent=h.score>=80?'Pertahankan terus kebiasaan baikmu!':h.score>=60?'Sudah baik, masih ada ruang perbaikan.':h.score>=40?'Coba kurangi pengeluaran tidak penting.':'Segera evaluasi ulang pengeluaranmu.';
-  if(arc){const circumference=2*Math.PI*42;const filled=(h.score/100)*circumference;arc.setAttribute('stroke-dasharray',`${filled.toFixed(1)} ${circumference.toFixed(1)}`);arc.setAttribute('stroke',h.color);}
+  const scoreEl=document.getElementById('health-score');const maxEl=document.querySelector('.health-max');const labelEl=document.getElementById('health-label');const subEl=document.getElementById('health-sub');const arc=document.getElementById('health-arc');
+  if(h.noData){
+    if(scoreEl)scoreEl.textContent='—';
+    if(maxEl)maxEl.style.display='none';
+    if(labelEl){labelEl.textContent=h.label;labelEl.style.color=h.color;}
+    if(subEl)subEl.textContent='Catat transaksi pertamamu bulan ini untuk melihat skor kesehatan keuangan.';
+    if(arc){arc.setAttribute('stroke-dasharray','0 264');arc.setAttribute('stroke','var(--border2)');}
+  }else{
+    if(scoreEl)scoreEl.textContent=h.score;
+    if(maxEl)maxEl.style.display='';
+    if(labelEl){labelEl.textContent=h.label;labelEl.style.color=h.color;}
+    if(subEl)subEl.textContent=h.score>=80?'Pertahankan terus kebiasaan baikmu!':h.score>=60?'Sudah baik, masih ada ruang perbaikan.':h.score>=40?'Coba kurangi pengeluaran tidak penting.':'Segera evaluasi ulang pengeluaranmu.';
+    if(arc){const circumference=2*Math.PI*42;const filled=(h.score/100)*circumference;arc.setAttribute('stroke-dasharray',`${filled.toFixed(1)} ${circumference.toFixed(1)}`);arc.setAttribute('stroke',h.color);}
+  }
 
   const nameEl=document.getElementById('nt-name'),fillEl=document.getElementById('nt-fill'),pctEl=document.getElementById('nt-pct'),tkEl=document.getElementById('nt-terkumpul'),tgEl=document.getElementById('nt-target');
   if(!nameEl)return;

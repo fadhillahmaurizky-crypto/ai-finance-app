@@ -16,7 +16,7 @@ Home (page-home)
 ├── Insight dari WangkuAI — rule-based observations (not a live AI call), tap or swipe to cycle, fade transition
 ├── Alert banner (e.g. "Saldo kamu minus!") — rule-based, conditional
 ├── Aksi Cepat — user-customizable via an "Edit" link next to the section title: picker over the pool (Catat, Pemasukan, Pengeluaran, Tanya AI, Target, Laporan, Pindah Saldo, Kategori) with per-row checkbox (visible/hidden, capped at 5) and ↑/↓ move buttons for reordering (not drag-and-drop), persisted as an ordered array to `wangku_aksi_cepat` localStorage. Default (nothing saved yet) = Catat/Tanya AI/Target/Laporan/Kategori — Pemasukan, Pengeluaran, and Pindah Saldo are pool-only, not shown by default
-├── Kesehatan Keuangan — rule-based 0-100 health score gauge (title inside card, horizontal gauge+text layout)
+├── Kesehatan Keuangan — rule-based 0-100 health score gauge (title inside card, horizontal gauge+text layout). Shows "Belum ada data" (no number, neutral gauge) instead of a score when the account has zero pemasukan/pengeluaran this month — otherwise a savings-rate-based penalty branch would misfire on brand-new/inactive accounts (0% savings rate reads the same as a genuinely low one)
 └── Target Terdekat — nearest-deadline incomplete target, progress bar, terkumpul/target amounts abbreviated with tap-to-reveal (same convention as the Target page's cards)
     Files: index.html (page-home), dashboard.js (loadSummary, renderBalanceSparkline, computeInsights, computeHealthScore, renderHealthAndTarget, renderAksiCepat, openAksiCepatEdit, saveAksiCepat), transactions.js (loadTrx, filterHome)
 
@@ -50,7 +50,7 @@ Target (page-target)
 ├── Card per target: progress bar (amounts abbreviated with tap-to-reveal), deadline, edit/delete
 ├── "Tambah Tabungan" per card → records a pengeluaran transaction linked via target_id, bumps terkumpul (same balance check as Catat's Pengeluaran — blocked if the source account can't cover it)
 ├── "Tambah Target Baru" → target-modal (add/edit, "Selesai" success screen)
-└── "Split Bill" teaser card — **not a real feature**, a static "Coming Soon" placeholder (`.coming-card` in index.html) describing a future bill-splitting-with-friends idea. No data model, no backend, its only button just shows a "notify me" toast. Unrelated to any "split a payment across multiple accounts" concept — that would be a different feature if ever built (see `roadmap.md`)
+└── "Split Bill" teaser card — **not a real feature**, a static "Coming Soon" placeholder (`.coming-card` in index.html) describing a future bill-splitting-with-friends idea. No data model, no backend, its only button just shows a "notify me" toast. Unrelated to any "split a payment across multiple accounts" concept — that would be a different feature if ever built (see `roadmap.md`). **Hidden from users** behind the `FEATURE_SPLIT_BILL` flag in `config.js` (currently `false`) — code is kept, not deleted, per product decision; flip the flag to bring it back once there's a real workflow behind it
     Files: transactions.js (renderTargets, saveTarget, openContribute, submitContribution)
     DB: targets, transactions (target_id)
 

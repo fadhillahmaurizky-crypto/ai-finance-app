@@ -34,7 +34,7 @@ function showAddKategori(){
   document.getElementById('add-kat-modal').classList.add('open');
 }
 async function saveKategoriQuick(){
-  const nama=document.getElementById('new-kat-nama').value.trim();
+  const nama=document.getElementById('new-kat-nama').value.trim().toLowerCase();
   const jenis=document.getElementById('new-kat-jenis').value;
   if(!nama){showToast('Masukkan nama kategori!','err');return;}
   try{
@@ -88,7 +88,7 @@ function editKategori(id, namaLama, jenis){
   document.getElementById('edit-kat-'+id).focus();
 }
 async function simpanEditKategori(id){
-  const nama=document.getElementById('edit-kat-'+id)?.value.trim();
+  const nama=document.getElementById('edit-kat-'+id)?.value.trim().toLowerCase();
   const jenis=document.getElementById('edit-jenis-'+id)?.value;
   if(!nama){showToast('Nama tidak boleh kosong!','err');return;}
   try{
@@ -99,7 +99,7 @@ async function simpanEditKategori(id){
   }catch(e){showToast(isDupError(e)?`Kategori "${nama}" sudah ada di jenis ini.`:'Gagal: '+e.message,'err');}
 }
 async function saveKategoriFull(){
-  const nama=document.getElementById('kat-full-nama').value.trim();
+  const nama=document.getElementById('kat-full-nama').value.trim().toLowerCase();
   const jenis=document.getElementById('kat-full-jenis').value;
   if(!nama){showToast('Masukkan nama kategori!','err');return;}
   try{
