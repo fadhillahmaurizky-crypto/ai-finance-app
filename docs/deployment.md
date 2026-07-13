@@ -2,7 +2,7 @@
 
 ## Web (PWA + serverless functions)
 
-- **Host**: Vercel, static file serving for `index.html`/`admin.html`/`landing.html`/`css`/`js`, **plus** the `/api` folder which Vercel auto-detects as serverless functions — no separate deployment step needed for that part. `vercel.json` *does* exist, but only for the root/`/app` routing split (see `architecture.md` §2a), not for anything API-related.
+- **Host**: Vercel, static file serving for `webapp.html`/`admin.html`/`landing.html`/`css`/`js`, **plus** the `/api` folder which Vercel auto-detects as serverless functions — no separate deployment step needed for that part. `vercel.json` *does* exist, but only for the root/`/app` routing split (see `architecture.md` §2a), not for anything API-related.
 - **Root vs. `/app` routing**: landing page is `/`, the actual app is `/app` (`vercel.json` rewrites — physical files are unchanged, still at repo root). **If `twa-manifest.json`'s `startUrl` is ever changed, existing installed Android TWA users need a new APK/AAB build and re-sign (`bubblewrap update && bubblewrap build`, then re-sign with `android.keystore`) before it takes effect for them** — this is baked into the native app at build time, not fetched live from the deployed site.
 - **Required setup**: `GROQ_API_KEY` must be set in Vercel → Project Settings → Environment Variables, or `/api/ai-chat.js` and `/api/ai-scan.js` will return a "server not configured" error and both AI features will appear broken to users even though the rest of the app works fine.
 - **Deploy trigger**: presumably push to the connected branch on `github.com/ariftafachrizal/ai-finance-app` — confirm in the Vercel dashboard, not configured in-repo.
@@ -21,7 +21,7 @@
 
 ```mermaid
 flowchart LR
-    A[index.html deployed on Vercel] --> B[twa-manifest.json config]
+    A[webapp.html deployed on Vercel] --> B[twa-manifest.json config]
     B --> C[bubblewrap build]
     C --> D[Android project in /app, /build.gradle, gradlew]
     D --> E[Signed with android.keystore]

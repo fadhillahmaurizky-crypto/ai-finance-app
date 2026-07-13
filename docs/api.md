@@ -51,7 +51,7 @@ WhatsApp Business API. The web app itself only links out to `wa.me/<CS number>` 
 Used in `auth.js` for OTP delivery (registration and password reset). Client-side call, key in `config.js`.
 
 ## SheetJS (xlsx), via CDN
-Loaded in `index.html` (`cdnjs.cloudflare.com/ajax/libs/xlsx/...`), used client-side only for the Transaksi page's "Export Excel" button — no server involvement.
+Loaded in `webapp.html` (`cdnjs.cloudflare.com/ajax/libs/xlsx/...`), used client-side only for the Transaksi page's "Export Excel" button — no server involvement.
 
 ## No inbound webhooks into the web app
 The app never receives pushed data — anything that needs to reach it (detected transactions, WhatsApp-originated transactions) has to land in a Supabase table first; the app finds out by polling.
