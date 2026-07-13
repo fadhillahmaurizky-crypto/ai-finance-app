@@ -1,8 +1,8 @@
 # Frontend
 
-No framework, no build step. `index.html` is the entire consumer-app shell; `js/*.js` files load via plain `<script src>` tags in a specific order — later files assume earlier ones already ran.
+No framework, no build step. `webapp.html` is the entire consumer-app shell; `js/*.js` files load via plain `<script src>` tags in a specific order — later files assume earlier ones already ran.
 
-## Script load order (from `index.html`)
+## Script load order (from `webapp.html`)
 
 ```
 xlsx (CDN, SheetJS) → config.js → state.js → ui-helpers.js → auth.js → app-core.js →
@@ -14,7 +14,7 @@ priorities.js → accounts.js → settings.js → boot.js
 
 ## Onboarding carousel (first-time visitors)
 
-`#ob-wrap` in `index.html` is a 3-slide onboarding carousel (`checkOb()`/`nextOb()`/`skipOb()` in `ui-helpers.js`) shown before the login screen the very first time the app loads on a device — gated by the `sdk_ob` localStorage flag (`checkOb()` returns early and shows it if that key isn't set yet; `skipOb()`/reaching the last slide's "Mulai Sekarang" button sets it and reveals the login page). Purely a marketing/explainer screen — no auth or data implications, and it never reappears once `sdk_ob` is set.
+`#ob-wrap` in `webapp.html` is a 3-slide onboarding carousel (`checkOb()`/`nextOb()`/`skipOb()` in `ui-helpers.js`) shown before the login screen the very first time the app loads on a device — gated by the `sdk_ob` localStorage flag (`checkOb()` returns early and shows it if that key isn't set yet; `skipOb()`/reaching the last slide's "Mulai Sekarang" button sets it and reveals the login page). Purely a marketing/explainer screen — no auth or data implications, and it never reappears once `sdk_ob` is set.
 
 ## Local PIN lock (second auth layer, on top of the JWT login)
 

@@ -4,8 +4,8 @@
 
 ```
 ai-finance-app/
-├── vercel.json               # Routing: "/" → landing.html, "/app" → index.html (rewrites, not physical moves — see §2a)
-├── index.html              # The entire consumer app — every "page" is a <div class="page"> toggled by JS. Served at /app
+├── vercel.json               # Routing: "/" → landing.html, "/app" → webapp.html (rewrites, not physical moves — see §2a)
+├── webapp.html              # The entire consumer app — every "page" is a <div class="page"> toggled by JS. Served at /app
 ├── admin.html               # Separate standalone admin panel (real login, user/plan management, transactions view). Stays at /admin.html, not part of the /app split
 ├── landing.html              # Marketing/landing page (pre-login). Served at root /
 ├── manifest.json              # PWA manifest — start_url is /app, not /
@@ -35,19 +35,21 @@ ai-finance-app/
 │   ├── ai-chat.js                     # Vercel serverless function — proxies chat completions to Groq
 │   └── ai-scan.js                      # Vercel serverless function — proxies receipt-scan (vision) to Groq
 ├── database/
-│   └── wangku-supabase-setup.sql        # Full schema, additive migration blocks [1]…[21] (see database.md)
+│   └── wangku-supabase-setup.sql        # Full schema, additive migration blocks [1]…[23] (see database.md)
+├── gs/
+│   └── fonnte.gs                          # Google Apps Script — Fonnte WhatsApp webhook backend. Deployed manually by pasting into an Apps Script project (this file is just the source of truth in-repo); not built/deployed via Vercel or any CI
 └── docs/                                  # You are here
 ```
 
-**No `gas/` folder exists in this repo** (not even in git history). A Google Apps Script backend (`wangku-backend.gs` — Fonnte webhook + Drive backup) was drafted during planning conversations but never actually committed here, pending a decision between building on Fonnte vs. switching to an Evolution API-based WhatsApp integration. Don't assume this file exists or try to reference it as if it were real code sitting in the repo — see `backend.md`/`ai.md` for what the *planned* design was.
-
-*(This note is about to go stale — a real, working `gas/fonnte.gs` is landing in a follow-up PR once its known bugs are fixed. Update this section and `backend.md`/`ai.md` in that same change, don't leave this claim sitting here once the file is real.)*
+**`gs/fonnte.gs` is real, committed code** (as of the Part A merge) — not a planned/draft design. It has known, tracked bugs still pending a dedicated fix pass: `SB_KEY` uses the anon key instead of the service role key (should bypass RLS like the `/api` functions do), transactions it inserts never set `account_id`, its saldo/laporan calculations are month-scoped rather than matching the app's all-time balance model, and its keyword-based category matching uses a vocabulary that doesn't match real `user_categories` rows. See `backend.md`/`ai.md` for the full breakdown — don't treat this file as production-solid just because it's now in the repo.
 
 ## 2a. Root (`/`) vs. app (`/app`) routing — read before touching any hardcoded app URL
 
-Root domain serves `landing.html` (marketing); the actual app lives at `/app`, serving `index.html`'s content. Both are `vercel.json` **rewrites**, not physical file moves — `index.html` and `landing.html` still physically sit at the repo root exactly as the folder structure above shows. This matters for one specific reason: **every asset reference inside `index.html` (and `boot.js`'s service worker registration) must use an absolute path (leading `/`), never a relative one.** A relative path like `js/config.js` resolves against the *document's URL*, not the file's on-disk location — since the browser sees the document at `/app`, a relative reference would resolve to `/app/js/config.js`, which doesn't exist (the real file is at `/js/config.js`). This is already fixed throughout `index.html`/`boot.js`/`sw.js` — if you add a new asset reference, use a leading `/` or it will 404 silently in production while looking fine if you happen to test by opening `index.html` directly.
+Root domain serves `landing.html` (marketing); the actual app lives at `/app`, serving `webapp.html`'s content. Both are `vercel.json` **rewrites**, not physical file moves — `webapp.html` and `landing.html` still physically sit at the repo root exactly as the folder structure above shows. This matters for one specific reason: **every asset reference inside `webapp.html` (and `boot.js`'s service worker registration) must use an absolute path (leading `/`), never a relative one.** A relative path like `js/config.js` resolves against the *document's URL*, not the file's on-disk location — since the browser sees the document at `/app`, a relative reference would resolve to `/app/js/config.js`, which doesn't exist (the real file is at `/js/config.js`). This is already fixed throughout `webapp.html`/`boot.js`/`sw.js` — if you add a new asset reference, use a leading `/` or it will 404 silently in production while looking fine if you happen to test by opening `webapp.html` directly.
 
-Anywhere the app's own URL needs to be referenced (admin.html's "App URL" link, `landing.html`'s CTA, the Fonnte bot's `APP_URL`, EmailJS templates) must point at `/app`, not `/` or a bare `index.html`.
+Anywhere the app's own URL needs to be referenced (admin.html's "App URL" link, `landing.html`'s CTA, the Fonnte bot's `APP_URL`, EmailJS templates) must point at `/app`, not `/` or a bare `webapp.html`.
+
+**Why the app shell isn't named `index.html`**: it was, originally — but Vercel resolves a literal `index.html` sitting at the project root for any request to `/` *before* `rewrites` get a chance to run, regardless of what the `/` rewrite says. With the app shell named `index.html`, the root domain silently served the full app+login shell instead of `landing.html`, with no build error or warning — confirmed live via `curl` (both `/` and `/app` returned byte-identical responses). Renaming the file to `webapp.html` removes the collision: nothing physically sits at `/` anymore, so the `/` → `landing.html` rewrite is the only match and fires correctly. If you ever rename it back to `index.html`, this bug comes back.
 
 **Android TWA note**: `twa-manifest.json`'s `startUrl` is baked into the native app at Bubblewrap build time — it is *not* fetched live from the deployed site. Changing this file alone has zero effect on already-installed Android users; a new APK/AAB build (`bubblewrap update && bubblewrap build`), re-signed with `android.keystore`, is required for existing installs to actually launch into `/app` instead of the landing page. See `deployment.md`.
 
@@ -135,7 +137,7 @@ Plus module-level `let` in `accounts.js` (`accountsList`), `categories.js` (`kat
 **All of these are explicitly cleared by `resetSessionState()`** (`app-core.js`), called from `logout()`, `handleAuthExpired()`, and at the start of a successful `doLogin()`/`doBiometric()` (`auth.js`). This exists because these globals used to persist across a login→logout→login transition within the same tab (no page reload) — logging in as a second user on a device previously used by someone else would render that previous user's balance/targets/health-score/AI-chat-context momentarily or persistently, purely from stale in-memory state, even though every server response was correctly scoped per-user the whole time. **If you add a new module-level cache of per-user data, add it to `resetSessionState()` too** — it's the single place this needs to happen, not something each new feature can assume is handled elsewhere.
 
 ## 10. Component hierarchy
-No framework components. `index.html` holds every "page" and every modal as sibling `<div>`s; JS toggles `.active`/`.open` classes. Full inventory in `frontend.md`.
+No framework components. `webapp.html` holds every "page" and every modal as sibling `<div>`s; JS toggles `.active`/`.open` classes. Full inventory in `frontend.md`.
 
 ## 11. Page routing
 
