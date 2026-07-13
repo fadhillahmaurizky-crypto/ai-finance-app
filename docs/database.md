@@ -1,6 +1,6 @@
 # Database
 
-Postgres via Supabase. Schema lives entirely in `database/wangku-supabase-setup.sql`, applied as **additive, numbered migration blocks** (`[1]` through `[23]` as of this writing). The file is designed to be re-run safely from the top at any time — every block uses `IF NOT EXISTS`/`DROP ... IF EXISTS` guards. That property was hard-won (see "Migration history & lessons" below) and must be preserved in any future block.
+Postgres via Supabase. Schema lives entirely in `database/wangku-supabase-setup.sql`, applied as **additive, numbered migration blocks** (`[1]` through `[24]` as of this writing). The file is designed to be re-run safely from the top at any time — every block uses `IF NOT EXISTS`/`DROP ... IF EXISTS` guards. That property was hard-won (see "Migration history & lessons" below) and must be preserved in any future block.
 
 ## ERD
 
@@ -169,7 +169,7 @@ This is the single most important thing to understand about this schema. It repl
 1. **`login_check(username, password_hash)`** verifies the password inside a `SECURITY DEFINER` function (so the client never queries `password_hash` directly — that column's `SELECT` privilege is revoked from `anon` entirely) and returns `{user, token}`, where `token` is a JWT signed with the project's real JWT secret. As of block `[20]`, it also requires `status = 'active'`, matching `get_user_by_username`/`get_user_by_id`. Before that fix, a `pending`/`banned` account's correct password still got a validly-signed 30-day JWT back from the RPC itself — the web client discarded it (it checks `result.user.status` before persisting the token), but a direct call to the RPC (it's `GRANT`ed to `anon`) bypassed that client-side gate entirely.
 2. **The signing is hand-rolled**, not via the `pgjwt` extension — `pgjwt`'s `sign()` has its own fixed internal search path that can't be overridden by a caller, which caused real failures in practice (see migration history below). Instead, `wangku_sign_jwt()` builds the JWT manually (base64url header + payload + HMAC-SHA256 signature via `pgcrypto`'s `hmac()`), inside a function where the search path is fully controlled.
 3. **Every data table's policy** is `is_owner_or_admin(user_id)`: `(auth.jwt()->>'user_id')::uuid = user_id OR auth.jwt()->>'app_role' = 'admin'`.
-4. **Registration** (no token exists yet) is allowed via a separate `anon`-scoped `INSERT` policy on `users`, but `WITH CHECK (status = 'pending' AND role = 'user')` — someone can't self-register as an active admin via a raw API call. **Read the "Registration and `Prefer: return=representation`" section below before touching this policy or the registration flow** — the interaction between this policy and the client's request headers is subtler than it looks.
+4. **Registration** (no token exists yet) is allowed via a separate `anon`-scoped `INSERT` policy on `users`. As of block `[24]`, `WITH CHECK (status = 'active' AND role = 'user')` — registration creates an immediately-active trial account, not a `pending` one waiting on admin approval (see "Subscription trial mechanics" below). **Read the "Registration and `Prefer: return=representation`" section below before touching this policy or the registration flow** — the interaction between this policy and the client's request headers is subtler than it looks.
 5. **`admin.html`** goes through the exact same `login_check` RPC (just checking `role='admin'` client-side after success) — it no longer has its own separate shared-password gate.
 
 ### Functions involved (all in `public` schema)
@@ -178,9 +178,9 @@ This is the single most important thing to understand about this schema. It repl
 | `wangku_b64url(bytea)` | Base64url encode, no padding, no newlines |
 | `wangku_sign_jwt(payload json, secret text)` | Manual HS256 JWT signing |
 | `is_owner_or_admin(user_id uuid)` | The RLS predicate used everywhere |
-| `login_check(username, password_hash)` | Password verify + mint token (requires `status='active'`, block `[20]`) |
-| `get_user_by_username(username)` | Biometric login — mints a fresh token |
-| `get_user_by_id(user_id)` | Session restore — mints a fresh token (also silently upgrades pre-migration sessions) |
+| `login_check(username, password_hash)` | Password verify + mint token (requires `status='active'`, block `[20]`; lazy trial-expiry downgrade, block `[24]`) |
+| `get_user_by_username(username)` | Biometric login — mints a fresh token (same lazy trial-expiry downgrade, block `[24]`) |
+| `get_user_by_id(user_id)` | Session restore — mints a fresh token (also silently upgrades pre-migration sessions; same lazy trial-expiry downgrade, block `[24]`) |
 | `change_password(user_id, old_hash, new_hash)` | Requires proof of the old password |
 | `create_password_reset(email)` | Step 1 of forgot-password — generates + stores hashed OTP |
 | `confirm_password_reset(user_id, otp, new_hash)` | Step 2 — validates OTP server-side, then resets |
@@ -200,6 +200,16 @@ This also means `doRegister()`'s original duplicate-check (a plain `SELECT ... W
 - The duplicate-check is now `check_registration_available(p_username, p_email)` — a `SECURITY DEFINER` RPC that returns **only a boolean**, not the matching row. This was deliberately chosen over adding a broader `anon`-scoped SELECT policy (e.g. `USING (status='pending' AND role='user')`), which would let anyone with the public anon key enumerate every pending registrant's email/WhatsApp number/full name indefinitely — a real information-disclosure risk not worth taking just to make a pre-check work.
 
 **If a future flow needs to write to `users` (or any other table) as `anon` and also read the result back, it will hit this same wall** — either give it a real, narrowly-scoped SELECT policy, or (preferred, as done here) avoid needing the read-back at all.
+
+## Subscription trial mechanics (block `[24]`)
+
+Registration (`verifyRegOTP()` in `auth.js`) sets `plan='pro'`, `trial_ends_at = now() + 14 days`, `tokens_limit=2000000` directly in the `INSERT` payload — same pattern as the existing client-set `plan`/`tokens_limit` fields, not a new trust boundary (the `Public registration` RLS policy still only constrains `status`/`role`, not these values; a malicious client could in principle self-assign an inflated `trial_ends_at` or `tokens_limit` today, same as it already could with `plan` before this change — a pre-existing gap, not introduced or closed here).
+
+**No distinct `'trial'` plan value.** A trialing user is simply `plan='pro'` with a non-null `trial_ends_at` — chosen over adding a separate marker because it's less disruptive to every existing `plan==='pro'` check across the codebase (`getPlan()`, `canAI()`, `PLANS`/`LIMITS` lookups, `renderPlanCard()`, etc.), none of which needed to change. `trial_ends_at` doubles as the "is/was this a trial" marker.
+
+**Lazy downgrade, checked in `login_check`/`get_user_by_username`/`get_user_by_id`** (all three — login, biometric, session-restore): if `trial_ends_at IS NOT NULL AND trial_ends_at < now() AND plan = 'pro'`, the function `UPDATE`s the row to `plan='free'` before returning the user object. No cron/scheduled job. **Never locks the account out** — `status` stays `'active'`, the user keeps using everything Free includes, only AI Chat/Scan/WhatsApp-bot access goes away.
+
+**Critical invariant admin.html must preserve**: the downgrade only fires when `plan` is *still* exactly `'pro'` — deliberately, so that if an admin manually upgrades a user to a real paid plan via `admin.html` (`updateUserPlan()`/`aktivasiUser()`) *after* their trial's `trial_ends_at` has already passed, the next login doesn't immediately clobber that back down to `'free'`. Both of those functions now also set `trial_ends_at = null` whenever they PATCH `plan` — nulling it is what permanently takes a user out of reach of the lazy-downgrade check. **If a future admin-side flow sets `plan` directly without also clearing `trial_ends_at`, a user who paid for a real upgrade after their trial lapsed can silently get auto-downgraded on their very next login** — any new plan-assignment path must clear `trial_ends_at` too, or reintroduce a different way to distinguish "still trialing" from "really on this plan."
 
 ## Per-account balance enforcement (block `[21]`)
 

@@ -69,10 +69,15 @@ async function verifyRegOTP(){
     const h=await hp(regData.pw);
     const waFull=regData.wa.startsWith('62')?regData.wa:'62'+(regData.wa.startsWith('0')?regData.wa.substring(1):regData.wa);
     const newId=crypto.randomUUID();
-    await sbAnon('users','POST',{id:newId,username:regData.un,full_name:regData.name,email:regData.email,wa_number:waFull,password_hash:h,role:'user',status:'pending',gas_user_id:waFull,plan:'free',tokens_limit:0,tokens_used:0},true);
-    newUser={id:newId,full_name:regData.name,username:regData.un,email:regData.email,wa_number:waFull};
+    const trialEndsAt=new Date(Date.now()+14*86400000).toISOString();
+    await sbAnon('users','POST',{id:newId,username:regData.un,full_name:regData.name,email:regData.email,wa_number:waFull,password_hash:h,role:'user',status:'active',gas_user_id:waFull,plan:'pro',tokens_limit:2000000,tokens_used:0,trial_ends_at:trialEndsAt},true);
+    const un=regData.un;
     regOTP=null;regData=null;
-    showPaymentFlow();
+    document.getElementById('reg-s1').style.display='block';
+    document.getElementById('reg-s2').style.display='none';
+    document.getElementById('l-un').value=un;
+    switchTab('login');
+    showToast('Akun berhasil dibuat! Trial Pro 14 hari aktif 🎉 Silakan login.','ok');
   }catch(e){err.textContent=isDupError(e)?'Username/email sudah terdaftar!':e.message;err.style.display='block';}
 }
 

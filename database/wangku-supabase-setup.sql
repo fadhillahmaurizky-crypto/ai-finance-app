@@ -809,6 +809,115 @@ CREATE UNIQUE INDEX user_categories_user_id_nama_ci_jenis_key
 
 
 -- ============================================================
+-- [24] SUBSCRIPTION: registrasi langsung aktif + trial Pro 14 hari,
+-- bukan pending + plan-picker manual.
+--
+-- 1) "Public registration" tadinya WITH CHECK status='pending' -- klien
+--    sekarang mengirim status='active' sejak awal (verifyRegOTP di
+--    auth.js), jadi policy-nya harus disamakan atau INSERT registrasi
+--    baru akan gagal RLS persis seperti bug D1 dulu.
+--
+-- 2) login_check/get_user_by_username/get_user_by_id ditambah
+--    pengecekan trial lazy: kalau trial_ends_at sudah lewat DAN user
+--    masih di plan 'pro', turunkan ke 'free' saat itu juga (tidak
+--    pernah mengunci akun -- cuma AI Chat/Scan/bot WA yang hilang).
+--    Sengaja hanya menurunkan saat plan masih persis 'pro', BUKAN
+--    setiap kali trial_ends_at lewat begitu saja -- supaya admin yang
+--    sudah meng-upgrade user itu ke paket berbayar asli (lewat
+--    admin.html) tidak ketiban turun lagi di login berikutnya.
+--    Prasyarat: admin.html WAJIB ikut mengosongkan trial_ends_at
+--    setiap kali plan diubah manual (lihat updateUserPlan/aktivasiUser
+--    di admin.html) -- tanpa itu, trial_ends_at yang basi tetap ada di
+--    baris user itu dan bisa memicu turun-plan yang salah di masa depan.
+-- ============================================================
+DROP POLICY IF EXISTS "Public registration" ON public.users;
+CREATE POLICY "Public registration" ON public.users FOR INSERT TO anon
+  WITH CHECK (status = 'active' AND role = 'user');
+
+DROP FUNCTION IF EXISTS public.login_check(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.password_hash = p_password_hash AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object(
+      'role','authenticated',
+      'sub', v_user.id::text,
+      'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),
+      'exp', extract(epoch from (now() + interval '30 days'))::integer
+    ),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+
+DROP FUNCTION IF EXISTS public.get_user_by_username(TEXT);
+CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon;
+
+DROP FUNCTION IF EXISTS public.get_user_by_id(UUID);
+CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.id = p_user_id AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables

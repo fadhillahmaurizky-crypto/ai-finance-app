@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     console.log('EmailJS initialized');
   }
 });
-const PLANS={free:{label:'Free',price:'Rp 0/bulan',ai:false},basic:{label:'Basic',price:'Rp 19.000/bulan',ai:false},pro:{label:'Pro',price:'Rp 34.000/bulan',ai:true},unlimited:{label:'Ultimate',price:'Rp 49.000/bulan',ai:true}};
+const PLANS={free:{label:'Free',price:'Rp 0/bulan',ai:false},basic:{label:'Basic',price:'Rp 19.000/bulan',ai:false},pro:{label:'Pro',price:'Rp 39.000/bulan',ai:true},unlimited:{label:'Ultimate',price:'Rp 49.000/bulan',ai:true}};
 const TOKEN_PACKS=[{id:'2M',tokens:2000000,price:'Rp 29.000/bln',label:'2 Juta Token'},{id:'5M',tokens:5000000,price:'Rp 39.000/bln',label:'5 Juta Token'}];
 const LIMITS={free:{ai:0,scan:0,label:'Free'},basic:{ai:0,scan:0,label:'Basic'},pro:{ai:50,scan:20,label:'Pro'},unlimited:{ai:-1,scan:-1,label:'Ultimate'}};
 

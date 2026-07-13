@@ -7,6 +7,21 @@ function checkAlerts(data){
   el.innerHTML=alerts.slice(0,2).map(a=>`<div class="alert-card ${a.type==='danger'?'danger':''}" style="margin-bottom:8px"><div class="alert-ico">${a.ico}</div><div><div class="alert-title">${a.title}</div><div class="alert-desc">${a.desc}</div></div></div>`).join('');
 }
 
+// ========================
+// TRIAL RE-ENGAGEMENT NUDGE (Home) — cuma muncul 2 hari terakhir trial,
+// beda dari renderTrialBanner() di Settings yang tampil sepanjang trial
+// ========================
+function renderTrialNudge(){
+  const wrap=document.getElementById('trial-nudge-wrap');if(!wrap)return;
+  const isMaster=user&&(user.role==='admin'||user.username===MASTER);
+  if(isMaster||user?.plan!=='pro'||!user?.trial_ends_at){wrap.innerHTML='';return;}
+  const end=new Date(user.trial_ends_at);const now=new Date();
+  const daysLeft=Math.ceil((end-now)/86400000);
+  if(isNaN(daysLeft)||daysLeft<0||daysLeft>2){wrap.innerHTML='';return;}
+  const sisa=daysLeft===0?'hari ini':`dalam ${daysLeft} hari`;
+  wrap.innerHTML=`<div class="trial-banner" style="cursor:pointer" onclick="openPlanOptions()"><i class="ti ti-hourglass-low"></i><span style="flex:1">Trial-mu berakhir ${sisa}. Upgrade sekarang untuk lanjut pakai AI Chat & WhatsApp bot</span><i class="ti ti-chevron-right"></i></div>`;
+}
+
 function countTargetInBalance(){return localStorage.getItem('wangku_count_target_balance')==='1';}
 
 // ========================
