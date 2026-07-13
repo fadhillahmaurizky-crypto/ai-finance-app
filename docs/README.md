@@ -35,7 +35,7 @@ This project is split between two roles, deliberately:
 | Backend | Supabase (Postgres + PostgREST), custom RPC-based auth (not Supabase Auth) |
 | Auth model | Custom JWT signed inside Postgres (`pgcrypto` + hand-rolled HS256), enforced via real per-user RLS on every table |
 | AI | Groq API, proxied through Vercel serverless functions (`/api/ai-chat`, `/api/ai-scan`) — **the API key never reaches the browser** |
-| Hosting | Vercel (`ai-finance-app-gamma.vercel.app`) |
+| Hosting | Vercel (`ai-finance-app-murex.vercel.app`) — root `/` serves `landing.html`, the app itself is at `/app` (both via `vercel.json` rewrites, not physical file moves — see `architecture.md`) |
 | Android | TWA via Bubblewrap, signed with `android.keystore` |
 | Admin panel | `admin.html`, separate app, real login against `role='admin'` accounts (no longer a shared static password) |
 | Repo | `github.com/ariftafachrizal/ai-finance-app` (Arif's fork) |

@@ -2,7 +2,7 @@
   "name": "Wangku",
   "short_name": "Wangku",
   "description": "Catat keuanganmu lewat WhatsApp. Ditenagai AI.",
-  "start_url": "/",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "background_color": "#00B26A",

@@ -2,7 +2,8 @@
 
 ## Web (PWA + serverless functions)
 
-- **Host**: Vercel, static file serving for `index.html`/`admin.html`/`landing.html`/`css`/`js`, **plus** the `/api` folder which Vercel auto-detects as serverless functions — no separate deployment step needed, no `vercel.json` required for this.
+- **Host**: Vercel, static file serving for `index.html`/`admin.html`/`landing.html`/`css`/`js`, **plus** the `/api` folder which Vercel auto-detects as serverless functions — no separate deployment step needed for that part. `vercel.json` *does* exist, but only for the root/`/app` routing split (see `architecture.md` §2a), not for anything API-related.
+- **Root vs. `/app` routing**: landing page is `/`, the actual app is `/app` (`vercel.json` rewrites — physical files are unchanged, still at repo root). **If `twa-manifest.json`'s `startUrl` is ever changed, existing installed Android TWA users need a new APK/AAB build and re-sign (`bubblewrap update && bubblewrap build`, then re-sign with `android.keystore`) before it takes effect for them** — this is baked into the native app at build time, not fetched live from the deployed site.
 - **Required setup**: `GROQ_API_KEY` must be set in Vercel → Project Settings → Environment Variables, or `/api/ai-chat.js` and `/api/ai-scan.js` will return a "server not configured" error and both AI features will appear broken to users even though the rest of the app works fine.
 - **Deploy trigger**: presumably push to the connected branch on `github.com/ariftafachrizal/ai-finance-app` — confirm in the Vercel dashboard, not configured in-repo.
 - **Service worker**: `sw.js`, minimal registration only, no elaborate offline caching strategy — don't assume offline support exists.

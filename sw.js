@@ -1,5 +1,5 @@
-const CACHE = 'wangku-v2';
-const ASSETS = ['/', '/index.html', '/manifest.json', '/logo.png'];
+const CACHE = 'wangku-v3';
+const ASSETS = ['/app', '/manifest.json', '/logo.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(() => {})));
   self.skipWaiting();

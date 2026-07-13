@@ -4,10 +4,11 @@
 
 ```
 ai-finance-app/
-├── index.html              # The entire consumer app — every "page" is a <div class="page"> toggled by JS
-├── admin.html               # Separate standalone admin panel (real login, user/plan management, transactions view)
-├── landing.html              # Marketing/landing page (pre-login)
-├── manifest.json              # PWA manifest
+├── vercel.json               # Routing: "/" → landing.html, "/app" → index.html (rewrites, not physical moves — see §2a)
+├── index.html              # The entire consumer app — every "page" is a <div class="page"> toggled by JS. Served at /app
+├── admin.html               # Separate standalone admin panel (real login, user/plan management, transactions view). Stays at /admin.html, not part of the /app split
+├── landing.html              # Marketing/landing page (pre-login). Served at root /
+├── manifest.json              # PWA manifest — start_url is /app, not /
 ├── sw.js                       # Service worker (registered in boot.js, minimal)
 ├── twa-manifest.json             # Bubblewrap TWA config (package id, signing key, colors)
 ├── android.keystore               # Android signing key (Bubblewrap)
@@ -40,6 +41,16 @@ ai-finance-app/
 
 **No `gas/` folder exists in this repo** (not even in git history). A Google Apps Script backend (`wangku-backend.gs` — Fonnte webhook + Drive backup) was drafted during planning conversations but never actually committed here, pending a decision between building on Fonnte vs. switching to an Evolution API-based WhatsApp integration. Don't assume this file exists or try to reference it as if it were real code sitting in the repo — see `backend.md`/`ai.md` for what the *planned* design was.
 
+*(This note is about to go stale — a real, working `gas/fonnte.gs` is landing in a follow-up PR once its known bugs are fixed. Update this section and `backend.md`/`ai.md` in that same change, don't leave this claim sitting here once the file is real.)*
+
+## 2a. Root (`/`) vs. app (`/app`) routing — read before touching any hardcoded app URL
+
+Root domain serves `landing.html` (marketing); the actual app lives at `/app`, serving `index.html`'s content. Both are `vercel.json` **rewrites**, not physical file moves — `index.html` and `landing.html` still physically sit at the repo root exactly as the folder structure above shows. This matters for one specific reason: **every asset reference inside `index.html` (and `boot.js`'s service worker registration) must use an absolute path (leading `/`), never a relative one.** A relative path like `js/config.js` resolves against the *document's URL*, not the file's on-disk location — since the browser sees the document at `/app`, a relative reference would resolve to `/app/js/config.js`, which doesn't exist (the real file is at `/js/config.js`). This is already fixed throughout `index.html`/`boot.js`/`sw.js` — if you add a new asset reference, use a leading `/` or it will 404 silently in production while looking fine if you happen to test by opening `index.html` directly.
+
+Anywhere the app's own URL needs to be referenced (admin.html's "App URL" link, `landing.html`'s CTA, the Fonnte bot's `APP_URL`, EmailJS templates) must point at `/app`, not `/` or a bare `index.html`.
+
+**Android TWA note**: `twa-manifest.json`'s `startUrl` is baked into the native app at Bubblewrap build time — it is *not* fetched live from the deployed site. Changing this file alone has zero effect on already-installed Android users; a new APK/AAB build (`bubblewrap update && bubblewrap build`), re-signed with `android.keystore`, is required for existing installs to actually launch into `/app` instead of the landing page. See `deployment.md`.
+
 ## 2. Technology stack
 
 - **Frontend**: Vanilla HTML/CSS/JS. No React/Vue, no bundler, no build step.
@@ -47,7 +58,7 @@ ai-finance-app/
 - **Auth**: Custom — not Supabase Auth. Login verifies a password hash inside a Postgres function and mints a hand-signed JWT (HS256, using the project's real Supabase JWT secret) that the client then uses as its Bearer token for everything else. See §4 and `database.md`'s RLS section.
 - **AI**: Groq API (`meta-llama/llama-4-scout-17b-16e-instruct` for receipt vision, a Llama 3.x chat model for the assistant) — called only from Vercel serverless functions, never from the browser.
 - **WhatsApp bot**: Fonnte + Google Apps Script — **planning-stage draft only, no code committed to this repo** (see `backend.md`).
-- **Hosting**: Vercel, both the static site and the `/api` serverless functions.
+- **Hosting**: Vercel, both the static site and the `/api` serverless functions. Root `/` and `/app` are split via `vercel.json` rewrites (landing page vs. the actual app) — see §2a.
 - **Android packaging**: Bubblewrap CLI → Trusted Web Activity (TWA), signed APK/AAB.
 - **Email**: EmailJS (OTP delivery for registration and password reset).
 

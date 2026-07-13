@@ -12,7 +12,7 @@
   "navigationDividerColorDark": "#000000",
   "backgroundColor": "#00B26A",
   "enableNotifications": true,
-  "startUrl": "/",
+  "startUrl": "/app",
   "iconUrl": "https://ai-finance-app-murex.vercel.app/logo.png",
   "maskableIconUrl": "https://ai-finance-app-murex.vercel.app/logo.png",
   "splashScreenFadeOutDuration": 300,
