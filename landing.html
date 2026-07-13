@@ -70,6 +70,15 @@ nav {
   box-shadow: 0 2px 10px rgba(5,226,142,.28);
 }
 .nav-cta:hover { background: var(--emerald-deep); color: #fff; transform: translateY(-1px); }
+.nav-actions { display: flex; align-items: center; gap: 10px; }
+.nav-cta-secondary {
+  background: transparent; color: var(--obsidian);
+  font-size: 13px; font-weight: 700;
+  padding: 10px 18px; border-radius: 10px;
+  border: 1.5px solid var(--border);
+  transition: all .2s;
+}
+.nav-cta-secondary:hover { border-color: var(--emerald); color: var(--emerald-deep); }
 .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; }
 .hamburger span { width: 22px; height: 2px; background: var(--obsidian); border-radius: 2px; }
 
@@ -474,7 +483,9 @@ footer { background: var(--obsidian); padding: 56px 5% 32px; color: rgba(255,255
 @media(max-width:768px){
   nav { padding: 14px 5%; }
   .nav-links { display: none; }
-  .hamburger { display: flex; }
+  .hamburger { display: none; }
+  .nav-actions { gap: 6px; }
+  .nav-cta, .nav-cta-secondary { padding: 8px 12px; font-size: 12px; white-space: nowrap; }
   .hero { padding: 100px 5% 60px; }
   .features-grid { grid-template-columns: 1fr; }
   .pricing-grid, .testi-grid { grid-template-columns: 1fr; }
@@ -505,7 +516,10 @@ footer { background: var(--obsidian); padding: 56px 5% 32px; color: rgba(255,255
     <a href="#testimoni">Testimoni</a>
     <a href="#faq">FAQ</a>
   </div>
-  <a href="https://wa.me/6285727318698" class="nav-cta" target="_blank">Mulai Chat, Gratis</a>
+  <div class="nav-actions">
+    <a href="/app" class="nav-cta-secondary">Masuk</a>
+    <a href="https://wa.me/6285727318698" class="nav-cta" target="_blank">Mulai Chat, Gratis</a>
+  </div>
   <div class="hamburger" onclick="toggleMenu()">
     <span></span><span></span><span></span>
   </div>
