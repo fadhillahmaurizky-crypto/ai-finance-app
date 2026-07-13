@@ -106,9 +106,11 @@ Bottom Navigation
 
 Admin Panel (admin.html — separate standalone app)
 ├── Real login (login_check RPC, requires role='admin') — replaced an earlier single shared static password with no connection to real accounts
-├── Users tab — App Users only (role='admin' rows are filtered out, segregated into...)
+├── Users tab — App Users only (role='admin' rows are filtered out, segregated into...). Columns: User/Username/No. WA/Email/Saldo/Plan/Status/Aksi — "Plan" and "Status" used to be mislabeled (a single "Status" header sat over a cell that actually showed the plan value, and the real status dropdown had no header of its own at all, off by one across the row)
 ├── Kelola Admin (in Pengaturan) — list + add admin-role accounts
 ├── Transactions tab — includes an Akun column (joined via the account_id foreign key)
+├── Per-user Plan & Token AI management — in the Detail modal (showDetailUser()): view usage vs. limit, change plan, grant +2M/+5M tokens, reset tokens used
 ├── Orders/payment approval, plan/token management
+├── Laporan tab — platform-wide category breakdown (Pemasukan/Pengeluaran per Kategori) and a per-user summary table (Total Masuk/Keluar/Saldo/Transaksi), computed by querying `transactions`/`accounts` directly via `sbFetch()` (the admin's own JWT satisfies `is_owner_or_admin()` for every row, not just their own). **Not** sourced from the GAS `?action=adminData` endpoint — that action was never actually implemented in any deployed or committed version of the Apps Script, so it always returned an error and left this page permanently blank regardless of how much real transaction data existed. See `backend.md` for the do-not-repeat-this-pattern note
 └── Ganti Password Akun Saya — changes the logged-in admin's own real password via change_password RPC (not a shared password anymore)
 ```

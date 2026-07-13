@@ -361,7 +361,7 @@ tbody tr:hover{background:var(--bg3)}
                 <th>No. WA</th>
                 <th>Email</th>
                 <th>Saldo</th>
-                <th>Transaksi</th>
+                <th>Plan</th>
                 <th>Status</th>
                 <th>Aksi</th>
               </tr>
@@ -772,7 +772,6 @@ function renderUsersTable(users) {
       <td style="font-size:12px">+${u.wa_number||'—'}</td>
       <td style="font-size:12px;color:var(--text3)">${u.email||'—'}</td>
       <td class="amount-cell ${(gas.saldo||0)>=0?'pos':'neg'}">${rp(gas.saldo||0)}</td>
-      <td><span class="badge-pill blue">${gas.totalTrx||0} trx</span></td>
       <td><span class="badge-pill ${u.plan==='unlimited'?'green':u.plan==='pro'?'blue':'amber'}">${({free:'free',basic:'basic',pro:'pro',unlimited:'ultimate'})[u.plan||'free']||u.plan}</span></td>
       <td>
         <select class="status-select" onchange="updateStatus('${u.id}',this.value)">
@@ -1173,22 +1172,69 @@ async function loadAllTrx() {
 // ========================
 // LAPORAN
 // ========================
-function renderLaporan() {
-  if(!adminData) return;
-  const users=adminData.users||[];
-  document.getElementById('laporan-table').innerHTML=users.map(u=>{
-    const su=supaUsers.find(s=>s.wa_number===u.userId)||{};
+// Dulu dipakai adminData (dari GAS ?action=adminData) sebagai sumber data --
+// endpoint itu tidak pernah benar-benar diimplementasikan di gs/fonnte.gs
+// ataupun script GAS yang sedang live (keduanya balas {"error":"Action tidak
+// dikenal"}), jadi adminData selalu null dan halaman ini kosong total sejak
+// awal -- bukan karena datanya memang belum ada. Supabase sudah jadi sumber
+// data asli untuk semuanya di app utama, jadi Laporan sekarang query
+// transactions/accounts langsung lewat sbFetch() (token admin yang login
+// otomatis lolos RLS is_owner_or_admin() untuk lihat semua user), bukan lewat
+// GAS/Sheets sama sekali.
+async function renderLaporan() {
+  const tbody=document.getElementById('laporan-table');
+  tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Memuat...</td></tr>';
+  let trx=[], accs=[];
+  try {
+    [trx, accs] = await Promise.all([
+      sbFetch('transactions?select=user_id,jenis,nominal,kategori'),
+      sbFetch('accounts?select=user_id,saldo_awal')
+    ]);
+  } catch(e) {
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Gagal memuat data</td></tr>';
+    showToast('Gagal memuat laporan: '+e.message,'err');
+    return;
+  }
+  trx=trx||[]; accs=accs||[];
+
+  if(!trx.length){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Belum ada data transaksi</td></tr>';
+    renderKatChart('chart-masuk',{},'var(--green)');
+    renderKatChart('chart-keluar',{},'var(--red)');
+    return;
+  }
+
+  const saldoAwalByUser={};
+  accs.forEach(a=>{saldoAwalByUser[a.user_id]=(saldoAwalByUser[a.user_id]||0)+Number(a.saldo_awal||0);});
+
+  const kategoriMasuk={}, kategoriKeluar={}, perUser={};
+  trx.forEach(t=>{
+    const nominal=Number(t.nominal||0);
+    if(!perUser[t.user_id]) perUser[t.user_id]={totalMasuk:0,totalKeluar:0,totalTrx:0};
+    perUser[t.user_id].totalTrx++;
+    if(t.jenis==='pemasukan'){
+      perUser[t.user_id].totalMasuk+=nominal;
+      kategoriMasuk[t.kategori]=(kategoriMasuk[t.kategori]||0)+nominal;
+    } else if(t.jenis==='pengeluaran'){
+      perUser[t.user_id].totalKeluar+=nominal;
+      kategoriKeluar[t.kategori]=(kategoriKeluar[t.kategori]||0)+nominal;
+    }
+  });
+
+  tbody.innerHTML=Object.entries(perUser).map(([userId,u])=>{
+    const su=supaUsers.find(s=>s.id===userId)||{};
+    const saldo=(saldoAwalByUser[userId]||0)+u.totalMasuk-u.totalKeluar;
     return `<tr>
-      <td><div class="user-cell"><div class="user-av" style="background:var(--green);font-size:12px">${(su.full_name||'U').charAt(0)}</div><div><div class="user-name">${su.full_name||u.userId}</div><div class="user-sub">@${su.username||'—'}</div></div></div></td>
+      <td><div class="user-cell"><div class="user-av" style="background:var(--green);font-size:12px">${(su.full_name||'U').charAt(0)}</div><div><div class="user-name">${su.full_name||'—'}</div><div class="user-sub">@${su.username||'—'}</div></div></div></td>
       <td class="amount-cell pos">${rpFull(u.totalMasuk)}</td>
       <td class="amount-cell neg">${rpFull(u.totalKeluar)}</td>
-      <td class="amount-cell ${u.saldo>=0?'pos':'neg'}">${rpFull(u.saldo)}</td>
+      <td class="amount-cell ${saldo>=0?'pos':'neg'}">${rpFull(saldo)}</td>
       <td><span class="badge-pill blue">${u.totalTrx} trx</span></td>
     </tr>`;
-  }).join('')||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">Belum ada data</td></tr>';
+  }).join('');
 
-  renderKatChart('chart-masuk',adminData.stats?.kategoriMasuk||{},'var(--green)');
-  renderKatChart('chart-keluar',adminData.stats?.kategoriKeluar||{},'var(--red)');
+  renderKatChart('chart-masuk',kategoriMasuk,'var(--green)');
+  renderKatChart('chart-keluar',kategoriKeluar,'var(--red)');
 }
 
 function renderKatChart(id,data,color) {
