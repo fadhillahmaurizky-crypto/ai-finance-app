@@ -270,36 +270,71 @@ section { padding: 96px 5%; }
 .mini-desc { font-size: 13px; color: var(--ink2); line-height: 1.6; }
 
 /* ============================================================
-   DASHBOARD SHOWCASE — highest-priority real-screenshot slot
+   APP SCREENSHOT FRAME — shared by Dashboard Showcase + AI Assistant.
+   Uses the real app's own design tokens (css/app.css), not the landing
+   page's marketing palette, so these read as genuine product screenshots
+   dropped into the page rather than landing-page illustrations.
+   Populated with fabricated example data (per addendum §3), not a real
+   tester's numbers.
    ============================================================ */
-#dashboard { background: var(--milk); }
-.dash-mockup {
-  background: #fff; border-radius: 22px; border: 1px solid var(--border);
-  box-shadow: 0 30px 80px rgba(10,11,15,.1); padding: 22px; max-width: 480px; margin: 0 auto;
+.app-screenshot {
+  --a-bg: #F7F8FA; --a-bg2: #fff; --a-bg3: #F0F2F5;
+  --a-border: #E8ECF0; --a-text: #0D1117; --a-text2: #3D4A5C; --a-text3: #8A96A8;
+  --a-green: #00B26A; --a-green-bg: #E6F7F0; --a-green-dk: #007A48;
+  --a-blue: #2B7EF8; --a-blue-bg: #EBF3FF;
+  --a-amber: #F59E0B; --a-amber-bg: #FEF3C7;
+  font-family: 'Inter', sans-serif;
+  background: var(--a-bg); border-radius: 24px; padding: 16px;
+  box-shadow: 0 30px 80px rgba(10,11,15,.14), 0 0 0 1px rgba(10,11,15,.05);
+  max-width: 380px; margin: 0 auto;
 }
-.dash-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.dash-bal-lbl { font-size: 11px; color: var(--ink3); }
-.dash-bal-val { font-family: var(--font-display); font-size: 26px; font-weight: 800; color: var(--obsidian); }
-.dash-pill { background: var(--emerald-tint); color: var(--emerald-deep); font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 20px; }
-.dash-chart-row { display: flex; align-items: flex-end; gap: 10px; height: 100px; margin: 20px 0; padding: 0 4px; }
-.dash-chart-bar { flex: 1; border-radius: 6px 6px 0 0; background: var(--milk-2); position: relative; }
-.dash-chart-bar.hi { background: linear-gradient(180deg, var(--emerald), var(--emerald-deep)); }
-.dash-cat-list { display: flex; flex-direction: column; gap: 10px; }
-.dash-cat-item { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
-.dash-cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.dash-cat-name { flex: 1; color: var(--ink2); }
-.dash-cat-val { font-weight: 700; color: var(--obsidian); }
+.app-screenshot-tag {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 700; color: var(--a-text3);
+  margin-bottom: 10px; letter-spacing: .3px;
+}
+.app-screenshot-tag i { color: var(--a-green); font-size: 12px; }
 
-/* ============================================================
-   AI ASSISTANT
-   ============================================================ */
+/* ---- Dashboard Showcase ---- */
+.dash-bal-card {
+  background: linear-gradient(135deg, var(--a-green), var(--a-green-dk));
+  border-radius: 18px; padding: 18px 20px; position: relative; overflow: hidden;
+}
+.dash-bal-lbl { font-size: 11px; color: rgba(255,255,255,.7); margin-bottom: 4px; }
+.dash-bal-val { font-size: 26px; font-weight: 700; color: #fff; letter-spacing: -1px; }
+.dash-bal-row { display: flex; gap: 8px; margin-top: 14px; }
+.dash-bal-pill { flex: 1; background: rgba(0,0,0,.2); border-radius: 10px; padding: 8px 11px; }
+.dash-bal-pill-lbl { font-size: 9.5px; color: rgba(255,255,255,.7); }
+.dash-bal-pill-val { font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px; }
+.dash-chart-card { background: var(--a-bg2); border: 1px solid var(--a-border); border-radius: 14px; padding: 14px 16px; margin-top: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.dash-chart-title { font-size: 11px; color: var(--a-text3); text-transform: uppercase; font-weight: 600; letter-spacing: .3px; margin-bottom: 10px; }
+.dash-donut-row { display: flex; align-items: center; gap: 14px; }
+.dash-leg { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.dash-leg-item { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--a-text2); }
+.dash-leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dash-leg-pct { margin-left: auto; font-weight: 700; font-size: 11.5px; color: var(--a-text); }
+
+/* ---- AI Assistant ---- */
+.ai-chat-hdr { display: flex; align-items: center; gap: 10px; padding: 4px 4px 12px; }
+.ai-chat-av { width: 34px; height: 34px; background: linear-gradient(135deg, var(--a-green), var(--a-green-dk)); border-radius: 11px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 17px; flex-shrink: 0; }
+.ai-chat-name { font-size: 14px; font-weight: 700; color: var(--a-text); }
+.ai-chat-status { font-size: 10.5px; color: var(--a-green); display: flex; align-items: center; gap: 4px; }
+.ai-online-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--a-green); }
+.ai-msg-row { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 10px; }
+.ai-msg-row.user { flex-direction: row-reverse; }
+.ai-msg-av { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, var(--a-green), var(--a-green-dk)); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; flex-shrink: 0; }
+.ai-bubble { max-width: 82%; padding: 10px 13px; font-size: 12.5px; line-height: 1.55; }
+.ai-bubble.bot { background: var(--a-bg3); color: var(--a-text); border-radius: 15px 15px 15px 4px; border: 1px solid var(--a-border); }
+.ai-bubble.user { background: var(--a-green); color: #fff; border-radius: 15px 15px 4px 15px; }
+.ai-progress-wrap { margin-top: 9px; }
+.ai-progress-lbl { display: flex; justify-content: space-between; font-size: 10px; color: var(--a-green-dk); font-weight: 700; margin-bottom: 5px; }
+.ai-progress-track { background: var(--a-border); border-radius: 20px; height: 8px; overflow: hidden; }
+.ai-progress-fill { background: linear-gradient(90deg, var(--a-green), var(--a-green-dk)); height: 100%; border-radius: 20px; }
+.ai-chips-row { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.ai-chip { white-space: nowrap; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 500; border: 1.5px solid var(--a-border); background: var(--a-bg2); color: var(--a-green); }
+
+#dashboard { background: var(--milk); }
 #ai-assistant { background: var(--milk-2); }
-.ai-chat-mockup { background: #fff; border-radius: 22px; border: 1px solid var(--border); box-shadow: 0 30px 80px rgba(10,11,15,.1); padding: 20px; max-width: 420px; margin: 0 auto; }
-.ai-bubble { border-radius: 14px; padding: 12px 14px; font-size: 13px; line-height: 1.6; margin-bottom: 12px; max-width: 88%; }
-.ai-bubble.user { background: var(--milk-2); margin-left: auto; border-bottom-right-radius: 4px; }
-.ai-bubble.bot { background: var(--emerald-tint); border-bottom-left-radius: 4px; }
-.ai-progress-wrap { margin-top: 8px; }
-.ai-progress-lbl { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--emerald-deep); font-weight: 700; margin-bottom: 5px; }
 
 /* ============================================================
    FEATURE GRID
@@ -348,7 +383,7 @@ section { padding: 96px 5%; }
    PRICING
    ============================================================ */
 #harga { background: var(--milk); }
-.pricing-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; margin-top: 56px; }
+.pricing-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin-top: 56px; max-width: 920px; margin-left: auto; margin-right: auto; }
 .price-card { background: var(--milk-2); border-radius: 20px; padding: 32px 28px; border: 1.5px solid var(--border); position: relative; transition: transform .2s; }
 .price-card:hover { transform: translateY(-4px); }
 .price-card.featured { background: linear-gradient(160deg, var(--obsidian), #1a2540); border-color: var(--emerald); box-shadow: 0 8px 40px rgba(5,226,142,.2); }
@@ -373,11 +408,11 @@ section { padding: 96px 5%; }
 .price-btn:hover { border-color: var(--emerald); color: var(--emerald-deep); }
 .price-btn.cta { background: var(--emerald); color: var(--obsidian); border-color: var(--emerald); box-shadow: 0 4px 16px rgba(5,226,142,.28); }
 .price-btn.cta:hover { background: var(--emerald-deep); color: #fff; }
-.token-info { margin-top: 32px; background: var(--milk-2); border-radius: 16px; padding: 20px 24px; border: 1.5px solid var(--border); text-align: center; }
+.token-info { margin-top: 10px; background: var(--milk); border-radius: 14px; padding: 16px 18px; border: 1px solid var(--border); text-align: left; }
 .token-info-title { font-size: 13px; font-weight: 700; color: var(--obsidian); margin-bottom: 8px; }
 .token-info-body { font-size: 13px; color: var(--ink2); line-height: 1.7; max-width: 480px; margin: 0 auto; }
-.token-cards { display: flex; justify-content: center; gap: 16px; margin-top: 14px; flex-wrap: wrap; }
-.token-card { background: #fff; border-radius: 12px; padding: 12px 20px; border: 1.5px solid var(--border); text-align: center; }
+.token-cards { display: flex; justify-content: flex-start; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.token-card { background: #fff; border-radius: 12px; padding: 10px 16px; border: 1.5px solid var(--border); text-align: center; }
 .token-card-price { font-size: 16px; font-weight: 700; color: var(--emerald-deep); }
 .token-card-lbl { font-size: 11px; color: var(--ink3); }
 
@@ -392,7 +427,7 @@ section { padding: 96px 5%; }
 .faq-item.open .faq-q i { transform: rotate(180deg); }
 .faq-a { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
 .faq-a-inner { padding: 0 24px 20px; font-size: 14px; line-height: 1.7; color: var(--ink2); }
-.faq-item.open .faq-a { max-height: 240px; }
+.faq-item.open .faq-a { max-height: 480px; }
 
 /* ============================================================
    CTA SECTION
@@ -490,10 +525,13 @@ footer { background: var(--obsidian); padding: 56px 5% 32px; color: rgba(255,255
     </div>
 
     <div class="hero-visual">
-      <!-- TODO(engineering): replace with real screenshot per spec §6.1 —
-           actual WhatsApp conversation with the Fonnte-connected Wangku bot showing
-           "Nasi padang 25rb" → "Tercatat ✅ Sisa budget makanmu minggu ini Rp125.000."
-           Placeholder mockup below approximates this exchange until captured. -->
+      <!-- TODO(engineering): replace with a real screenshot per spec §6.1 — actual WhatsApp
+           conversation with the Fonnte-connected Wangku bot showing "Nasi padang 25rb" →
+           "Tercatat ✅ Sisa budget makanmu minggu ini Rp125.000." BLOCKED per addendum §3
+           sequencing note until (1) Fonnte's "Sent via fonnte.com" footer is removed (paid-tier
+           decision, not yet actioned) and (2) the WhatsApp bot's known bugs are fixed — capturing
+           now would bake third-party branding / a broken flow into permanent marketing material.
+           Placeholder mockup below approximates the exchange until both are resolved. -->
       <div class="wa-mockup fade-up">
         <div class="wa-frame">
           <div class="wa-screen">
@@ -576,8 +614,10 @@ footer { background: var(--obsidian); padding: 56px 5% 32px; color: rgba(255,255
       <h2 class="section-title">Chat masuk. Data terstruktur.</h2>
       <p class="section-sub">WangkuAI paham cara ngomong sehari-hari kamu — bukan format baku, bukan kode komputer.</p>
     </div>
-    <!-- TODO(engineering): replace demo-msg bubbles + demo-result blocks with real screenshots
-         per spec §6.1/§6.2 (3 short WA chat screenshots + matching real dashboard views). -->
+    <!-- TODO(engineering): replace demo-msg bubbles with real WA chat screenshots per spec §6.1
+         once the addendum §3 sequencing gate clears (Fonnte branding removed + bot bugs fixed).
+         The demo-result blocks (chart/category/progress) can move to real dashboard screenshots
+         independently — see #dashboard's .app-screenshot for the pattern to reuse there. -->
     <div class="demo-grid">
       <div class="demo-card fade-up" style="transition-delay:.1s">
         <div class="demo-msg">"Gajian 10jt"</div>
@@ -664,30 +704,36 @@ footer { background: var(--obsidian); padding: 56px 5% 32px; color: rgba(255,255
       <h2 class="section-title">Kejelasan adalah kemewahan baru.</h2>
       <p class="section-body">Dashboard yang dirancang buat ketenangan pikiran. Lihat tren pengeluaran dan pertumbuhan aset kamu dalam satu tampilan yang enak dilihat.</p>
     </div>
-    <!-- TODO(engineering): HIGH PRIORITY per spec §6.2 — replace with a real screenshot of the
-         actual Wangku dashboard (Beranda/Laporan view) from a demo/seed account. This is the
-         section most undermined by an approximation, per spec §5.7. -->
+    <!-- TODO(engineering): HIGH PRIORITY per spec §6.2 — swap for a real screenshot of the
+         actual Wangku dashboard (Beranda/Laporan view) captured from a demo/seed account once
+         one exists, per addendum §3. Until then this reproduces the real app's own UI/colors
+         (css/app.css) with fabricated example data, not the old generic bar-chart illustration. -->
     <div class="fade-up">
-      <div class="dash-mockup">
-        <div class="dash-top">
-          <div>
-            <div class="dash-bal-lbl">Saldo Sekarang</div>
-            <div class="dash-bal-val">Rp 4.250.000</div>
+      <div class="app-screenshot">
+        <div class="app-screenshot-tag"><i class="ti ti-device-mobile"></i> Beranda — data contoh</div>
+        <div class="dash-bal-card">
+          <div class="dash-bal-lbl">Saldo Sekarang</div>
+          <div class="dash-bal-val">Rp 4.250.000</div>
+          <div class="dash-bal-row">
+            <div class="dash-bal-pill"><div class="dash-bal-pill-lbl">↓ Pemasukan Bulan Ini</div><div class="dash-bal-pill-val">Rp 8.000.000</div></div>
+            <div class="dash-bal-pill"><div class="dash-bal-pill-lbl">↑ Pengeluaran Bulan Ini</div><div class="dash-bal-pill-val">Rp 3.750.000</div></div>
           </div>
-          <div class="dash-pill">+18% bulan ini</div>
         </div>
-        <div class="dash-chart-row">
-          <div class="dash-chart-bar" style="height:40%"></div>
-          <div class="dash-chart-bar" style="height:55%"></div>
-          <div class="dash-chart-bar" style="height:35%"></div>
-          <div class="dash-chart-bar hi" style="height:85%"></div>
-          <div class="dash-chart-bar" style="height:50%"></div>
-          <div class="dash-chart-bar" style="height:65%"></div>
-        </div>
-        <div class="dash-cat-list">
-          <div class="dash-cat-item"><span class="dash-cat-dot" style="background:var(--emerald)"></span><span class="dash-cat-name">Makanan</span><span class="dash-cat-val">Rp870rb</span></div>
-          <div class="dash-cat-item"><span class="dash-cat-dot" style="background:var(--blue)"></span><span class="dash-cat-name">Transportasi</span><span class="dash-cat-val">Rp420rb</span></div>
-          <div class="dash-cat-item"><span class="dash-cat-dot" style="background:var(--amber)"></span><span class="dash-cat-name">Tagihan</span><span class="dash-cat-val">Rp650rb</span></div>
+        <div class="dash-chart-card">
+          <div class="dash-chart-title">Kategori Pengeluaran</div>
+          <div class="dash-donut-row">
+            <svg width="64" height="64" viewBox="0 0 80 80">
+              <circle cx="40" cy="40" r="30" fill="none" stroke="#E8ECF0" stroke-width="14"/>
+              <circle cx="40" cy="40" r="30" fill="none" stroke="#00B26A" stroke-width="14" stroke-dasharray="70 118" stroke-dashoffset="0" transform="rotate(-90 40 40)"/>
+              <circle cx="40" cy="40" r="30" fill="none" stroke="#2B7EF8" stroke-width="14" stroke-dasharray="42 146" stroke-dashoffset="-70" transform="rotate(-90 40 40)"/>
+              <circle cx="40" cy="40" r="30" fill="none" stroke="#F59E0B" stroke-width="14" stroke-dasharray="36 152" stroke-dashoffset="-112" transform="rotate(-90 40 40)"/>
+            </svg>
+            <div class="dash-leg">
+              <div class="dash-leg-item"><span class="dash-leg-dot" style="background:#00B26A"></span><span>Makan</span><span class="dash-leg-pct">37%</span></div>
+              <div class="dash-leg-item"><span class="dash-leg-dot" style="background:#2B7EF8"></span><span>Belanja</span><span class="dash-leg-pct">22%</span></div>
+              <div class="dash-leg-item"><span class="dash-leg-dot" style="background:#F59E0B"></span><span>Paket Data</span><span class="dash-leg-pct">19%</span></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -702,17 +748,37 @@ footer { background: var(--obsidian); padding: 56px 5% 32px; color: rgba(255,255
       <h2 class="section-title">Tanya apa saja. Dapatkan jawabannya.</h2>
       <p class="section-body">"Sisa budget jajanku minggu ini berapa ya?" atau "Bulan depan aku udah bisa beli iPhone belum?" WangkuAI membaca data keuanganmu dan kasih jawaban yang jujur, bukan basa-basi.</p>
     </div>
-    <!-- TODO(engineering): replace with real screenshot of the actual AI Chat feature per
-         spec §6.3, ideally reproducing this exact exchange. -->
+    <!-- TODO(engineering): swap for a real screenshot of the actual AI Chat feature once a
+         demo/seed account exists, per spec §6.3 + addendum §3, ideally reproducing this exact
+         exchange. Until then this reproduces the real chat UI (css/app.css .chat-sheet) with
+         fabricated example data, not the old generic illustration. -->
     <div class="fade-up">
-      <div class="ai-chat-mockup">
-        <div class="ai-bubble user">Bulan depan aku udah bisa beli iPhone belum ya?</div>
-        <div class="ai-bubble bot">
-          Kayaknya bisa! Lihat dari kebiasaan nabungmu bulan ini, target kamu bakal tercapai sekitar 5 minggu lagi.
-          <div class="ai-progress-wrap">
-            <div class="ai-progress-lbl"><span>Target: iPhone</span><span>64%</span></div>
-            <div class="demo-progress-track"><div class="demo-progress-fill" style="width:64%"></div></div>
+      <div class="app-screenshot">
+        <div class="app-screenshot-tag"><i class="ti ti-device-mobile"></i> AI Chat — data contoh</div>
+        <div class="ai-chat-hdr">
+          <div class="ai-chat-av"><i class="ti ti-robot"></i></div>
+          <div>
+            <div class="ai-chat-name">Wangku AI</div>
+            <div class="ai-chat-status"><span class="ai-online-dot"></span> Siap membantu</div>
           </div>
+        </div>
+        <div class="ai-msg-row user">
+          <div class="ai-bubble user">Bulan depan aku udah bisa beli iPhone belum ya?</div>
+        </div>
+        <div class="ai-msg-row">
+          <div class="ai-msg-av"><i class="ti ti-robot"></i></div>
+          <div class="ai-bubble bot">
+            Kayaknya bisa! Lihat dari kebiasaan nabungmu bulan ini, target kamu bakal tercapai sekitar 5 minggu lagi.
+            <div class="ai-progress-wrap">
+              <div class="ai-progress-lbl"><span>Target: iPhone</span><span>64%</span></div>
+              <div class="ai-progress-track"><div class="ai-progress-fill" style="width:64%"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ai-chips-row">
+          <div class="ai-chip">📊 Analisa</div>
+          <div class="ai-chip">🔥 Terboros</div>
+          <div class="ai-chip">💡 Tips hemat</div>
         </div>
       </div>
     </div>
@@ -806,7 +872,7 @@ footer { background: var(--obsidian); padding: 56px 5% 32px; color: rgba(255,255
 <section id="testimoni">
   <div class="section-inner">
     <div class="text-center fade-up">
-      <div class="section-eyebrow">Testimoni <span style="color:var(--amber)">(belum diverifikasi)</span></div>
+      <div class="section-eyebrow">Testimoni</div>
       <h2 class="section-title">Kata mereka yang sudah<br>merasakannya</h2>
     </div>
     <div class="testi-grid">
@@ -841,7 +907,7 @@ footer { background: var(--obsidian); padding: 56px 5% 32px; color: rgba(255,255
     <div class="text-center fade-up">
       <div class="section-eyebrow">Harga</div>
       <h2 class="section-title">Langganan bulanan, batal kapan saja</h2>
-      <p class="section-sub">Coba gratis 1 bulan, lalu pilih paket yang cocok. Tagihan bulanan, tanpa kontrak jangka panjang.</p>
+      <p class="section-sub">Coba gratis 14 hari dengan akses penuh ke semua fitur, lalu pilih paket yang cocok buat kamu. Tagihan bulanan, tanpa kontrak jangka panjang.</p>
     </div>
     <div class="pricing-grid">
       <div class="price-card fade-up" style="transition-delay:.05s">
@@ -876,41 +942,20 @@ footer { background: var(--obsidian); padding: 56px 5% 32px; color: rgba(255,255
       <div class="price-card featured fade-up" style="transition-delay:.2s">
         <div class="price-badge">✦ Paling Populer</div>
         <div class="price-plan">Pro</div>
-        <div class="price-amount">Rp 34rb<span> /bulan</span></div>
+        <div class="price-amount">Rp 39rb<span> /bulan</span></div>
         <div class="price-desc">Untuk yang serius kelola keuangan + AI</div>
         <ul class="price-features">
           <li>Semua fitur Basic</li>
           <li>AI Chat Finansial ✨</li>
           <li>Scan Struk AI 📷</li>
-          <li>Token AI bulanan (terbatas)</li>
+          <li>Token AI bulanan termasuk</li>
           <li>Catat via chat AI langsung</li>
         </ul>
         <a href="https://wa.me/6285727318698" class="price-btn cta" target="_blank">Berlangganan</a>
       </div>
-      <div class="price-card fade-up" style="transition-delay:.3s">
-        <div class="price-plan">Ultimate</div>
-        <div class="price-amount">Rp 49rb<span> /bulan</span></div>
-        <div class="price-desc">Untuk pengguna intensif & pebisnis</div>
-        <ul class="price-features">
-          <li>Semua fitur Pro</li>
-          <li>Token AI unlimited</li>
-          <li>Priority support via WhatsApp</li>
-          <li>Akses fitur baru lebih awal</li>
-        </ul>
-        <a href="https://wa.me/6285727318698" class="price-btn" target="_blank">Berlangganan</a>
-      </div>
     </div>
-
-    <div class="token-info fade-up">
-      <div class="token-info-title">🤖 Tentang Token AI</div>
-      <div class="token-info-body">
-        Token adalah satuan pemakaian AI. 1 pesan chat ≈ 200–500 token. 1 scan struk ≈ 500–1.000 token.<br>
-        <strong>2 Juta token</strong> ≈ 2.000–4.000 percakapan AI per bulan — lebih dari cukup untuk pemakaian harian.
-      </div>
-      <div class="token-cards">
-        <div class="token-card"><div class="token-card-price">Rp 35.000</div><div class="token-card-lbl">2 Juta Token / bulan</div></div>
-        <div class="token-card"><div class="token-card-price">Rp 59.000</div><div class="token-card-lbl">5 Juta Token / bulan</div></div>
-      </div>
+    <div class="text-center fade-up" style="margin-top:24px">
+      <span class="placeholder-flag" style="color:var(--emerald-deep);background:var(--emerald-tint);border-color:rgba(5,226,142,.3)"><i class="ti ti-sparkles"></i> Semua paket dimulai dengan uji coba 14 hari, akses penuh</span>
     </div>
   </div>
 </section>
@@ -938,8 +983,21 @@ footer { background: var(--obsidian); padding: 56px 5% 32px; color: rgba(255,255
         <div class="faq-a"><div class="faq-a-inner">Bisa. Semua paket berbayar bertagihan bulanan tanpa kontrak jangka panjang — batal kapan pun langsung dari pengaturan akun, tanpa penalti.</div></div>
       </div>
       <div class="faq-item fade-up">
+        <div class="faq-q" onclick="toggleFaq(this)">Token AI itu apa, dan berapa banyak yang aku dapat?<i class="ti ti-chevron-down"></i></div>
+        <div class="faq-a"><div class="faq-a-inner">
+          Token adalah satuan pemakaian AI. 1 pesan chat ≈ 200–500 token. 1 scan struk ≈ 500–1.000 token. Paket Pro sudah termasuk token AI bulanan — cukup untuk pemakaian harian normal. Butuh lebih banyak? Top up kapan pun:
+          <div class="token-info">
+            <div class="token-info-body"><strong>2 Juta token</strong> ≈ 2.000–4.000 percakapan AI — lebih dari cukup untuk pemakaian harian.</div>
+            <div class="token-cards">
+              <div class="token-card"><div class="token-card-price">Rp 35.000</div><div class="token-card-lbl">2 Juta Token</div></div>
+              <div class="token-card"><div class="token-card-price">Rp 59.000</div><div class="token-card-lbl">5 Juta Token</div></div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <div class="faq-item fade-up">
         <div class="faq-q" onclick="toggleFaq(this)">Gimana cara mulai pakai Wangku?<i class="ti ti-chevron-down"></i></div>
-        <div class="faq-a"><div class="faq-a-inner">Chat nomor Wangku di WhatsApp, kirim transaksi pertamamu seperti biasa ("makan siang 25rb"), dan akun kamu otomatis aktif di paket Free. Upgrade kapan pun kamu butuh fitur AI.</div></div>
+        <div class="faq-a"><div class="faq-a-inner">Chat nomor Wangku di WhatsApp, kirim transaksi pertamamu seperti biasa ("makan siang 25rb"), dan akun kamu otomatis mulai uji coba gratis 14 hari dengan akses penuh. Setelah itu, pilih paket yang cocok — termasuk tetap gratis di paket Free kalau mau.</div></div>
       </div>
       <div class="faq-item fade-up">
         <div class="faq-q" onclick="toggleFaq(this)">Apa bedanya Wangku dengan aplikasi keuangan lain?<i class="ti ti-chevron-down"></i></div>
