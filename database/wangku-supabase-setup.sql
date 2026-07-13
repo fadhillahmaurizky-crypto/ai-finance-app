@@ -918,6 +918,36 @@ GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
 
 
 -- ============================================================
+-- [25] REGISTRASI: check_registration_available() dulu cuma cek
+-- username/email -- wa_number (yang juga UNIQUE di tabel users, block [1])
+-- tidak pernah ikut dicek. Akibatnya nomor WA yang sudah dipakai lolos
+-- pre-check di doRegister(), OTP terkirim & diverifikasi seolah semua
+-- baik-baik saja, dan baru gagal di langkah paling akhir (INSERT di
+-- verifyRegOTP()) dengan pesan generik "Username/email sudah terdaftar!"
+-- yang salah -- constraint yang sebenarnya kena adalah users_wa_number_key,
+-- bukan username atau email. Ditemukan oleh product owner saat mendaftar
+-- ulang pakai nomor WA akun admin yang sudah ada.
+--
+-- Fix: tambah parameter p_wa_number, sertakan wa_number di pengecekan,
+-- supaya duplikat nomor WA ketahuan di doRegister() (sebelum OTP dikirim
+-- sama sekali), bukan menunggu sampai langkah terakhir. Pesan error di
+-- js/auth.js juga disamakan untuk menyebut ketiga kemungkinan field --
+-- tetap tidak menyebut yang MANA persis yang bentrok (RPC ini sengaja
+-- cuma mengembalikan boolean, bukan baris aslinya -- lihat catatan di
+-- blok [22] soal risiko enumerasi data pending-registration).
+-- ============================================================
+DROP FUNCTION IF EXISTS public.check_registration_available(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.check_registration_available(p_username TEXT, p_email TEXT, p_wa_number TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT NOT EXISTS(
+    SELECT 1 FROM public.users u WHERE u.username = p_username OR u.email = p_email OR u.wa_number = p_wa_number
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.check_registration_available(TEXT, TEXT, TEXT) TO anon;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables
