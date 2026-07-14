@@ -215,6 +215,7 @@ tbody tr:hover{background:var(--bg3)}
     <button class="nav-link" onclick="showPage('users')" id="nav-users"><i class="ti ti-users"></i> Manajemen User <span id="pending-badge" style="display:none;background:var(--amber);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:4px">0</span></button>
     <button class="nav-link" onclick="showPage('transaksi')"><i class="ti ti-receipt"></i> Semua Transaksi</button>
     <button class="nav-link" onclick="showPage('laporan')"><i class="ti ti-chart-bar"></i> Laporan</button>
+    <button class="nav-link" onclick="showPage('infra')"><i class="ti ti-server-2"></i> Status Infrastruktur</button>
     <div class="nav-group-title" style="margin-top:8px">Lainnya</div>
     <button class="nav-link" onclick="showPage('settings')"><i class="ti ti-settings"></i> Pengaturan</button>
     <button class="nav-link" onclick="refreshAll()"><i class="ti ti-refresh" id="refresh-ico"></i> Refresh Data</button>
@@ -419,6 +420,39 @@ tbody tr:hover{background:var(--bg3)}
             <thead><tr><th>User</th><th>Total Masuk</th><th>Total Keluar</th><th>Saldo</th><th>Transaksi</th></tr></thead>
             <tbody id="laporan-table"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATUS INFRASTRUKTUR -->
+    <div class="page" id="page-infra">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-ico-wrap" style="background:var(--blue-bg);color:var(--blue)"><i class="ti ti-database"></i></div>
+          <div class="stat-lbl">Ukuran Database</div>
+          <div class="stat-val" id="infra-db-size">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-ico-wrap" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-user-check"></i></div>
+          <div class="stat-lbl">User Aktif (30 hari)</div>
+          <div class="stat-val" id="infra-active-users">—</div>
+          <div class="stat-change up" id="infra-active-users-sub">—</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px">
+        <div class="card-header"><div class="card-title">Bandwidth, Egress & Invocations</div></div>
+        <div class="card-body" style="padding:16px 20px;font-size:13px;color:var(--text2);line-height:1.6">
+          Bandwidth/egress (Supabase) dan jumlah invocation serverless function (Vercel) tidak punya API publik yang stabil dan terdokumentasi dengan baik untuk plan tier project ini — dibanding memaksakan integrasi yang rapuh, angka-angka ini dicek langsung dari dashboard masing-masing:
+          <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+            <a href="https://supabase.com/dashboard/project/mchuhgihywnyamurbetz/settings/billing/usage" target="_blank" rel="noopener" class="f-btn" style="text-decoration:none;display:inline-flex;width:auto;padding:9px 16px"><i class="ti ti-external-link"></i> Supabase Usage</a>
+            <a href="https://vercel.com/wangku-team/ai-finance-app" target="_blank" rel="noopener" class="f-btn" style="text-decoration:none;display:inline-flex;width:auto;padding:9px 16px"><i class="ti ti-external-link"></i> Vercel Dashboard</a>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px">
+        <div class="card-header"><div class="card-title">Groq &amp; Fonnte</div></div>
+        <div class="card-body" style="padding:16px 20px;font-size:13px;color:var(--text2);line-height:1.6">
+          Groq tidak punya API monitoring publik — gunakan Spend Limits/alerts di console Groq langsung. Fonnte tidak punya endpoint usage/quota yang cocok untuk ditampilkan di sini.
         </div>
       </div>
     </div>
@@ -638,6 +672,7 @@ const PAGE_META = {
   users:    {title:'Manajemen User',sub:'Kelola semua pengguna Wangku'},
   transaksi:{title:'Semua Transaksi',sub:'Riwayat transaksi seluruh user'},
   laporan:  {title:'Laporan',sub:'Analisa keuangan platform'},
+  infra:    {title:'Status Infrastruktur',sub:'Kesehatan & penggunaan backend'},
   settings: {title:'Pengaturan',sub:'Konfigurasi dashboard'}
 };
 function showPage(name) {
@@ -654,6 +689,7 @@ function showPage(name) {
   if(name==='users') { loadUsers(); loadPendingUsers(); loadOrders(); }
   if(name==='transaksi') loadAllTrx();
   if(name==='laporan') renderLaporan();
+  if(name==='infra') loadInfraStats();
   if(name==='settings') loadAdminUsersList();
 }
 
@@ -1249,6 +1285,27 @@ function renderKatChart(id,data,color) {
       <div class="growth-track"><div class="growth-fill" style="width:${(v/max)*100}%;background:${color}"></div></div>
       <span style="font-size:11px;font-weight:600;color:var(--text2);width:60px;text-align:right">${rp(v)}</span>
     </div>`).join('');
+}
+
+// ========================
+// STATUS INFRASTRUKTUR — database size + active users lewat RPC (tidak
+// perlu token eksternal apa pun). Bandwidth/egress Supabase dan invocation
+// count Vercel sengaja tidak dibangun di sini -- tidak ada API publik yang
+// stabil/terdokumentasi untuk plan tier project ini (lihat roadmap.md);
+// admin diarahkan ke dashboard masing-masing lewat tautan di halaman ini.
+// ========================
+async function loadInfraStats() {
+  document.getElementById('infra-db-size').textContent='—';
+  document.getElementById('infra-active-users').textContent='—';
+  document.getElementById('infra-active-users-sub').textContent='—';
+  try {
+    const stats = await rpcFetch('admin_get_infra_stats');
+    document.getElementById('infra-db-size').textContent = stats.db_size_pretty || '—';
+    document.getElementById('infra-active-users').textContent = stats.active_users_30d ?? '—';
+    document.getElementById('infra-active-users-sub').textContent = `dari ${stats.total_users ?? '—'} total user`;
+  } catch(e) {
+    showToast('Gagal memuat status infrastruktur: '+e.message,'err');
+  }
 }
 
 // Catatan: pengelolaan Groq API key dipindah ke server (Vercel env var
