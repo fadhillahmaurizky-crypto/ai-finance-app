@@ -56,6 +56,14 @@ function showApp(){
   (async()=>{
     if(typeof ensureDefaultAccount==='function')await ensureDefaultAccount();
     if(typeof loadAccounts==='function')await loadAccounts();
+    // loadTrx('semua','txn-home',5) di atas start bersamaan (bukan nunggu)
+    // loadAccounts -- kalau transaksi kebetulan selesai duluan, baris
+    // transfer sempat ke-render pakai fallback jenisLabel (lihat
+    // accountFlowLabel di transactions.js) karena accountsList masih
+    // kosong. Re-render sekali di sini supaya label "Akun → Akun" yang
+    // benar tetap muncul begitu accountsList sudah ada, tanpa nunda
+    // render pertama Home.
+    if(typeof loadTrx==='function')loadTrx('semua','txn-home',5);
     if(typeof seedDefaultCategories==='function')await seedDefaultCategories();
     loadKategori();
     if(typeof seedDefaultPriorities==='function')await seedDefaultPriorities();

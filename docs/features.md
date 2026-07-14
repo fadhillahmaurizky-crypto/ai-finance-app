@@ -10,7 +10,7 @@ Onboarding Carousel (pre-login, first-time only)
 Home (page-home)
 ├── Balance Card — Saldo Sekarang = Σ(account.saldo_awal) + all-time (pemasukan − pengeluaran)
 │   ├── eye icon → show/hide balance (toggleBalanceVisibility)
-│   ├── "Lihat Detail" pill → Balance Breakdown popup (per-account saldo/income/expense, this month's flows)
+│   ├── "Lihat Detail" pill → Balance Breakdown popup (per-account saldo/income/expense, this month's flows, plus a distinct Transfer Masuk/Transfer Keluar line per account — the underlying `computeAccountBreakdown()` always computed these, they just weren't rendered before; the top-of-modal aggregate totals deliberately still exclude transfers, unchanged)
 │   ├── 7-day sparkline (smooth bezier curve, upper-right corner, small) + trend badge
 │   └── Pemasukan Bulan Ini / Pengeluaran Bulan Ini pills
 ├── Insight dari WangkuAI — rule-based observations (not a live AI call), tap or swipe to cycle, fade transition
@@ -24,8 +24,9 @@ Home (page-home)
 Transaksi Terakhir (bottom of Home)
 ├── Last 5 only
 ├── Filter: Semua / Pemasukan / Pengeluaran / Pindah Saldo (displayed label; stored `jenis` value is still `'transfer'`)
+├── Pindah Saldo rows show "AccountFrom → AccountTo" as the row's subtitle (via `accountFlowLabel()`), instead of the generic "Pindah Saldo • transfer" every other jenis gets — falls back to "Akun terhapus" per side if that account no longer exists, and to the generic label (not a false "Akun terhapus") if `accountsList` itself hasn't loaded yet
 └── Amounts shown at full precision (`rpF()`) — **not** abbreviated; only target-card amounts (Target page + Home's Target Terdekat) use the abbreviated/tap-to-reveal treatment
-    Files: transactions.js (loadTrx, filterHome, jenisLabel)
+    Files: transactions.js (loadTrx, filterHome, jenisLabel, accountFlowLabel)
 
 Catat (page-catat) — Add/Edit Transaction
 ├── Jenis: Pemasukan / Pengeluaran / Pindah Saldo (displayed label; stored `jenis` value is still `'transfer'`)
@@ -43,7 +44,7 @@ Transaksi (page-transaksi)
 ├── Filter: date-range pickers (Dari / Sampai), default last 7 days — NOT preset buttons (changed from an earlier design)
 ├── Export Excel — client-side via SheetJS, exports whatever's currently filtered
 ├── Amounts shown at full precision — not abbreviated (see Transaksi Terakhir above)
-├── Tap a row → detail sheet → Edit / Hapus
+├── Tap a row → detail sheet → Edit / Hapus. For Pindah Saldo, the sheet also shows a labeled "Dari" / "Ke" account pair between the amount and the action buttons (hidden for every other jenis)
 └── Floating "+" button → Catat
     Files: transactions.js (applyTransaksiFilter, exportToExcel, openTrxDetailById, editTrx, deleteTrx)
 
