@@ -1114,6 +1114,49 @@ GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
 
 
 -- ============================================================
+-- [27] ADMIN: statistik infrastruktur ringan (ukuran database + user
+-- aktif) untuk tab "Status Infrastruktur" di admin.html -- bandwidth/
+-- egress Supabase dan invocation count Vercel sengaja tidak dibangun,
+-- lihat roadmap.md untuk alasannya (tidak ada API publik yang stabil/
+-- terdokumentasi untuk plan tier project ini).
+--
+-- DEPENDENSI: fungsi ini memakai users.token_version untuk verifikasi
+-- admin, jadi HARUS dijalankan setelah block [26] (JWT forgery
+-- mitigation, PR keamanan terpisah) -- token_version belum ada di
+-- database kalau block itu belum jalan. Sengaja memakai pola verifikasi
+-- yang sama dengan is_owner_or_admin() yang sudah diperbaiki (cek role
+-- asli dari tabel + token_version, bukan cuma percaya klaim app_role
+-- dari JWT begitu saja) -- fungsi admin baru tidak boleh mengulang
+-- kesalahan lama yang baru saja diperbaiki di tempat lain.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.admin_get_infra_stats()
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_is_admin BOOLEAN;
+BEGIN
+  SELECT EXISTS(
+    SELECT 1 FROM public.users u
+    WHERE u.id = (auth.jwt()->>'user_id')::uuid
+      AND u.token_version::text = auth.jwt()->>'token_version'
+      AND u.role = 'admin'
+  ) INTO v_is_admin;
+  IF NOT v_is_admin THEN
+    RAISE EXCEPTION 'Forbidden';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'db_size_bytes', pg_database_size(current_database()),
+    'db_size_pretty', pg_size_pretty(pg_database_size(current_database())),
+    'total_users', (SELECT COUNT(*) FROM public.users WHERE role != 'admin'),
+    'active_users_30d', (SELECT COUNT(*) FROM public.users WHERE role != 'admin' AND last_login >= now() - interval '30 days')
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.admin_get_infra_stats() TO anon, authenticated;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables
