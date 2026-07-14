@@ -41,7 +41,7 @@ ai-finance-app/
 └── docs/                                  # You are here
 ```
 
-**`gs/fonnte.gs` is real, committed code** (as of the Part A merge) — not a planned/draft design. It has known, tracked bugs still pending a dedicated fix pass: `SB_KEY` uses the anon key instead of the service role key (should bypass RLS like the `/api` functions do), transactions it inserts never set `account_id`, its saldo/laporan calculations are month-scoped rather than matching the app's all-time balance model, and its keyword-based category matching uses a vocabulary that doesn't match real `user_categories` rows. See `backend.md`/`ai.md` for the full breakdown — don't treat this file as production-solid just because it's now in the repo.
+**`gs/fonnte.gs` is real, committed code** — not a planned/draft design. It previously had several known, tracked bugs (anon key instead of service role, transactions never attributed to an `account_id`, month-scoped rather than all-time balance calculations, a stale category vocabulary that didn't match the app's real `user_categories`) — all fixed in the same pass that added account-name extraction (matching a mentioned account by name, whole-word, falling back to the user's default) and clean `keterangan` generation. See `backend.md`/`ai.md` for the full before/after. Deployment to the live Apps Script editor is still a manual copy-paste step done by the product owner — committing fixes here doesn't push them live by itself.
 
 ## 2a. Root (`/`) vs. app (`/app`) routing — read before touching any hardcoded app URL
 
@@ -59,7 +59,7 @@ Anywhere the app's own URL needs to be referenced (admin.html's "App URL" link, 
 - **Backend-as-a-service**: Supabase (Postgres via PostgREST). No custom application server.
 - **Auth**: Custom — not Supabase Auth. Login verifies a password hash inside a Postgres function and mints a hand-signed JWT (HS256, using the project's real Supabase JWT secret) that the client then uses as its Bearer token for everything else. See §4 and `database.md`'s RLS section.
 - **AI**: Groq API (`meta-llama/llama-4-scout-17b-16e-instruct` for receipt vision, a Llama 3.x chat model for the assistant) — called only from Vercel serverless functions, never from the browser.
-- **WhatsApp bot**: Fonnte + Google Apps Script — **planning-stage draft only, no code committed to this repo** (see `backend.md`).
+- **WhatsApp bot**: Fonnte + Google Apps Script (`gs/fonnte.gs`) — real, committed, fixed as of this session (see `backend.md`). Deployment to the live Apps Script editor is still a manual step, not tied to a commit here.
 - **Hosting**: Vercel, both the static site and the `/api` serverless functions. Root `/` and `/app` are split via `vercel.json` rewrites (landing page vs. the actual app) — see §2a.
 - **Android packaging**: Bubblewrap CLI → Trusted Web Activity (TWA), signed APK/AAB.
 - **Email**: EmailJS (OTP delivery for registration and password reset).
@@ -72,9 +72,9 @@ flowchart LR
     JS -->|fetch REST + Bearer JWT| SB[(Supabase Postgres, RLS-enforced)]
     JS -->|fetch| API[Vercel /api/ai-chat, /api/ai-scan]
     API -->|server-side key| GROQ[Groq API]
-    JS -->|fire-and-forget| GAS[Google Apps Script draft]
-    GAS --> DRIVE[(Google Drive)]
-    WA[WhatsApp / Fonnte] -.->|not yet wired| GAS
+    JS -->|fire-and-forget: ping, notifyAdmin| GAS[gs/fonnte.gs]
+    WA[WhatsApp / Fonnte] -->|webhook| GAS
+    GAS -->|service role key| SB
     SB -->|REST response, RLS-filtered| JS
     JS -->|re-render| U
 ```
@@ -160,7 +160,7 @@ flowchart TD
 ```
 
 ## 12. External services
-Supabase, Groq (via Vercel proxy), Fonnte (draft/unverified), Google Apps Script/Drive (draft), EmailJS, Vercel. Full breakdown in `api.md`.
+Supabase, Groq (via Vercel proxy), Fonnte + Google Apps Script (`gs/fonnte.gs`, real and fixed as of this session — deployment to the live Apps Script editor is still manual), EmailJS, Vercel. Full breakdown in `api.md`.
 
 ## 13. Environment variables
 No `.env` for the static site (all client-visible constants in `js/config.js`, which is fine for a Supabase-anon-key architecture). The Vercel serverless functions **do** use real environment variables (`GROQ_API_KEY`) that never reach the client. Full list in `environment.md`.

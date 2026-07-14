@@ -4,8 +4,21 @@
 // ================================
 
 const SB_URL = 'https://mchuhgihywnyamurbetz.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jaHVoZ2loeXdueWFtdXJiZXR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNTIyNDIsImV4cCI6MjA5NzcyODI0Mn0.z1ildAJY--ErFoom2d7GIF1TCr3fmaBkCWtwGz4QstI';
 const APP_URL = 'https://ai-finance-app-murex.vercel.app/app';
+
+// SB_KEY (anon key) dulu dipakai di sini -- sejak migrasi RLS, setiap tabel
+// mewajibkan is_owner_or_admin(user_id), yang butuh JWT ber-klaim user_id
+// asli. Permintaan pakai anon key polos tidak memenuhi itu untuk baris
+// manapun, jadi getUserIdByWA()/saveTrxToSupabase() dkk selalu gagal diam-
+// diam. Diganti service role key (bypass RLS by design, sama seperti
+// /api/ai-chat.js & /api/ai-scan.js) -- disimpan di Script Property, BUKAN
+// di-hardcode sebagai konstanta seperti SB_KEY dulu. Set sekali lewat
+// Project Settings -> Script Properties: SUPABASE_SERVICE_ROLE_KEY.
+function getServiceRoleKey() {
+  const key = PropertiesService.getScriptProperties().getProperty('SUPABASE_SERVICE_ROLE_KEY');
+  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY belum diset di Script Properties');
+  return key;
+}
 
 // =========================
 // GET — OTP & Webhook Test
@@ -107,6 +120,13 @@ function doPost(e) {
       return ContentService.createTextOutput('User tidak ditemukan');
     }
 
+    // Ambil akun & kategori user SEKALI per pesan masuk (bukan per baris) --
+    // dipakai untuk cocokkan nama akun/kategori di tiap baris, dan sebagai
+    // fallback akun default kalau tidak ada nama akun yang disebut.
+    const accounts = getAccountsSupabase(userId);
+    const categories = getCategoriesSupabase(userId);
+    const defaultAccount = accounts.find(a => a.is_default) || accounts[0] || null;
+
     // Split multiline
     const daftarPesan = rawPesan.split('\n').map(s => s.trim()).filter(s => s !== '');
     const balasan = [];
@@ -114,19 +134,35 @@ function doPost(e) {
     for (const pesan of daftarPesan) {
       if (!/\d/.test(pesan)) continue;
 
-      const nominal = parseNominal(pesan);
-      if (nominal < 100) continue;
+      const nominalInfo = extractNominal(pesan);
+      if (nominalInfo.value < 100) continue;
 
-      const ai = analisaDenganAI(pesan);
+      // Cari nama akun yang disebut di baris ini (whole-word, case-insensitive,
+      // yang paling panjang/spesifik menang kalau ada beberapa cocok) --
+      // fallback ke akun default kalau tidak ada yang cocok sama sekali.
+      const accountMatch = matchFromText(pesan, accounts);
+      const accountId = accountMatch ? accountMatch.id : (defaultAccount ? defaultAccount.id : null);
+
+      // Buang bagian nominal & nama akun dari teks SEBELUM deteksi kategori,
+      // supaya nama akun yang kebetulan mirip nama kategori (mis. akun
+      // "Belanja") tidak salah memicu kategori itu hanya karena disebut
+      // sebagai akun, bukan konteks belanja yang sebenarnya.
+      let textUntukKategori = pesan;
+      if (nominalInfo.matched) textUntukKategori = removeFirstOccurrence(textUntukKategori, nominalInfo.matched);
+      if (accountMatch) textUntukKategori = removeFirstOccurrence(textUntukKategori, accountMatch.nama);
+
+      const ai = analisaDenganAI(textUntukKategori, categories);
+      const keterangan = buildKeterangan(textUntukKategori, ai.kategori);
 
       // Simpan ke Supabase
       const ok = saveTrxToSupabase(userId, {
         jenis: ai.jenis,
-        nominal: nominal,
+        nominal: nominalInfo.value,
         kategori: ai.kategori,
-        keterangan: pesan,
+        keterangan: keterangan,
         prioritas: ai.prioritas,
-        tanggal: new Date().toISOString().substring(0, 10)
+        tanggal: new Date().toISOString().substring(0, 10),
+        account_id: accountId
       });
 
       if (ok) {
@@ -134,9 +170,11 @@ function doPost(e) {
         balasan.push(
           '✅ ' + ai.jenis.toUpperCase() + '\n' +
           '🏷️ ' + ai.kategori + '\n' +
+          (accountMatch ? '🏦 ' + accountMatch.nama + '\n' : '') +
+          '📝 ' + keterangan + '\n' +
           '🧠 ' + ai.prioritas.toUpperCase() + '\n\n' +
-          '💰 Rp' + nominal.toLocaleString('id-ID') + '\n\n' +
-          '🏦 Saldo Bulan Ini:\n' +
+          '💰 Rp' + nominalInfo.value.toLocaleString('id-ID') + '\n\n' +
+          '🏦 Saldo Sekarang:\n' +
           'Rp' + saldo.toLocaleString('id-ID')
         );
       }
@@ -161,11 +199,12 @@ function doPost(e) {
 // =========================
 
 function sbGet(path) {
+  const key = getServiceRoleKey();
   const res = UrlFetchApp.fetch(SB_URL + '/rest/v1/' + path, {
     method: 'get',
     headers: {
-      'apikey': SB_KEY,
-      'Authorization': 'Bearer ' + SB_KEY,
+      'apikey': key,
+      'Authorization': 'Bearer ' + key,
       'Content-Type': 'application/json'
     },
     muteHttpExceptions: true
@@ -174,11 +213,12 @@ function sbGet(path) {
 }
 
 function sbPost(path, body) {
+  const key = getServiceRoleKey();
   const res = UrlFetchApp.fetch(SB_URL + '/rest/v1/' + path, {
     method: 'post',
     headers: {
-      'apikey': SB_KEY,
-      'Authorization': 'Bearer ' + SB_KEY,
+      'apikey': key,
+      'Authorization': 'Bearer ' + key,
       'Content-Type': 'application/json',
       'Prefer': 'return=representation'
     },
@@ -196,6 +236,21 @@ function getUserIdByWA(waNumber) {
   return null;
 }
 
+// Akun user ini (id, nama, is_default) -- dipakai untuk pencocokan nama akun
+// di teks pesan, dan sebagai sumber akun default (account_id) fallback.
+function getAccountsSupabase(userId) {
+  const res = sbGet('accounts?user_id=eq.' + userId + '&select=id,nama,is_default');
+  return res || [];
+}
+
+// Kategori nyata milik user (default + custom) -- dipakai untuk mencocokkan
+// kategori transaksi dari teks pesan, bukan daftar kata kunci statis yang
+// bisa basi kalau vocabulary default app berubah lagi di masa depan.
+function getCategoriesSupabase(userId) {
+  const res = sbGet('user_categories?user_id=eq.' + userId + '&select=nama,jenis');
+  return res || [];
+}
+
 // Simpan transaksi ke Supabase
 function saveTrxToSupabase(userId, trx) {
   try {
@@ -206,7 +261,8 @@ function saveTrxToSupabase(userId, trx) {
       kategori: trx.kategori,
       keterangan: trx.keterangan,
       prioritas: trx.prioritas,
-      tanggal: trx.tanggal
+      tanggal: trx.tanggal,
+      account_id: trx.account_id
     });
     return true;
   } catch(e) {
@@ -215,31 +271,35 @@ function saveTrxToSupabase(userId, trx) {
   }
 }
 
-// Hitung saldo bulan ini dari Supabase
+// Saldo Sekarang, ALL-TIME -- sama persis modelnya dengan app (lihat
+// docs/database.md): Σ(account.saldo_awal) + seluruh riwayat pemasukan −
+// seluruh riwayat pengeluaran, transfer antar-akun sendiri dikecualikan
+// (tidak menambah/mengurangi kekayaan total, cuma pindah antar akun sendiri).
+// Sebelumnya cuma menjumlah transaksi BULAN INI -- user bisa dapat angka
+// "saldo" berbeda dari bot vs dari app untuk akun yang sama.
 function getSaldoSupabase(userId) {
-  const month = new Date().toISOString().substring(0, 7);
-  const d = new Date();
-  d.setMonth(d.getMonth() + 1);
-  const nextMonth = d.toISOString().substring(0, 7);
+  const akun = sbGet('accounts?user_id=eq.' + userId + '&select=saldo_awal');
+  const saldoAwal = (akun || []).reduce((sum, a) => sum + Number(a.saldo_awal || 0), 0);
 
-  const res = sbGet(
-    'transactions?user_id=eq.' + userId +
-    '&tanggal=gte.' + month + '-01' +
-    '&tanggal=lt.' + nextMonth + '-01' +
-    '&select=jenis,nominal'
-  );
-
-  let saldo = 0;
-  (res || []).forEach(function(t) {
-    saldo += t.jenis === 'pemasukan' ? Number(t.nominal) : -Number(t.nominal);
+  const trx = sbGet('transactions?user_id=eq.' + userId + '&select=jenis,nominal');
+  let arus = 0;
+  (trx || []).forEach(function(t) {
+    if (t.jenis === 'pemasukan') arus += Number(t.nominal);
+    else if (t.jenis === 'pengeluaran') arus -= Number(t.nominal);
+    // jenis === 'transfer': sengaja diabaikan, lihat komentar di atas
   });
-  return saldo;
+  return saldoAwal + arus;
 }
 
-// Laporan bulan ini dari Supabase
+// Laporan: Saldo Sekarang (all-time, sama seperti getSaldoSupabase) +
+// ringkasan pemasukan/pengeluaran BULAN INI sebagai info terpisah --
+// jangan disebut "Saldo" karena angka itu cuma pemasukan-dikurangi-
+// pengeluaran sebulan, bukan Saldo Sekarang yang sesungguhnya all-time.
 function getLaporanSupabase(waNumber) {
   const userId = getUserIdByWA(waNumber);
   if (!userId) return '❌ Nomor tidak terdaftar. Daftar di: ' + APP_URL;
+
+  const saldoSekarang = getSaldoSupabase(userId);
 
   const month = new Date().toISOString().substring(0, 7);
   const d = new Date();
@@ -256,18 +316,20 @@ function getLaporanSupabase(waNumber) {
   let masuk = 0, keluar = 0;
   (res || []).forEach(function(t) {
     if (t.jenis === 'pemasukan') masuk += Number(t.nominal);
-    else keluar += Number(t.nominal);
+    else if (t.jenis === 'pengeluaran') keluar += Number(t.nominal);
   });
-  const saldo = masuk - keluar;
 
-  return '📊 *LAPORAN BULAN INI*\n\n' +
-    '💰 Pemasukan\nRp' + masuk.toLocaleString('id-ID') + '\n\n' +
-    '💸 Pengeluaran\nRp' + keluar.toLocaleString('id-ID') + '\n\n' +
-    '🏦 Saldo\nRp' + saldo.toLocaleString('id-ID') + '\n\n' +
+  return '📊 *LAPORAN*\n\n' +
+    '🏦 Saldo Sekarang\nRp' + saldoSekarang.toLocaleString('id-ID') + '\n\n' +
+    '📅 Bulan Ini\n' +
+    '💰 Pemasukan: Rp' + masuk.toLocaleString('id-ID') + '\n' +
+    '💸 Pengeluaran: Rp' + keluar.toLocaleString('id-ID') + '\n\n' +
     '📱 Detail: ' + APP_URL;
 }
 
-// Analisa kategori dari Supabase
+// Analisa kategori dari Supabase (bulan ini, pengeluaran saja -- ini memang
+// selalu dimaksudkan sebagai ringkasan bulanan, bukan angka Saldo, jadi
+// tidak kena catatan all-time di atas)
 function getAnalisaSupabase(waNumber) {
   const userId = getUserIdByWA(waNumber);
   if (!userId) return '❌ Nomor tidak terdaftar. Daftar di: ' + APP_URL;
@@ -309,65 +371,145 @@ function getAnalisaSupabase(waNumber) {
 // PARSE NOMINAL
 // =========================
 
+// Mengembalikan {value, matched} -- matched dipakai pemanggil untuk membuang
+// bagian nominal dari teks saat membangun keterangan/mendeteksi kategori.
+// Sekarang juga mengerti singkatan "k" (mis. "50k"), selain rb/ribu/jt/juta
+// yang sudah ada.
+function extractNominal(text) {
+  const lower = text.toLowerCase();
+  const re = /\d+([.,]\d+)?\s*(jt|juta|rb|ribu|k)?/i;
+  const m = lower.match(re);
+  if (!m) return { value: 0, matched: '' };
+
+  const angka = parseFloat(m[0].replace(/[^\d.,]/g, '').replace(',', '.'));
+  const suffix = (m[2] || '').toLowerCase();
+  let value = angka;
+  if (suffix === 'jt' || suffix === 'juta') value = angka * 1000000;
+  else if (suffix === 'rb' || suffix === 'ribu' || suffix === 'k') value = angka * 1000;
+
+  return { value: Math.round(value), matched: m[0] };
+}
+
+// Dipertahankan untuk kompatibilitas kalau ada kode lain yang masih
+// memanggil parseNominal(text) langsung dan cuma butuh angkanya.
 function parseNominal(text) {
-  text = text.toLowerCase();
-  let nominal = 0;
-
-  if (text.includes('jt') || text.includes('juta')) {
-    const match = text.match(/\d+([.,]\d+)?/);
-    if (!match) return 0;
-    nominal = parseFloat(match[0].replace(',', '.')) * 1000000;
-  } else if (text.includes('rb') || text.includes('ribu')) {
-    const match = text.match(/\d+([.,]\d+)?/);
-    if (!match) return 0;
-    nominal = parseFloat(match[0].replace(',', '.')) * 1000;
-  } else {
-    const angka = text.replace(/[^\d]/g, '');
-    nominal = angka ? parseInt(angka) : 0;
-  }
-
-  return nominal;
+  return extractNominal(text).value;
 }
 
 // =========================
-// AI CLASSIFIER
+// PENCOCOKAN AKUN & KATEGORI
 // =========================
 
-function analisaDenganAI(pesan) {
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Cari item (akun ATAU kategori -- keduanya punya field .nama) yang namanya
+// muncul sebagai WHOLE WORD di teks, case-insensitive. Kalau lebih dari satu
+// yang cocok, menangkan yang namanya paling panjang/spesifik.
+function matchFromText(text, items) {
+  const lower = text.toLowerCase();
+  let best = null;
+  for (const item of items) {
+    const nama = (item.nama || '').toLowerCase();
+    if (!nama) continue;
+    const re = new RegExp('\\b' + escapeRegex(nama) + '\\b', 'i');
+    if (re.test(lower)) {
+      if (!best || nama.length > (best.nama || '').length) best = item;
+    }
+  }
+  return best;
+}
+
+// Hapus SATU kemunculan pertama sebuah substring dari teks, case-insensitive
+// dalam pencarian tapi mempertahankan huruf besar/kecil asli di sisa teks.
+function removeFirstOccurrence(text, needle) {
+  if (!needle) return text;
+  const idx = text.toLowerCase().indexOf(needle.toLowerCase());
+  if (idx === -1) return text;
+  return text.slice(0, idx) + text.slice(idx + needle.length);
+}
+
+// Bangun keterangan bersih dari teks yang nominal & nama akunnya sudah
+// dibuang oleh pemanggil -- tinggal rapikan sisa tanda baca/spasi. Kalau
+// hasilnya kosong (mis. pesan cuma "10rb BCA" tanpa deskripsi apa pun),
+// pakai nama kategori yang sudah ketebak, dikapitalkan, sebagai fallback.
+function buildKeterangan(textTanpaNominalDanAkun, kategoriNama) {
+  const sisa = textTanpaNominalDanAkun.replace(/[-,.:;]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (sisa) return sisa;
+  if (kategoriNama) return kategoriNama.charAt(0).toUpperCase() + kategoriNama.slice(1);
+  return 'Transaksi';
+}
+
+// =========================
+// KLASIFIKASI JENIS & KATEGORI
+// =========================
+
+const KATA_PEMASUKAN = ['gaji','dapat','dapet','bonus','jualan','transfer masuk','terima'];
+
+// Heuristik fallback: kata kunci umum -> nama kategori DEFAULT yang BENERAN
+// dipakai app sekarang (makan/belanja/elektronik/pulsa/paket_data), dipakai
+// hanya kalau tidak ada nama kategori asli milik user yang cocok langsung
+// di teks (lihat matchFromText). Sebelumnya vocabulary di sini
+// (makanan/transportasi/hiburan/tagihan) sudah lama tidak match kategori
+// mana pun yang benar-benar ada di app, jadi transaksi dari WhatsApp
+// membuat kategori duplikat/terpisah dari yang dipakai lewat app.
+const HEURISTIK_PENGELUARAN = [
+  { kata: ['makan','kopi','minum','batagor','sarapan','jajan','warung'], kategori: 'makan' },
+  { kata: ['belanja','shopee','tokopedia','beli baju','beli'], kategori: 'belanja' },
+  { kata: ['elektronik','gadget','charger','kabel data'], kategori: 'elektronik' },
+  { kata: ['pulsa'], kategori: 'pulsa' },
+  { kata: ['paket data','kuota','internet','wifi'], kategori: 'paket_data' }
+];
+
+function isTidakPenting(lower) {
+  return ['netflix','spotify','hiburan','bioskop','game','judi'].some(k => lower.includes(k));
+}
+
+// categories: hasil getCategoriesSupabase(userId) -- [{nama, jenis}, ...]
+function analisaDenganAI(pesan, categories) {
   const lower = pesan.toLowerCase();
 
-  // Pemasukan
-  if (lower.includes('gaji') || lower.includes('dapat') || lower.includes('dapet') ||
-      lower.includes('bonus') || lower.includes('jualan') || lower.includes('transfer masuk') ||
-      lower.includes('terima')) {
+  // "buat/bayar arisan" tetap dianggap pengeluaran walau kalimatnya
+  // mengandung kata yang biasanya menandakan pemasukan ("dapat duit buat
+  // arisan") -- ini memang uang keluar (setoran), bukan uang masuk.
+  const isArisanSetoran = lower.includes('buat arisan') || lower.includes('bayar arisan');
+  const isPemasukan = !isArisanSetoran && KATA_PEMASUKAN.some(k => lower.includes(k));
+  const jenisTarget = isPemasukan ? 'pemasukan' : 'pengeluaran';
 
-    if (lower.includes('buat arisan') || lower.includes('bayar arisan')) {
-      return { jenis: 'pengeluaran', kategori: 'arisan', prioritas: 'penting' };
-    }
-
-    return {
-      jenis: 'pemasukan',
-      kategori: lower.includes('gaji') ? 'gaji' : lower.includes('jualan') ? 'jualan' :
-                lower.includes('bonus') ? 'bonus' : lower.includes('arisan') ? 'arisan' : 'lainnya',
-      prioritas: 'penting'
-    };
+  // Layer 1 (terbaik): kategori NYATA milik user (default maupun custom)
+  // yang namanya muncul sebagai whole word di teks.
+  const kandidat = categories.filter(c => c.jenis === jenisTarget);
+  const match = matchFromText(pesan, kandidat);
+  if (match) {
+    return { jenis: jenisTarget, kategori: match.nama, prioritas: jenisTarget === 'pemasukan' ? 'penting' : (isTidakPenting(lower) ? 'tidak_penting' : 'penting') };
   }
 
-  // Pengeluaran
-  const kategori =
-    lower.includes('makan') || lower.includes('kopi') || lower.includes('minum') || lower.includes('batagor') ? 'makanan' :
-    lower.includes('gojek') || lower.includes('grab') || lower.includes('bensin') || lower.includes('parkir') ? 'transportasi' :
-    lower.includes('netflix') || lower.includes('spotify') || lower.includes('bioskop') ? 'hiburan' :
-    lower.includes('listrik') || lower.includes('air') || lower.includes('internet') || lower.includes('pulsa') ? 'tagihan' :
-    lower.includes('belanja') || lower.includes('shopee') || lower.includes('tokopedia') ? 'belanja' :
-    lower.includes('arisan') ? 'arisan' : 'lainnya';
+  // Layer 2 (fallback heuristik): kata kunci sinonim umum -> nama kategori
+  // default, tapi HANYA dipakai kalau kategori itu beneran ada di daftar
+  // milik user (harusnya selalu ada untuk kategori default yang di-seed).
+  if (jenisTarget === 'pengeluaran') {
+    for (const h of HEURISTIK_PENGELUARAN) {
+      if (h.kata.some(k => lower.includes(k))) {
+        const ada = categories.find(c => c.jenis === 'pengeluaran' && (c.nama || '').toLowerCase() === h.kategori);
+        if (ada) return { jenis: 'pengeluaran', kategori: ada.nama, prioritas: isTidakPenting(lower) ? 'tidak_penting' : 'penting' };
+      }
+    }
+  } else {
+    const gaji = categories.find(c => c.jenis === 'pemasukan' && (c.nama || '').toLowerCase() === 'gaji');
+    if (lower.includes('gaji') && gaji) return { jenis: 'pemasukan', kategori: gaji.nama, prioritas: 'penting' };
+    const bonus = categories.find(c => c.jenis === 'pemasukan' && (c.nama || '').toLowerCase() === 'bonus');
+    if (lower.includes('bonus') && bonus) return { jenis: 'pemasukan', kategori: bonus.nama, prioritas: 'penting' };
+  }
 
-  const tidakPenting = ['netflix','spotify','hiburan','bioskop'].some(k => lower.includes(k));
-
+  // Layer 3 (fallback terakhir): kategori pertama milik user untuk jenis
+  // ini (harusnya selalu ada, kategori default di-seed otomatis), atau
+  // 'lainnya' kalau entah bagaimana user tidak punya kategori sama sekali.
+  const fallback = categories.find(c => c.jenis === jenisTarget);
   return {
-    jenis: 'pengeluaran',
-    kategori: kategori,
-    prioritas: tidakPenting ? 'tidak_penting' : 'penting'
+    jenis: jenisTarget,
+    kategori: fallback ? fallback.nama : 'lainnya',
+    prioritas: jenisTarget === 'pemasukan' ? 'penting' : (isTidakPenting(lower) ? 'tidak_penting' : 'penting')
   };
 }
 
