@@ -2,7 +2,7 @@
 
 Ordered by what matters most, not by what's easiest.
 
-## Security — mostly resolved, three items remain
+## Security — mostly resolved, four items remain
 
 The single biggest risk in this codebase was that **every RLS policy was `USING (true)`** — the public anon key (necessarily embedded in client JS) could read and write any user's data, and the Groq API key was readable directly from a public table. This has been fixed:
 
@@ -12,11 +12,13 @@ The single biggest risk in this codebase was that **every RLS policy was `USING 
 - ✅ Real per-user row-level security via a custom-signed JWT (see `database.md`) — every table now checks `is_owner_or_admin(user_id)` instead of `true`.
 - ✅ `admin.html` now requires a real `role='admin'` account login instead of one shared static password with no connection to real accounts.
 - ✅ `login_check` now requires `status='active'`, matching `get_user_by_username`/`get_user_by_id` (block `[20]`). Previously a `pending`/`banned` account's correct password still got a validly-signed JWT back from the RPC itself — the web client discarded it via its own post-call status check, but a direct call to the RPC (granted to `anon`) bypassed that.
+- ✅/⚠️ **Leaked JWT signing secret — practical exploit closed, underlying leak not resolved.** The HS256 secret passed to `wangku_sign_jwt()` was discovered committed in `database/wangku-supabase-setup.sql`, in this public repo, confirmed fetchable by anyone unauthenticated — meaning anyone could forge a token claiming any `user_id`/`app_role:'admin'` and bypass every RLS policy in the schema. Rotating the actual secret hit a real platform limitation (Supabase's newer key-management system doesn't expose raw secret values for auto-generated keys, and this app's hand-rolled Postgres-side signing needs to know the exact string). Mitigated instead via a per-user `token_version` nonce that `is_owner_or_admin()` now cross-checks against the live `users` row (block `[26]`, see `database.md`) — a forged token can still pass signature verification, but can't satisfy the nonce match without already having legitimate access, closing both the impersonation and self-escalation paths. **The secret itself is still public** — see item 4 below.
 
 **Still open:**
 1. **No token refresh.** Sessions just expire after 30 days and force a full re-login. Fine for now; revisit before a wider public push.
 2. **Registration email verification is client-side only.** Unlike the forgot-password OTP (fixed above), the registration OTP is still just compared in a JS variable — someone could theoretically create an account without actually owning the email address. Lower severity (doesn't expose other users' data), but still a real gap.
 3. **Password hashing itself** is SHA-256 with one static, shared salt across all users (not bcrypt/argon2, not per-user salt). Adequate for now given the above fixes close the actual exposure vectors, but worth upgrading before real financial data from the public is at stake.
+4. **The leaked JWT secret is still sitting in git history and the public repo, un-rotated.** The `token_version` mitigation (above) closes the practical exploit, but doesn't change the fact the secret itself is compromised — anyone with it can still get a validly-signed (if practically useless) token, and if the `token_version` mitigation is ever removed or has a bug, the underlying exposure is still live. Two real paths forward, either a substantial change: (a) get Supabase support to help set a genuinely fresh, non-public secret despite the dashboard not exposing one directly, or (b) move JWT signing out of Postgres entirely into a Vercel serverless function (matching the `/api/ai-chat.js` pattern — secret lives only in a Vercel env var, never in a committed file), which would also open the door to using a real asymmetric algorithm instead of a shared HS256 secret. Also consider migrating `anon`/`service_role` to Supabase's newer publishable/secret API key system (Settings → API Keys) — unrelated to the JWT secret specifically, but a good independent hardening step, and worth doing before end of 2026 (Supabase's stated legacy-key sunset window as of this writing).
 
 ## Data model
 

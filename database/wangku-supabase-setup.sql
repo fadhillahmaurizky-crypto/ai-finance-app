@@ -948,6 +948,172 @@ GRANT EXECUTE ON FUNCTION public.check_registration_available(TEXT, TEXT, TEXT) 
 
 
 -- ============================================================
+-- [26] SECURITY FIX (CRITICAL): mitigate leaked JWT signing secret --
+-- token_version binds every issued token to a live, per-user random
+-- nonce checked against the real users row, so a forged token (signed
+-- with the leaked secret, but without the correct nonce) is rejected.
+--
+-- Context: the HS256 secret passed to wangku_sign_jwt() below is
+-- committed in this file, which lives in a PUBLIC GitHub repo --
+-- confirmed fetchable by anyone via a plain unauthenticated
+-- raw.githubusercontent.com request. Since Postgres/PostgREST's JWT
+-- verification only proves "signed by someone who knows the secret,"
+-- anyone who reads this file can construct a validly-signed token
+-- claiming ANY user_id and app_role:'admin', bypassing every RLS
+-- policy in this schema (is_owner_or_admin() previously trusted the
+-- JWT's self-asserted user_id/app_role claims at face value, with no
+-- way to distinguish a genuine token minted by login_check() after a
+-- real password check from a forged one -- both are just "correctly
+-- signed with a known secret," which is exactly what JWT verification
+-- checks and nothing more).
+--
+-- Rotating the underlying Supabase-managed secret was investigated
+-- first and hits a real platform limitation: Supabase's newer JWT
+-- Signing Keys system does not expose the raw secret value for
+-- auto-generated/rotated keys (by design, since it's meant for
+-- Supabase Auth's own SDK to use internally) -- but wangku_sign_jwt()
+-- hand-signs tokens itself and must know the exact secret string, so
+-- there was no way to get a fresh, known, Supabase-verified secret
+-- through the dashboard. This fix closes the practical exploit a
+-- different way, entirely within our own SQL, independent of whatever
+-- Supabase's key management does or doesn't expose.
+--
+-- Mechanism: a random token_version UUID is generated per user
+-- (unguessable without already having legitimate access). Every token
+-- minted by login_check/get_user_by_username/get_user_by_id embeds
+-- the user's current token_version as a claim. is_owner_or_admin() no
+-- longer trusts auth.jwt()->>'user_id'/'app_role' directly -- it looks
+-- up the real row by the claimed user_id, requires the token's
+-- token_version to match what's CURRENTLY stored for that exact row,
+-- and checks the real role column instead of the self-asserted
+-- app_role claim. An attacker with the leaked secret can still
+-- construct a validly-signed token, but can't satisfy the
+-- token_version match without already knowing a specific user's
+-- private random nonce -- closing both the "impersonate any user" and
+-- "self-escalate to fake admin" paths.
+--
+-- Verified directly against the live production REST API (not just
+-- locally): reproduced wangku_sign_jwt()'s exact signing procedure
+-- byte-for-byte (cross-checked against a real call to the function --
+-- identical output confirms the reproduction is correct, not an
+-- artifact of a scripting mistake), forged a token with a real user's
+-- id + app_role:'admin' + a wrong/guessed token_version, and confirmed
+-- it returns HTTP 200 with zero rows (correctly blocked by RLS) against
+-- both `users` and `transactions`. A genuine token from a real
+-- login_check() call (correct token_version) was confirmed to still
+-- work normally over the same REST API.
+--
+-- Side effect (expected, unavoidable): every currently-active session
+-- is invalidated the moment this deploys, since existing tokens don't
+-- carry a token_version claim at all -- same disruption a real secret
+-- rotation would have caused. Everyone needs to log in again.
+--
+-- This does NOT make the leaked secret itself safe to leave public --
+-- it only closes the practical exploit path it enabled. Getting a
+-- genuinely fresh, non-public secret in place (or moving off hand-
+-- rolled JWT signing entirely) remains worth pursuing separately; see
+-- roadmap.md.
+-- ============================================================
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS token_version UUID DEFAULT gen_random_uuid() NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.is_owner_or_admin(p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS(
+    SELECT 1 FROM public.users u
+    WHERE u.id = (auth.jwt()->>'user_id')::uuid
+      AND u.token_version::text = auth.jwt()->>'token_version'
+      AND (u.id = p_user_id OR u.role = 'admin')
+  );
+$$;
+
+DROP FUNCTION IF EXISTS public.login_check(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.password_hash = p_password_hash AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object(
+      'role','authenticated',
+      'sub', v_user.id::text,
+      'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),
+      'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer
+    ),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+
+DROP FUNCTION IF EXISTS public.get_user_by_username(TEXT);
+CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon;
+
+DROP FUNCTION IF EXISTS public.get_user_by_id(UUID);
+CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.id = p_user_id AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables

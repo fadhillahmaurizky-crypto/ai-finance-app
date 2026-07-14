@@ -168,7 +168,7 @@ This is the single most important thing to understand about this schema. It repl
 
 1. **`login_check(username, password_hash)`** verifies the password inside a `SECURITY DEFINER` function (so the client never queries `password_hash` directly — that column's `SELECT` privilege is revoked from `anon` entirely) and returns `{user, token}`, where `token` is a JWT signed with the project's real JWT secret. As of block `[20]`, it also requires `status = 'active'`, matching `get_user_by_username`/`get_user_by_id`. Before that fix, a `pending`/`banned` account's correct password still got a validly-signed 30-day JWT back from the RPC itself — the web client discarded it (it checks `result.user.status` before persisting the token), but a direct call to the RPC (it's `GRANT`ed to `anon`) bypassed that client-side gate entirely.
 2. **The signing is hand-rolled**, not via the `pgjwt` extension — `pgjwt`'s `sign()` has its own fixed internal search path that can't be overridden by a caller, which caused real failures in practice (see migration history below). Instead, `wangku_sign_jwt()` builds the JWT manually (base64url header + payload + HMAC-SHA256 signature via `pgcrypto`'s `hmac()`), inside a function where the search path is fully controlled.
-3. **Every data table's policy** is `is_owner_or_admin(user_id)`: `(auth.jwt()->>'user_id')::uuid = user_id OR auth.jwt()->>'app_role' = 'admin'`.
+3. **Every data table's policy** is `is_owner_or_admin(user_id)`. As of block `[26]`, this is **not** a pure JWT-claims comparison anymore — it looks up the real row by the claimed `user_id` and additionally requires the JWT's `token_version` claim to match what's currently stored for that row, checking the real `role` column rather than trusting the JWT's self-asserted `app_role`. See "JWT signing secret exposure & mitigation" below before assuming this predicate is a simple claims check.
 4. **Registration** (no token exists yet) is allowed via a separate `anon`-scoped `INSERT` policy on `users`. As of block `[24]`, `WITH CHECK (status = 'active' AND role = 'user')` — registration creates an immediately-active trial account, not a `pending` one waiting on admin approval (see "Subscription trial mechanics" below). **Read the "Registration and `Prefer: return=representation`" section below before touching this policy or the registration flow** — the interaction between this policy and the client's request headers is subtler than it looks.
 5. **`admin.html`** goes through the exact same `login_check` RPC (just checking `role='admin'` client-side after success) — it no longer has its own separate shared-password gate.
 
@@ -177,15 +177,34 @@ This is the single most important thing to understand about this schema. It repl
 |---|---|
 | `wangku_b64url(bytea)` | Base64url encode, no padding, no newlines |
 | `wangku_sign_jwt(payload json, secret text)` | Manual HS256 JWT signing |
-| `is_owner_or_admin(user_id uuid)` | The RLS predicate used everywhere |
-| `login_check(username, password_hash)` | Password verify + mint token (requires `status='active'`, block `[20]`; lazy trial-expiry downgrade, block `[24]`) |
-| `get_user_by_username(username)` | Biometric login — mints a fresh token (same lazy trial-expiry downgrade, block `[24]`) |
-| `get_user_by_id(user_id)` | Session restore — mints a fresh token (also silently upgrades pre-migration sessions; same lazy trial-expiry downgrade, block `[24]`) |
+| `is_owner_or_admin(user_id uuid)` | The RLS predicate used everywhere — as of block `[26]`, also verifies the JWT's `token_version` claim against the live `users` row, see below |
+| `login_check(username, password_hash)` | Password verify + mint token (requires `status='active'`, block `[20]`; lazy trial-expiry downgrade, block `[24]`; embeds `token_version`, block `[26]`) |
+| `get_user_by_username(username)` | Biometric login — mints a fresh token (same lazy trial-expiry downgrade and `token_version` embedding as `login_check`) |
+| `get_user_by_id(user_id)` | Session restore — mints a fresh token (also silently upgrades pre-migration sessions; same lazy trial-expiry downgrade and `token_version` embedding as `login_check`) |
 | `change_password(user_id, old_hash, new_hash)` | Requires proof of the old password |
 | `create_password_reset(email)` | Step 1 of forgot-password — generates + stores hashed OTP |
 | `confirm_password_reset(user_id, otp, new_hash)` | Step 2 — validates OTP server-side, then resets |
 | `wangku_check_account_balance()` | Trigger function, block `[21]` — see "Per-account balance enforcement" below |
-| `check_registration_available(username, email)` | Block `[22]` — SECURITY DEFINER boolean check, see "Registration and `Prefer: return=representation`" below |
+| `check_registration_available(username, email, wa_number)` | Block `[22]`, extended in block `[25]` to also check `wa_number` — SECURITY DEFINER boolean check, see "Registration and `Prefer: return=representation`" below |
+
+## JWT signing secret exposure & mitigation (block `[26]`) — CRITICAL, read this before touching auth
+
+**The HS256 secret passed to `wangku_sign_jwt()` throughout this file is committed to a public GitHub repo** — confirmed fetchable by anyone, unauthenticated, via a plain `raw.githubusercontent.com` request. Since JWT signature verification only proves "signed by someone who knows this secret," anyone who reads this file could construct a validly-signed token claiming any `user_id` and `app_role: 'admin'`, defeating every RLS policy in this schema — `is_owner_or_admin()` previously trusted a JWT's self-asserted `user_id`/`app_role` claims at face value, with no way to distinguish a genuine token from a forged one signed with the same known secret.
+
+**Rotating the actual secret was investigated and hit a real platform limitation.** Supabase's newer JWT Signing Keys system (Project Settings → JWT Keys) does not expose the raw secret value for auto-generated or rotated keys — by design, since it's meant for Supabase Auth's own SDK to use internally without a developer ever needing to know it. `wangku_sign_jwt()` hand-signs tokens itself and must know the exact secret string, so there was no way to get a fresh, Supabase-verified secret through the dashboard. (Supabase's separate publishable/secret API key system — Settings → API Keys — is unrelated to this problem: it replaces `anon`/`service_role` key management independently of the JWT signing key, and remains a reasonable follow-up, but doesn't touch custom-signed session tokens at all.)
+
+**The fix (block `[26]`) closes the practical exploit a different way, entirely within this schema, independent of Supabase's key management:**
+- Added `users.token_version` (`UUID DEFAULT gen_random_uuid()`) — a random per-user nonce, unguessable without already having legitimate access to that account.
+- `login_check`/`get_user_by_username`/`get_user_by_id` all now embed the user's current `token_version` as a JWT claim.
+- `is_owner_or_admin(user_id)` no longer trusts `auth.jwt()->>'user_id'`/`app_role` directly. It now looks up the real row by the claimed `user_id`, requires the JWT's `token_version` claim to match what's *currently* stored for that exact row, and checks the real `role` column — not the self-asserted `app_role` claim. Marked `SECURITY DEFINER` (it wasn't before) since it now queries `users`, which has its own RLS policies that would otherwise recurse into this same function.
+
+An attacker with the leaked secret can still construct a validly-signed token — the secret being public is unavoidable without a real rotation — but they can't satisfy the `token_version` match without already knowing a specific user's private random nonce. This closes both the "impersonate any user" and "self-escalate to fake admin" paths.
+
+**Verified directly against the live production REST API**, not just locally: reproduced `wangku_sign_jwt()`'s exact signing procedure byte-for-byte in a separate script (cross-checked against a real call to the function — identical output confirmed the reproduction wasn't an artifact of a scripting mistake, since an earlier naive attempt using a different key-derivation method produced a *different*, incorrectly-failing signature that would have given a false sense of security). Forged a token with a real user's `id` + `app_role:'admin'` + a wrong/guessed `token_version`, and confirmed it returns HTTP 200 with zero rows against both `users` and `transactions` — accepted as a validly-signed token, then correctly blocked by RLS. A genuine token from a real `login_check()` call (correct `token_version`) was confirmed to still work normally over the same REST API.
+
+**Side effect (expected, unavoidable):** every currently-active session was invalidated the moment this deployed — existing tokens don't carry a `token_version` claim at all, so they fail the new check. Same disruption a real secret rotation would have caused. Everyone needed to log in again.
+
+**This does not make the leaked secret itself safe to leave public.** It only closes the practical exploit path that leak enabled. Getting a genuinely fresh, non-public secret in place — or moving off hand-rolled Postgres-side JWT signing entirely (e.g. minting tokens from a Vercel function instead, matching the `/api/ai-chat.js` pattern of keeping trust-sensitive material in env vars, never in a committed file) — remains worth pursuing separately. See `roadmap.md`.
 
 ## Registration and `Prefer: return=representation` (block `[22]`) — read before touching registration or the `users` SELECT policy
 
