@@ -14,6 +14,7 @@ Home (page-home)
 │   ├── 7-day sparkline (smooth bezier curve, upper-right corner, small) + trend badge
 │   └── Pemasukan Bulan Ini / Pengeluaran Bulan Ini pills
 ├── Insight dari WangkuAI — rule-based observations (not a live AI call), tap or swipe to cycle, fade transition
+├── Trial re-engagement nudge — only while still on the Pro trial (`plan==='pro'`) with `trial_ends_at` ≤2 days away; tapping it opens the upgrade picker (plan-options-modal). Distinct from Settings' `renderTrialBanner()`, which shows for the whole trial duration, not just the last 2 days
 ├── Alert banner (e.g. "Saldo kamu minus!") — rule-based, conditional
 ├── Aksi Cepat — user-customizable via an "Edit" link next to the section title: picker over the pool (Catat, Pemasukan, Pengeluaran, Tanya AI, Target, Laporan, Pindah Saldo, Kategori) with per-row checkbox (visible/hidden, capped at 5) and ↑/↓ move buttons for reordering (not drag-and-drop), persisted as an ordered array to `wangku_aksi_cepat` localStorage. Default (nothing saved yet) = Catat/Tanya AI/Target/Laporan/Kategori — Pemasukan, Pengeluaran, and Pindah Saldo are pool-only, not shown by default
 ├── Kesehatan Keuangan — rule-based 0-100 health score gauge (title inside card, horizontal gauge+text layout). Shows "Belum ada data" (no number, neutral gauge) instead of a score when the account has zero pemasukan/pengeluaran this month — otherwise a savings-rate-based penalty branch would misfire on brand-new/inactive accounts (0% savings rate reads the same as a genuinely low one)
@@ -63,7 +64,7 @@ Laporan (page-laporan) — Financial Report
     Files: dashboard.js (renderLaporan, renderPie)
 
 Settings (page-settings)
-├── Paket Saya — plan card with inline "Upgrade" pill button (hidden automatically at Ultimate/unlimited)
+├── Paket Saya — plan card with inline "Upgrade" pill button (hidden automatically at Ultimate/unlimited); trial banner above it shows remaining days or "trial sudah berakhir" once auto-downgraded (renderTrialBanner)
 ├── Profil — name + avatar edit; avatar also shows as the header's profile-picture button app-wide
 ├── Akun — list, add/edit/delete; "Tambah Akun" is a small button inline with the section title (not a full-width button below the list); Cash is undeletable but renamable
 ├── Kategori & Prioritas — links to full-page management (not popups)
@@ -81,20 +82,19 @@ Kelola Kategori / Kelola Prioritas (page-kategori / page-prioritas)
     Files: categories.js (renderKategoriFullList, saveKategoriFull), priorities.js (equivalent)
 
 Auth (pre-login)
-├── Login — password verified server-side via login_check RPC (also gates on status='active'), returns a signed JWT
-├── Register — name/email/password → Email OTP via EmailJS → account created (status='pending', role='user' enforced by RLS) → falls straight into the Payment/Plan-Selection flow below (registration doesn't end at "pending", it continues into plan picking)
+├── Login — password verified server-side via login_check RPC (also gates on status='active'; lazily downgrades plan to 'free' if trial_ends_at has passed and the account is still on 'pro' — see database.md block [24]), returns a signed JWT
+├── Register — name/email/password → Email OTP via EmailJS → account created directly as status='active', plan='pro', trial_ends_at = now + 14 days (no plan-picker, no admin approval, no orders row) → success toast, back to the login tab with username pre-filled
 ├── Forgot Password — OTP now generated AND validated server-side (create_password_reset / confirm_password_reset), not just checked in a JS variable
-└── Biometric (WebAuthn) quick-login, opt-in from Settings — also mints a fresh JWT
+└── Biometric (WebAuthn) quick-login, opt-in from Settings — also mints a fresh JWT (same lazy trial-downgrade check as login_check, via get_user_by_username)
     Files: auth.js
 
-Payment / Plan-Selection Flow (immediately after Register's OTP step, before the user can log in)
-├── Plan picker — Free / Basic / Pro / Ultimate cards with pricing
-├── Free plan → activateFreePlan() sets status='active' immediately, no admin approval needed — user can log in right away
-├── Paid plan → bank-transfer instructions screen → upload bukti transfer (payment proof image) → POST to `orders` (status='pending') + PATCH user's chosen `plan`
-├── WhatsApp admin notification — fires a GET to the (draft/unverified) GAS Apps Script URL with `?action=notifyAdmin&msg=...`, fire-and-forget, so an admin gets pinged to review the order in admin.html
-└── Activation polling — after submitting proof, the client polls `users.status` every 5s; the moment an admin approves the order in admin.html (flipping status to 'active'), the flow auto-redirects to login with a success toast
-    Files: payment.js (showPaymentFlow, activateFreePlan, submitPayment, startStatusPoll)
-    DB: orders (bukti_url, status), users (status, plan)
+Payment / Plan-Selection Flow (payment.js) — orphaned as of the trial-registration change, not reachable from any UI
+├── Used to run immediately after Register's OTP step (plan picker → bank-transfer instructions → bukti-transfer upload → POST `orders` + PATCH user's plan → WhatsApp admin-notify → 5s status poll → auto-redirect to login on admin approval)
+├── verifyRegOTP() no longer calls showPaymentFlow() — registration ends at an active trial account, so nothing in the app calls into payment.js anymore
+├── Kept rather than deleted: not explicitly asked for by the spec that removed the registration gate, and the same bukti-upload + admin-approval mechanism may still be wanted for real post-trial paid upgrades, just wired to a different entry point. Treat as a cleanup/reintroduction candidate, not live code
+└── Settings' own "Ganti Paket" upgrade picker (renderPlanOptions() in settings.js) is unrelated and still fully live — it only opens a pre-filled WhatsApp link to the admin, no in-app payment-proof upload, no `orders` row
+    Files: payment.js (showPaymentFlow, activateFreePlan, submitPayment, startStatusPoll) — no callers left
+    DB: orders (bukti_url, status) — no longer written to by any reachable code path
 
 AI Chat Assistant (chat-sheet, floating from Home's "Tanya AI")
 └── Context-aware Q&A, routed through /api/ai-chat (Groq key never touches the browser)
@@ -106,9 +106,12 @@ Bottom Navigation
 
 Admin Panel (admin.html — separate standalone app)
 ├── Real login (login_check RPC, requires role='admin') — replaced an earlier single shared static password with no connection to real accounts
-├── Users tab — App Users only (role='admin' rows are filtered out, segregated into...)
+├── Users tab — App Users only (role='admin' rows are filtered out, segregated into...). Columns: User/Username/No. WA/Email/Saldo/Plan/Status/Aksi — "Plan" and "Status" used to be mislabeled (a single "Status" header sat over a cell that actually showed the plan value, and the real status dropdown had no header of its own at all, off by one across the row)
 ├── Kelola Admin (in Pengaturan) — list + add admin-role accounts
 ├── Transactions tab — includes an Akun column (joined via the account_id foreign key)
+├── Per-user Plan & Token AI management — in the Detail modal (showDetailUser()): view usage vs. limit, change plan, grant +2M/+5M tokens, reset tokens used
 ├── Orders/payment approval, plan/token management
+├── Laporan tab — platform-wide category breakdown (Pemasukan/Pengeluaran per Kategori) and a per-user summary table (Total Masuk/Keluar/Saldo/Transaksi), computed by querying `transactions`/`accounts` directly via `sbFetch()` (the admin's own JWT satisfies `is_owner_or_admin()` for every row, not just their own). **Not** sourced from the GAS `?action=adminData` endpoint — that action was never actually implemented in any deployed or committed version of the Apps Script, so it always returned an error and left this page permanently blank regardless of how much real transaction data existed. See `backend.md` for the do-not-repeat-this-pattern note
+├── Status Infrastruktur tab — database size (`pg_database_size()`) and a 30-day active-user count (from `users.last_login`), via a new admin-only RPC (`admin_get_infra_stats()`, no external API tokens involved). Supabase egress/bandwidth and Vercel function invocations are **not** shown here — deliberately out of scope, see `roadmap.md` — the page links out to both platforms' own usage dashboards instead
 └── Ganti Password Akun Saya — changes the logged-in admin's own real password via change_password RPC (not a shared password anymore)
 ```

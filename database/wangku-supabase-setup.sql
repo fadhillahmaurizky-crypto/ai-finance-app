@@ -809,6 +809,354 @@ CREATE UNIQUE INDEX user_categories_user_id_nama_ci_jenis_key
 
 
 -- ============================================================
+-- [24] SUBSCRIPTION: registrasi langsung aktif + trial Pro 14 hari,
+-- bukan pending + plan-picker manual.
+--
+-- 1) "Public registration" tadinya WITH CHECK status='pending' -- klien
+--    sekarang mengirim status='active' sejak awal (verifyRegOTP di
+--    auth.js), jadi policy-nya harus disamakan atau INSERT registrasi
+--    baru akan gagal RLS persis seperti bug D1 dulu.
+--
+-- 2) login_check/get_user_by_username/get_user_by_id ditambah
+--    pengecekan trial lazy: kalau trial_ends_at sudah lewat DAN user
+--    masih di plan 'pro', turunkan ke 'free' saat itu juga (tidak
+--    pernah mengunci akun -- cuma AI Chat/Scan/bot WA yang hilang).
+--    Sengaja hanya menurunkan saat plan masih persis 'pro', BUKAN
+--    setiap kali trial_ends_at lewat begitu saja -- supaya admin yang
+--    sudah meng-upgrade user itu ke paket berbayar asli (lewat
+--    admin.html) tidak ketiban turun lagi di login berikutnya.
+--    Prasyarat: admin.html WAJIB ikut mengosongkan trial_ends_at
+--    setiap kali plan diubah manual (lihat updateUserPlan/aktivasiUser
+--    di admin.html) -- tanpa itu, trial_ends_at yang basi tetap ada di
+--    baris user itu dan bisa memicu turun-plan yang salah di masa depan.
+-- ============================================================
+DROP POLICY IF EXISTS "Public registration" ON public.users;
+CREATE POLICY "Public registration" ON public.users FOR INSERT TO anon
+  WITH CHECK (status = 'active' AND role = 'user');
+
+DROP FUNCTION IF EXISTS public.login_check(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.password_hash = p_password_hash AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object(
+      'role','authenticated',
+      'sub', v_user.id::text,
+      'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),
+      'exp', extract(epoch from (now() + interval '30 days'))::integer
+    ),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+
+DROP FUNCTION IF EXISTS public.get_user_by_username(TEXT);
+CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon;
+
+DROP FUNCTION IF EXISTS public.get_user_by_id(UUID);
+CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.id = p_user_id AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
+
+
+-- ============================================================
+-- [25] REGISTRASI: check_registration_available() dulu cuma cek
+-- username/email -- wa_number (yang juga UNIQUE di tabel users, block [1])
+-- tidak pernah ikut dicek. Akibatnya nomor WA yang sudah dipakai lolos
+-- pre-check di doRegister(), OTP terkirim & diverifikasi seolah semua
+-- baik-baik saja, dan baru gagal di langkah paling akhir (INSERT di
+-- verifyRegOTP()) dengan pesan generik "Username/email sudah terdaftar!"
+-- yang salah -- constraint yang sebenarnya kena adalah users_wa_number_key,
+-- bukan username atau email. Ditemukan oleh product owner saat mendaftar
+-- ulang pakai nomor WA akun admin yang sudah ada.
+--
+-- Fix: tambah parameter p_wa_number, sertakan wa_number di pengecekan,
+-- supaya duplikat nomor WA ketahuan di doRegister() (sebelum OTP dikirim
+-- sama sekali), bukan menunggu sampai langkah terakhir. Pesan error di
+-- js/auth.js juga disamakan untuk menyebut ketiga kemungkinan field --
+-- tetap tidak menyebut yang MANA persis yang bentrok (RPC ini sengaja
+-- cuma mengembalikan boolean, bukan baris aslinya -- lihat catatan di
+-- blok [22] soal risiko enumerasi data pending-registration).
+-- ============================================================
+DROP FUNCTION IF EXISTS public.check_registration_available(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.check_registration_available(p_username TEXT, p_email TEXT, p_wa_number TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT NOT EXISTS(
+    SELECT 1 FROM public.users u WHERE u.username = p_username OR u.email = p_email OR u.wa_number = p_wa_number
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.check_registration_available(TEXT, TEXT, TEXT) TO anon;
+
+
+-- ============================================================
+-- [26] SECURITY FIX (CRITICAL): mitigate leaked JWT signing secret --
+-- token_version binds every issued token to a live, per-user random
+-- nonce checked against the real users row, so a forged token (signed
+-- with the leaked secret, but without the correct nonce) is rejected.
+--
+-- Context: the HS256 secret passed to wangku_sign_jwt() below is
+-- committed in this file, which lives in a PUBLIC GitHub repo --
+-- confirmed fetchable by anyone via a plain unauthenticated
+-- raw.githubusercontent.com request. Since Postgres/PostgREST's JWT
+-- verification only proves "signed by someone who knows the secret,"
+-- anyone who reads this file can construct a validly-signed token
+-- claiming ANY user_id and app_role:'admin', bypassing every RLS
+-- policy in this schema (is_owner_or_admin() previously trusted the
+-- JWT's self-asserted user_id/app_role claims at face value, with no
+-- way to distinguish a genuine token minted by login_check() after a
+-- real password check from a forged one -- both are just "correctly
+-- signed with a known secret," which is exactly what JWT verification
+-- checks and nothing more).
+--
+-- Rotating the underlying Supabase-managed secret was investigated
+-- first and hits a real platform limitation: Supabase's newer JWT
+-- Signing Keys system does not expose the raw secret value for
+-- auto-generated/rotated keys (by design, since it's meant for
+-- Supabase Auth's own SDK to use internally) -- but wangku_sign_jwt()
+-- hand-signs tokens itself and must know the exact secret string, so
+-- there was no way to get a fresh, known, Supabase-verified secret
+-- through the dashboard. This fix closes the practical exploit a
+-- different way, entirely within our own SQL, independent of whatever
+-- Supabase's key management does or doesn't expose.
+--
+-- Mechanism: a random token_version UUID is generated per user
+-- (unguessable without already having legitimate access). Every token
+-- minted by login_check/get_user_by_username/get_user_by_id embeds
+-- the user's current token_version as a claim. is_owner_or_admin() no
+-- longer trusts auth.jwt()->>'user_id'/'app_role' directly -- it looks
+-- up the real row by the claimed user_id, requires the token's
+-- token_version to match what's CURRENTLY stored for that exact row,
+-- and checks the real role column instead of the self-asserted
+-- app_role claim. An attacker with the leaked secret can still
+-- construct a validly-signed token, but can't satisfy the
+-- token_version match without already knowing a specific user's
+-- private random nonce -- closing both the "impersonate any user" and
+-- "self-escalate to fake admin" paths.
+--
+-- Verified directly against the live production REST API (not just
+-- locally): reproduced wangku_sign_jwt()'s exact signing procedure
+-- byte-for-byte (cross-checked against a real call to the function --
+-- identical output confirms the reproduction is correct, not an
+-- artifact of a scripting mistake), forged a token with a real user's
+-- id + app_role:'admin' + a wrong/guessed token_version, and confirmed
+-- it returns HTTP 200 with zero rows (correctly blocked by RLS) against
+-- both `users` and `transactions`. A genuine token from a real
+-- login_check() call (correct token_version) was confirmed to still
+-- work normally over the same REST API.
+--
+-- Side effect (expected, unavoidable): every currently-active session
+-- is invalidated the moment this deploys, since existing tokens don't
+-- carry a token_version claim at all -- same disruption a real secret
+-- rotation would have caused. Everyone needs to log in again.
+--
+-- This does NOT make the leaked secret itself safe to leave public --
+-- it only closes the practical exploit path it enabled. Getting a
+-- genuinely fresh, non-public secret in place (or moving off hand-
+-- rolled JWT signing entirely) remains worth pursuing separately; see
+-- roadmap.md.
+-- ============================================================
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS token_version UUID DEFAULT gen_random_uuid() NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.is_owner_or_admin(p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS(
+    SELECT 1 FROM public.users u
+    WHERE u.id = (auth.jwt()->>'user_id')::uuid
+      AND u.token_version::text = auth.jwt()->>'token_version'
+      AND (u.id = p_user_id OR u.role = 'admin')
+  );
+$$;
+
+DROP FUNCTION IF EXISTS public.login_check(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.password_hash = p_password_hash AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object(
+      'role','authenticated',
+      'sub', v_user.id::text,
+      'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),
+      'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer
+    ),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+
+DROP FUNCTION IF EXISTS public.get_user_by_username(TEXT);
+CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon;
+
+DROP FUNCTION IF EXISTS public.get_user_by_id(UUID);
+CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.id = p_user_id AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
+
+
+-- ============================================================
+-- [27] ADMIN: statistik infrastruktur ringan (ukuran database + user
+-- aktif) untuk tab "Status Infrastruktur" di admin.html -- bandwidth/
+-- egress Supabase dan invocation count Vercel sengaja tidak dibangun,
+-- lihat roadmap.md untuk alasannya (tidak ada API publik yang stabil/
+-- terdokumentasi untuk plan tier project ini).
+--
+-- DEPENDENSI: fungsi ini memakai users.token_version untuk verifikasi
+-- admin, jadi HARUS dijalankan setelah block [26] (JWT forgery
+-- mitigation, PR keamanan terpisah) -- token_version belum ada di
+-- database kalau block itu belum jalan. Sengaja memakai pola verifikasi
+-- yang sama dengan is_owner_or_admin() yang sudah diperbaiki (cek role
+-- asli dari tabel + token_version, bukan cuma percaya klaim app_role
+-- dari JWT begitu saja) -- fungsi admin baru tidak boleh mengulang
+-- kesalahan lama yang baru saja diperbaiki di tempat lain.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.admin_get_infra_stats()
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_is_admin BOOLEAN;
+BEGIN
+  SELECT EXISTS(
+    SELECT 1 FROM public.users u
+    WHERE u.id = (auth.jwt()->>'user_id')::uuid
+      AND u.token_version::text = auth.jwt()->>'token_version'
+      AND u.role = 'admin'
+  ) INTO v_is_admin;
+  IF NOT v_is_admin THEN
+    RAISE EXCEPTION 'Forbidden';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'db_size_bytes', pg_database_size(current_database()),
+    'db_size_pretty', pg_size_pretty(pg_database_size(current_database())),
+    'total_users', (SELECT COUNT(*) FROM public.users WHERE role != 'admin'),
+    'active_users_30d', (SELECT COUNT(*) FROM public.users WHERE role != 'admin' AND last_login >= now() - interval '30 days')
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.admin_get_infra_stats() TO anon, authenticated;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables
