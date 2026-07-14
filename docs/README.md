@@ -51,7 +51,7 @@ This project is split between two roles, deliberately:
 - **Admin panel**: real authentication, admin/App-user segregation, transactions view with account column.
 
 ## What's explicitly on hold / deferred
-- **Fonnte WhatsApp bot** — on hold, pending a Fonnte-vs-Evolution-API decision. A Google Apps Script backend for it was drafted during planning conversations but **never actually committed to this repo** — `gas/wangku-backend.gs` does not exist here, despite older docs describing it as if it did. See `backend.md`.
+- **Fonnte WhatsApp bot** — `gs/fonnte.gs` is real and committed now, but unverified and known-buggy (wrong Supabase key tier, missing `account_id`, month-only balance math, mismatched category vocabulary) — no dedicated fix pass has happened yet. See `backend.md` for the full list before assuming it works correctly end-to-end.
 - **Token refresh** — sessions expire after 30 days and force a full re-login; no refresh flow yet.
 - **Registration email verification** is still checked client-side only (unlike the forgot-password OTP, which was moved server-side) — a real but lower-severity gap.
 

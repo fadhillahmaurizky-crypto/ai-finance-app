@@ -32,6 +32,10 @@ function initRegOTP(){for(let i=1;i<=6;i++){const el=document.getElementById('ro
 function getRegOTP(){let o='';for(let i=1;i<=6;i++)o+=document.getElementById('ro'+i)?.value||'';return o;}
 async function resendRegOTP(){if(!regData?.email)return;regOTP=String(Math.floor(100000+Math.random()*900000));try{await sendEmailOTP(regData.email,regData.name,regOTP);showToast('OTP dikirim ulang ✓','ok');}catch(e){showToast('Gagal: '+e.message,'err');}}
 
+function normalizeWaNumber(raw){
+  return raw.startsWith('62')?raw:'62'+(raw.startsWith('0')?raw.substring(1):raw);
+}
+
 async function doRegister(){
   const name=document.getElementById('r-name').value.trim();
   const un=document.getElementById('r-un').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
@@ -47,8 +51,8 @@ async function doRegister(){
   if(!pw||pw.length<6){err.textContent='Password min. 6 karakter!';err.style.display='block';return;}
   btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Mengirim OTP...';
   try{
-    const available=await rpcAnon('check_registration_available',{p_username:un,p_email:email});
-    if(!available){err.textContent='Username atau email sudah terdaftar!';err.style.display='block';btn.disabled=false;btn.innerHTML='<i class="ti ti-user-plus"></i> Buat Akun Gratis';return;}
+    const available=await rpcAnon('check_registration_available',{p_username:un,p_email:email,p_wa_number:normalizeWaNumber(wa)});
+    if(!available){err.textContent='Username, email, atau nomor WhatsApp sudah terdaftar!';err.style.display='block';btn.disabled=false;btn.innerHTML='<i class="ti ti-user-plus"></i> Buat Akun Gratis';return;}
     regOTP=String(Math.floor(100000+Math.random()*900000));
     regData={name,un,email,wa,pw};
     await sendEmailOTP(email,name,regOTP);
@@ -67,13 +71,18 @@ async function verifyRegOTP(){
   if(input!==regOTP){err.textContent='OTP salah! Coba lagi.';err.style.display='block';for(let i=1;i<=6;i++)document.getElementById('ro'+i).value='';document.getElementById('ro1').focus();return;}
   try{
     const h=await hp(regData.pw);
-    const waFull=regData.wa.startsWith('62')?regData.wa:'62'+(regData.wa.startsWith('0')?regData.wa.substring(1):regData.wa);
+    const waFull=normalizeWaNumber(regData.wa);
     const newId=crypto.randomUUID();
-    await sbAnon('users','POST',{id:newId,username:regData.un,full_name:regData.name,email:regData.email,wa_number:waFull,password_hash:h,role:'user',status:'pending',gas_user_id:waFull,plan:'free',tokens_limit:0,tokens_used:0},true);
-    newUser={id:newId,full_name:regData.name,username:regData.un,email:regData.email,wa_number:waFull};
+    const trialEndsAt=new Date(Date.now()+14*86400000).toISOString();
+    await sbAnon('users','POST',{id:newId,username:regData.un,full_name:regData.name,email:regData.email,wa_number:waFull,password_hash:h,role:'user',status:'active',gas_user_id:waFull,plan:'pro',tokens_limit:2000000,tokens_used:0,trial_ends_at:trialEndsAt},true);
+    const un=regData.un;
     regOTP=null;regData=null;
-    showPaymentFlow();
-  }catch(e){err.textContent=isDupError(e)?'Username/email sudah terdaftar!':e.message;err.style.display='block';}
+    document.getElementById('reg-s1').style.display='block';
+    document.getElementById('reg-s2').style.display='none';
+    document.getElementById('l-un').value=un;
+    switchTab('login');
+    showToast('Akun berhasil dibuat! Trial Pro 14 hari aktif 🎉 Silakan login.','ok');
+  }catch(e){err.textContent=isDupError(e)?'Username, email, atau nomor WhatsApp sudah terdaftar!':e.message;err.style.display='block';}
 }
 
 async function sendEmailOTP(toEmail, nama, otp){

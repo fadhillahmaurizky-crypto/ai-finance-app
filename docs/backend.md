@@ -32,17 +32,22 @@ Same-origin (both the static site and `/api` are on the same Vercel deployment),
 
 **Before this existed**, the Groq key was fetched by the client from a `settings` table row using the public anon key — which meant *anyone* who opened devtools on the live site could read it directly from the database, no login required. That table is now fully locked down (`FOR ALL USING (false)`) and nothing reads it anymore.
 
-## 3. Google Apps Script — PLANNING-STAGE DRAFT, NOT IN THIS REPO
+## 3. Google Apps Script (`gs/fonnte.gs`) — real now, but unverified and known-buggy
 
-**`gas/wangku-backend.gs` does not exist in this repository — not in the working tree, not anywhere in git history.** It was described in earlier drafts of these docs as if it were a real (if unverified) file sitting in the repo; that was wrong. What actually happened: a Google Apps Script backend was drafted during planning conversations as a *proposal*, inferred from the schema, and was never committed here — it's on hold pending a decision between building on Fonnte vs. switching to an Evolution API-based WhatsApp integration. If that decision resolves, the actual script needs to be written (or fetched from wherever it was drafted) and committed for real — don't assume any `.gs` file is sitting in this repo, and don't write speculative code against an unresolved architecture question.
+**`gs/fonnte.gs` exists in this repo as of the Part A / routing-restructure merge** — earlier drafts of these docs said no `.gs` file existed anywhere in the repo (not even in git history); that's no longer true, don't rely on that older claim. It implements the Fonnte WhatsApp webhook: inbound message → look up user by `wa_number` (`getUserIdByWA()`) → ask Groq to extract a transaction → insert into `transactions` (`saveTrxToSupabase()`) → compute saldo/laporan replies → reply via Fonnte. `doGet()` also handles OTP delivery.
 
-The client (`js/config.js`'s `GAS` constant, a real deployed Apps Script Web App URL) still calls it for two things that **are** live today:
+**Known bugs, not yet fixed (no dedicated pass has happened yet)**:
+- `SB_KEY` is the anon key, not a service role key — same class of RLS breakage the `/api/ai-chat.js`/`ai-scan.js` functions hit before their fix, since GAS never carries a user's JWT either.
+- `saveTrxToSupabase()`'s insert payload never sets `account_id` — every WhatsApp-logged transaction is orphaned from the per-account balance model.
+- `getSaldoSupabase()`/`getLaporanSupabase()` compute month-only totals, not the app's actual all-time balance model (`Σ(account.saldo_awal) + all-time pemasukan − pengeluaran`).
+- Its keyword-based category matcher uses a vocabulary (`makanan`/`transportasi`/`hiburan`/`tagihan`/`belanja`) that doesn't match the app's real `DEFAULT_CATEGORIES` (`makan`/`belanja`/`elektronik`/`pulsa`/`paket_data`) or a user's actual custom categories.
+- `parseNominal()` doesn't understand "k" shorthand (e.g. "50k" for 50000).
+
+Treat this file as a known-incomplete integration, not production-solid, until each of the above is addressed in its own pass.
+
+The client (`js/config.js`'s `GAS` constant, a real deployed Apps Script Web App URL — **not necessarily running `gs/fonnte.gs`'s exact current content**, since deploying to Apps Script is a manual copy-paste step, not tied to this repo's git history) calls it for:
 - **`?action=ping`** — liveness check, `pingSheetSync()` in `settings.js` (autosync heartbeat), fire-and-forget (`mode:'no-cors'`, the client can't read the response).
-- **`?action=notifyAdmin&msg=...`** — fired by `payment.js`'s `submitPayment()` after a paid-plan order is submitted, to ping an admin on WhatsApp to review it in `admin.html`. Also fire-and-forget (plain `fetch(...).catch(()=>{})`, response ignored either way).
-
-Whatever handles those two actions server-side today is whatever's actually deployed at that URL — not `gas/wangku-backend.gs`, since that file doesn't exist. The **planned** design (once/if the Fonnte-vs-Evolution-API decision resolves and this actually gets built) was:
-- A backup handler (`action:'backup'`) — now moot regardless of that decision, since the manual/Drive backup feature in Settings was removed per a later product decision (the app relies on realtime Supabase storage instead).
-- A Fonnte webhook — inbound WhatsApp message → look up user by `wa_number` → fetch their `accounts`/`user_categories` → ask Groq to extract a transaction (real account/category names as context) → resolve the account with a text-match fallback → insert the transaction → reply via Fonnte. **On hold**, not built.
+- **`?action=notifyAdmin&msg=...`** — called from `payment.js`'s `submitPayment()`, which is itself orphaned as of the trial-registration change (see `features.md`'s "Payment / Plan-Selection Flow" entry) — not reachable from any current UI.
 
 ## What's NOT server-side
 - No image resizing/compression before upload (receipt photos, avatars) — sent as full-size base64.
