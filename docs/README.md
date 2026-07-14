@@ -51,7 +51,7 @@ This project is split between two roles, deliberately:
 - **Admin panel**: real authentication, admin/App-user segregation, transactions view with account column.
 
 ## What's explicitly on hold / deferred
-- **Fonnte WhatsApp bot** — `gs/fonnte.gs` is real and committed now, but unverified and known-buggy (wrong Supabase key tier, missing `account_id`, month-only balance math, mismatched category vocabulary) — no dedicated fix pass has happened yet. See `backend.md` for the full list before assuming it works correctly end-to-end.
+- **Fonnte WhatsApp bot** — `gs/fonnte.gs` is real, committed, and fixed as of this session (service-role auth, per-account attribution, all-time balance model, real-category matching, account-name extraction). Deployment to the live Apps Script editor is still a manual step the product owner does themselves. See `backend.md`.
 - **Token refresh** — sessions expire after 30 days and force a full re-login; no refresh flow yet.
 - **Registration email verification** is still checked client-side only (unlike the forgot-password OTP, which was moved server-side) — a real but lower-severity gap.
 
