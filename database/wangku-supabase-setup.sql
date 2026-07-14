@@ -1157,6 +1157,195 @@ GRANT EXECUTE ON FUNCTION public.admin_get_infra_stats() TO anon, authenticated;
 
 
 -- ============================================================
+-- [28] PIN LOCK: pindah dari localStorage (per-device, tidak per-user) ke
+-- server-side, per-user, opt-in -- lihat wangku-spec-pin-redesign.md.
+--
+-- Bug yang diperbaiki: PIN lama disimpan cuma di localStorage dengan key
+-- generik ('wangku_pin'), tidak terikat ke akun manapun. Di device yang
+-- sama, user KEDUA yang login/daftar otomatis mewarisi PIN user PERTAMA,
+-- karena tidak ada apapun yang membedakan PIN itu milik siapa. PIN juga
+-- device-bound -- tidak pernah keluar dari localStorage, jadi tidak bisa
+-- dipakai lagi di device kedua.
+--
+-- pin_hash NULL = PIN lock nonaktif (default -- opt-in lewat toggle di
+-- Settings, bukan dipaksa saat pertama login seperti sebelumnya). Dihash
+-- di client pakai hp() yang sama dengan password (skema salt yang sama,
+-- demi konsistensi -- bukan klaim setara keamanan password_hash: PIN 6
+-- digit cuma py 1 juta kombinasi, jauh lebih gampang di-brute-force
+-- offline kalau hash-nya bocor dibanding password_hash, makanya nilai
+-- pin_hash sendiri TIDAK PERNAH dikembalikan ke client sama sekali --
+-- hanya boolean pin_enabled turunannya, lihat perubahan di login_check
+-- dkk. di bawah).
+--
+-- Identitas kedua fungsi baru diambil dari JWT (auth.jwt()->>'user_id' +
+-- token_version), BUKAN dari parameter yang dikirim client -- pola yang
+-- sama dengan is_owner_or_admin()/admin_get_infra_stats() (block [26]/
+-- [27]), bukan pola change_password() yang lebih lama (yang percaya
+-- p_user_id mentah dari client, cuma aman karena syarat p_old_hash yang
+-- harus cocok). Fungsi baru sengaja tidak mengulang pola lama yang
+-- kurang ketat itu.
+--
+-- BUG TAK TERKAIT YANG KETEMU SAMBIL LEWAT: nulis set_pin_hash() dengan
+-- pola "DECLARE v_ok BOOLEAN; ... GET DIAGNOSTICS v_ok = ROW_COUNT;
+-- RETURN v_ok > 0;" -- pola yang sama persis dengan change_password() di
+-- block [17] -- ternyata error di production: GET DIAGNOSTICS
+-- mengembalikan INTEGER (jumlah baris), bukan BOOLEAN, dan Postgres tidak
+-- punya operator "boolean > integer" sama sekali. Dikonfirmasi lewat
+-- curl langsung ke change_password RPC: 42883 "operator does not exist:
+-- boolean > integer" -- artinya setiap percobaan "Ganti Password" di
+-- Settings sudah gagal total sejak block [17] ditulis. v_ok di kedua
+-- fungsi diganti INTEGER (v_rows) supaya perbandingannya integer-vs-
+-- integer yang valid -- lihat change_password yang ditulis ulang di
+-- bawah verify_pin.
+-- ============================================================
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS pin_hash TEXT;
+
+CREATE OR REPLACE FUNCTION public.set_pin_hash(p_pin_hash TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_rows INTEGER;
+BEGIN
+  UPDATE public.users SET pin_hash = p_pin_hash, updated_at = now()
+    WHERE id = (auth.jwt()->>'user_id')::uuid
+      AND token_version::text = auth.jwt()->>'token_version';
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RETURN v_rows > 0;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.set_pin_hash(TEXT) TO anon;
+
+CREATE OR REPLACE FUNCTION public.verify_pin(p_pin_hash TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS(
+    SELECT 1 FROM public.users u
+    WHERE u.id = (auth.jwt()->>'user_id')::uuid
+      AND u.token_version::text = auth.jwt()->>'token_version'
+      AND u.pin_hash IS NOT NULL
+      AND u.pin_hash = p_pin_hash
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.verify_pin(TEXT) TO anon;
+
+-- --- Ganti password: sama seperti block [17], cuma v_ok BOOLEAN diganti
+-- v_rows INTEGER -- lihat catatan panjang di awal block [28] soal
+-- "operator does not exist: boolean > integer" yang bikin fungsi ini
+-- gagal total sejak awal. Tidak ada perubahan logika/keamanan lain. ---
+CREATE OR REPLACE FUNCTION public.change_password(p_user_id UUID, p_old_hash TEXT, p_new_hash TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_rows INTEGER;
+BEGIN
+  UPDATE public.users SET password_hash = p_new_hash, updated_at = NOW()
+    WHERE id = p_user_id AND password_hash = p_old_hash;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RETURN v_rows > 0;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.change_password(UUID, TEXT, TEXT) TO anon;
+
+-- pin_hash tidak boleh terbaca langsung -- sama alasannya dengan
+-- password_hash (lihat block [17]), plus alasan tambahan di atas soal
+-- keypace PIN yang kecil. login_check/get_user_by_username/get_user_by_id
+-- juga WAJIB diperbarui di bawah -- to_jsonb(u) otomatis menyertakan
+-- kolom baru manapun kalau tidak dikecualikan satu per satu, jadi tanpa
+-- ini pin_hash mentah akan langsung ikut kebawa balik ke client persis
+-- seperti password_hash dulu sebelum block [17].
+REVOKE SELECT (pin_hash) ON public.users FROM anon;
+
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.password_hash = p_password_hash AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object(
+      'role','authenticated',
+      'sub', v_user.id::text,
+      'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),
+      'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer
+    ),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password_hash' - 'pin_hash') || jsonb_build_object('pin_enabled', v_user.pin_hash IS NOT NULL),
+    'token', v_token
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+
+CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password_hash' - 'pin_hash') || jsonb_build_object('pin_enabled', v_user.pin_hash IS NOT NULL),
+    'token', v_token
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon;
+
+CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.id = p_user_id AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password_hash' - 'pin_hash') || jsonb_build_object('pin_enabled', v_user.pin_hash IS NOT NULL),
+    'token', v_token
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables

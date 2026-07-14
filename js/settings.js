@@ -9,6 +9,7 @@ function renderSettingsExtras(){
   syncNotifToggleUI();
   syncAutoDetectUI();
   syncCountTargetUI();
+  syncPinToggleUI();
   if(typeof renderAccountManageSection==='function')renderAccountManageSection();
   const track=document.getElementById('autosync-track');
   if(track)track.className='toggle-track'+(autosyncEnabled()?' on':'');
@@ -166,6 +167,34 @@ function toggleAutosync(){
   if(enabled)pingSheetSync();
 }
 function pingSheetSync(){try{fetch(GAS+'?action=ping').catch(()=>{});}catch(e){}}
+// ========================
+// PIN LOCK TOGGLE (Settings) — nyalakan/matikan lewat set_pin_hash RPC,
+// bukan localStorage langsung. Lihat ui-helpers.js untuk showPinScreen/
+// pinSubmit yang benar-benar mengurus alur input+verifikasi PIN-nya.
+// ========================
+function syncPinToggleUI(){
+  const track=document.getElementById('pin-lock-track');
+  if(track)track.className='toggle-track'+(user?.pin_enabled?' on':'');
+}
+function togglePinLock(){
+  if(user?.pin_enabled){
+    disablePinLock();
+  }else{
+    // Minta bikin PIN baru dulu -- toggle-nya baru ikut menyala setelah
+    // set_pin_hash sukses (lihat finishPinSet() di ui-helpers.js), bukan
+    // optimistic, supaya tidak salah tampil "aktif" kalau gagal simpan.
+    showPinScreen('set','settings');
+  }
+}
+async function disablePinLock(){
+  try{
+    await rpc('set_pin_hash',{p_pin_hash:null});
+    user.pin_enabled=false;
+    localStorage.setItem('sdk_session',JSON.stringify(user));
+    syncPinToggleUI();
+    showToast('Kunci PIN dimatikan','ok');
+  }catch(e){showToast('Gagal: '+e.message,'err');}
+}
 async function runAutosync(){
   await loadSummary();await loadTrx('semua','txn-home',5);
   if(typeof loadAccounts==='function')await loadAccounts();

@@ -20,10 +20,7 @@ async function checkSession(){
     const result=await rpc('get_user_by_id',{p_user_id:user.id});
     if(!result||!result.user){localStorage.removeItem('sdk_session');localStorage.removeItem('sdk_token');showLoginPage();return;}
     user=result.user;localStorage.setItem('sdk_token',result.token);localStorage.setItem('sdk_session',JSON.stringify(user));
-    // Cek PIN
-    const hasPIN=localStorage.getItem(PIN_KEY);
-    if(hasPIN){showPinScreen('verify');}
-    else{showPinScreen('set');} // Minta buat PIN baru
+    checkPinGate();
   }catch(e){showLoginPage();}
 }
 
