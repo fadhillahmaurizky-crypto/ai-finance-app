@@ -43,7 +43,7 @@ function renderPlanOptions(){
   const isMaster=user&&(user.role==='admin'||user.username===MASTER);
   if(isMaster)return;
   const current=user?.plan||'free';
-  const order=['free','basic','pro','unlimited'];
+  const order=['free','basic','pro'];
   const rank={free:0,basic:1,pro:2,unlimited:3};
   el.innerHTML=order.map(p=>{
     const info=PLANS[p];const isCurrent=p===current;let btn;

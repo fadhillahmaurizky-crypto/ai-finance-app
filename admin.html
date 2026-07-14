@@ -516,7 +516,7 @@ tbody tr:hover{background:var(--bg3)}
         <select id="aktivasi-plan" style="width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:9px 13px;font-size:13px;color:var(--text);outline:none" onchange="updateTokenOptions()">
           <option value="free">Free — Rp 0/bulan</option>
           <option value="basic">Basic — Rp 19.000/bulan</option>
-          <option value="pro">Pro — Rp 34.000/bulan</option>
+          <option value="pro">Pro — Rp 39.000/bulan</option>
           <option value="unlimited">Ultimate — Rp 49.000/bulan</option>
         </select>
       </div>
@@ -901,7 +901,7 @@ function showDetailUser(userId) {
           <select id="modal-plan-select" style="width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:9px 13px;font-size:13px;color:var(--text);outline:none">
             <option value="free" ${(u.plan||'free')==='free'?'selected':''}>Free — Rp 0/bulan (tanpa AI)</option>
             <option value="basic" ${u.plan==='basic'?'selected':''}>Basic — Rp 19.000/bulan (tanpa AI)</option>
-            <option value="pro" ${u.plan==='pro'?'selected':''}>Pro — Rp 34.000/bulan</option>
+            <option value="pro" ${u.plan==='pro'?'selected':''}>Pro — Rp 39.000/bulan</option>
             <option value="unlimited" ${u.plan==='unlimited'?'selected':''}>Ultimate — Rp 49.000/bulan</option>
           </select>
         </div>
@@ -1075,7 +1075,7 @@ async function aktivasiUser() {
   const month = new Date().toISOString().substring(0,7);
   try {
     await sbFetch(`users?id=eq.${aktivasiTargetId}`,'PATCH',{
-      status:'active', plan, tokens_limit:tokens, tokens_used:0, token_reset_month:month
+      status:'active', plan, tokens_limit:tokens, tokens_used:0, token_reset_month:month, trial_ends_at:null
     });
     document.getElementById('aktivasi-modal').classList.remove('open');
     showToast('User berhasil diaktifkan ✓','ok');
@@ -1087,9 +1087,9 @@ async function aktivasiUser() {
 async function updateUserPlan(userId) {
   const plan = document.getElementById('modal-plan-select').value;
   try {
-    await sbFetch(`users?id=eq.${userId}`,'PATCH',{plan});
+    await sbFetch(`users?id=eq.${userId}`,'PATCH',{plan, trial_ends_at:null});
     const u = supaUsers.find(u=>u.id===userId);
-    if(u) u.plan = plan;
+    if(u) {u.plan = plan; u.trial_ends_at = null;}
     showToast('Plan diupdate ke '+plan+' ✓','ok');
     renderUsersTable(supaUsers);
   } catch(e) { showToast('Gagal: '+e.message,'err'); }

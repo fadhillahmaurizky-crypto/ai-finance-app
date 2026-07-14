@@ -19,7 +19,7 @@ Untuk pertanyaan keuangan biasa, jawab teks normal (maks 4 kalimat).`;
 
 function openChat(){document.getElementById('chat-sheet').classList.add('open');renderAINotice();document.getElementById('chat-input').focus();}
 function closeChat(){document.getElementById('chat-sheet').classList.remove('open');}
-function renderAINotice(){const el=document.getElementById('ai-notice');if(!el)return;const plan=getPlan();if(plan==='basic'||plan==='free'){el.innerHTML=`<div class="plan-notice">🔒 AI tersedia di paket Pro/Ultimate. <span style="text-decoration:underline;cursor:pointer;font-weight:700" onclick="hubungiCS()">Hubungi admin</span></div>`;}else{const tokenSisa=Math.max(0,(user?.tokens_limit||0)-(user?.tokens_used||0));if(tokenSisa<=0){el.innerHTML=`<div class="plan-notice">⚠️ Token AI habis. <span style="text-decoration:underline;cursor:pointer;font-weight:700" onclick="hubungiCS()">Isi token lagi</span></div>`;}else{el.innerHTML=`<div class="plan-notice pro">✨ ${(tokenSisa/1000).toFixed(0)}K token tersisa bulan ini</div>`;}}}
+function renderAINotice(){const el=document.getElementById('ai-notice');if(!el)return;const plan=getPlan();if(plan==='basic'||plan==='free'){el.innerHTML=`<div class="plan-notice">🔒 AI tersedia di paket Pro. <span style="text-decoration:underline;cursor:pointer;font-weight:700" onclick="hubungiCS()">Hubungi admin</span></div>`;}else{const tokenSisa=Math.max(0,(user?.tokens_limit||0)-(user?.tokens_used||0));if(tokenSisa<=0){el.innerHTML=`<div class="plan-notice">⚠️ Token AI habis. <span style="text-decoration:underline;cursor:pointer;font-weight:700" onclick="hubungiCS()">Isi token lagi</span></div>`;}else{el.innerHTML=`<div class="plan-notice pro">✨ ${(tokenSisa/1000).toFixed(0)}K token tersisa bulan ini</div>`;}}}
 function addMsg(text,role){const msgs=document.getElementById('chat-msgs');const row=document.createElement('div');row.className='msg-row'+(role==='user'?' user':'');row.innerHTML=role==='ai'?`<div class="msg-av"><i class="ti ti-robot"></i></div><div class="bubble ai">${text}</div>`:`<div class="bubble user">${text}</div>`;msgs.appendChild(row);msgs.scrollTop=msgs.scrollHeight;}
 function addTyping(){const m=document.getElementById('chat-msgs');const r=document.createElement('div');r.className='msg-row';r.id='typing';r.innerHTML='<div class="msg-av"><i class="ti ti-robot"></i></div><div class="bubble ai"><div class="typing-dots"><span></span><span></span><span></span></div></div>';m.appendChild(r);m.scrollTop=m.scrollHeight;}
 function removeTyping(){document.getElementById('typing')?.remove();}
@@ -28,7 +28,7 @@ async function handleSend(){const inp=document.getElementById('chat-input');cons
 document.getElementById('chat-input').addEventListener('keydown',e=>{if(e.key==='Enter')handleSend();});
 async function sendMsg(text){
   if(loading)return;
-  if(!canAI()){addMsg(text,'user');const p=getPlan();addMsg((p==='basic'||p==='free')?'🔒 AI tersedia di paket Pro/Ultimate. Hubungi admin untuk upgrade!':'⚠️ Token AI bulan ini habis. Hubungi admin untuk isi ulang!','ai');return;}
+  if(!canAI()){addMsg(text,'user');const p=getPlan();addMsg((p==='basic'||p==='free')?'🔒 AI tersedia di paket Pro. Hubungi admin untuk upgrade!':'⚠️ Token AI bulan ini habis. Hubungi admin untuk isi ulang!','ai');return;}
   loading=true;document.getElementById('send-btn').disabled=true;addMsg(text,'user');chatHist.push({role:'user',content:text});addTyping();
   try{
     const messages=[{role:'system',content:SYS+'\n\n'+(ctx||'')},...chatHist];
