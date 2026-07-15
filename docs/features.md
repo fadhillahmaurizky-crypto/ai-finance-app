@@ -10,7 +10,7 @@ Onboarding Carousel (pre-login, first-time only)
 Home (page-home)
 ├── Balance Card — Saldo Sekarang = Σ(account.saldo_awal) + all-time (pemasukan − pengeluaran)
 │   ├── eye icon → show/hide balance (toggleBalanceVisibility)
-│   ├── "Lihat Detail" pill → Balance Breakdown popup (per-account saldo/income/expense, this month's flows, plus a distinct Transfer Masuk/Transfer Keluar line per account — the underlying `computeAccountBreakdown()` always computed these, they just weren't rendered before; the top-of-modal aggregate totals deliberately still exclude transfers, unchanged)
+│   ├── "Lihat Detail" pill → Balance Breakdown popup (per-account saldo, plus one combined Masuk and one combined Keluar line per account — transfer-in is added into Masuk, transfer-out into Keluar, since a transfer is still money entering/leaving that specific account. Previously these were 4 separate lines (Masuk/Keluar/Transfer Masuk/Transfer Keluar); combined per user feedback that splitting them out was confusing. The top-of-modal aggregate totals deliberately still exclude transfers, unchanged)
 │   ├── 7-day sparkline (smooth bezier curve, upper-right corner, small) + trend badge
 │   └── Pemasukan Bulan Ini / Pengeluaran Bulan Ini pills
 ├── Insight dari WangkuAI — rule-based observations (not a live AI call), tap or swipe to cycle, fade transition
