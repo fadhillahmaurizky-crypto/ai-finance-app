@@ -14,6 +14,7 @@ erDiagram
     users ||--o{ orders : owns
     users ||--o{ detected_transactions : owns
     users ||--o{ password_reset_tokens : owns
+    users ||--o{ token_purchases : owns
     accounts ||--o{ transactions : "account_id (source)"
     accounts ||--o{ transactions : "to_account_id (transfer dest)"
     targets ||--o{ transactions : "target_id (contribution)"
@@ -41,7 +42,7 @@ erDiagram
         timestamptz last_login "set on every successful doLogin()"
         timestamptz last_active "column exists, currently unused by app code"
         uuid token_version "random nonce embedded in every JWT, checked by is_owner_or_admin() — block [26]"
-        text pin_hash "SHA-256 + static salt, NULL = PIN lock off — NOT selectable by anon, see block [28]"
+        text pin_hash "SHA-256 + static salt, NULL = PIN lock off — NOT selectable by anon, see block [29]"
     }
 
     accounts {
@@ -121,6 +122,16 @@ erDiagram
         bool used "single-use"
     }
 
+    token_purchases {
+        uuid id PK "also sent to Xendit as external_id"
+        uuid user_id FK
+        int tokens "tier size, e.g. 2000000"
+        numeric amount "Rp, e.g. 35000"
+        text status "pending | paid — the UPDATE...WHERE status='pending' IS the webhook idempotency check"
+        text xendit_invoice_id "Xendit's own id, for dashboard cross-reference only — not the idempotency key"
+        timestamptz paid_at
+    }
+
     settings {
         text key PK
         text value
@@ -151,7 +162,10 @@ Defaults are seeded as real rows (`is_default=true`) once per user, the first ti
 **As of block `[23]`, uniqueness is case-insensitive** — enforced via a `UNIQUE INDEX ... (user_id, lower(nama), jenis)` rather than a plain column-list constraint (Postgres unique constraints can't reference expressions like `lower(...)`, only unique indexes can). This replaced the block-`[19]` constraint, not stacked alongside it. Root cause it fixes: `DEFAULT_CATEGORIES` seeds lowercase (`'bonus'`), the UI displays categories with the first letter capitalized purely for readability (`charAt(0).toUpperCase()`) without ever touching the stored value, and Postgres's default text comparison is case-*sensitive* — so a user manually typing "Bonus" (believing it's the same category as the default they see displayed as "Bonus") was creating a byte-different row that the old exact-match constraint couldn't catch. It only caught a *second* identical-case attempt against that new row, which read as "inconsistent" duplicate detection until traced to the byte level. `categories.js` also lowercases `nama` client-side before every insert/update now, so stored values stay consistently lowercase (matching the existing capitalize-on-display convention) — the DB index is the authoritative backstop, the client-side lowercasing is just for data hygiene.
 
 ### `orders`
-Payment proof submissions for plan upgrades, reviewed manually via `admin.html`.
+Payment proof submissions for plan upgrades, reviewed manually via `admin.html`. **Not** used for token top-ups — see `token_purchases` below; the two purchase flows are deliberately kept separate.
+
+### `token_purchases`
+Xendit token top-up tracking (block `[28]`, test mode — see `backend.md` §4). **Fully locked down** (`FOR ALL USING (false)`), same as `password_reset_tokens` — the client never reads or writes this table; only `/api/create-payment.js`/`/api/xendit-webhook.js` touch it, via the service role key. `id` doubles as the `external_id` sent to Xendit, so the webhook can `UPDATE ... WHERE id=<external_id> AND status='pending'` directly instead of needing a separate lookup — and that same `WHERE status='pending'` clause is the entire idempotency mechanism for handling Xendit's webhook retries.
 
 ### `detected_transactions`
 Support table for "auto-detect transactions." **Nothing in this codebase writes to it.** It's designed so a phone-side automation tool (Tasker/MacroDroid) posts directly to Supabase's REST API on notification-received, and the app polls + shows a confirm/dismiss popup. See `ai.md` and `roadmap.md`.
@@ -180,10 +194,10 @@ This is the single most important thing to understand about this schema. It repl
 | `wangku_b64url(bytea)` | Base64url encode, no padding, no newlines |
 | `wangku_sign_jwt(payload json, secret text)` | Manual HS256 JWT signing |
 | `is_owner_or_admin(user_id uuid)` | The RLS predicate used everywhere — as of block `[26]`, also verifies the JWT's `token_version` claim against the live `users` row, see below |
-| `login_check(username, password_hash)` | Password verify + mint token (requires `status='active'`, block `[20]`; lazy trial-expiry downgrade, block `[24]`; embeds `token_version`, block `[26]`; returned user object includes a computed `pin_enabled` boolean instead of the raw `pin_hash`, block `[28]`) |
+| `login_check(username, password_hash)` | Password verify + mint token (requires `status='active'`, block `[20]`; lazy trial-expiry downgrade, block `[24]`; embeds `token_version`, block `[26]`; returned user object includes a computed `pin_enabled` boolean instead of the raw `pin_hash`, block `[29]`) |
 | `get_user_by_username(username)` | Biometric login — mints a fresh token (same lazy trial-expiry downgrade, `token_version` embedding, and `pin_enabled` computation as `login_check`) |
 | `get_user_by_id(user_id)` | Session restore — mints a fresh token (also silently upgrades pre-migration sessions; same lazy trial-expiry downgrade, `token_version` embedding, and `pin_enabled` computation as `login_check`) |
-| `change_password(user_id, old_hash, new_hash)` | Requires proof of the old password. Was silently broken since block `[17]` — see block `[28]`'s note below, fixed incidentally while building `set_pin_hash` |
+| `change_password(user_id, old_hash, new_hash)` | Requires proof of the old password. Was silently broken since block `[17]` — see block `[29]`'s note below, fixed incidentally while building `set_pin_hash` |
 | `create_password_reset(email)` | Step 1 of forgot-password — generates + stores hashed OTP |
 | `confirm_password_reset(user_id, otp, new_hash)` | Step 2 — validates OTP server-side, then resets |
 | `wangku_check_account_balance()` | Trigger function, block `[21]` — see "Per-account balance enforcement" below |
@@ -234,7 +248,7 @@ Registration (`verifyRegOTP()` in `auth.js`) sets `plan='pro'`, `trial_ends_at =
 
 **Critical invariant admin.html must preserve**: the downgrade only fires when `plan` is *still* exactly `'pro'` — deliberately, so that if an admin manually upgrades a user to a real paid plan via `admin.html` (`updateUserPlan()`/`aktivasiUser()`) *after* their trial's `trial_ends_at` has already passed, the next login doesn't immediately clobber that back down to `'free'`. Both of those functions now also set `trial_ends_at = null` whenever they PATCH `plan` — nulling it is what permanently takes a user out of reach of the lazy-downgrade check. **If a future admin-side flow sets `plan` directly without also clearing `trial_ends_at`, a user who paid for a real upgrade after their trial lapsed can silently get auto-downgraded on their very next login** — any new plan-assignment path must clear `trial_ends_at` too, or reintroduce a different way to distinguish "still trialing" from "really on this plan."
 
-## PIN lock mechanics (block `[28]`)
+## PIN lock mechanics (block `[29]`)
 
 `users.pin_hash` (nullable `TEXT`) replaces what used to be a purely local, device-side `localStorage['wangku_pin']` value — see `frontend.md` for the full before/after and the client-side migration logic. `NULL` means PIN lock is off (the default; opt-in via a Settings toggle, not forced).
 
@@ -262,6 +276,6 @@ This took three rounds to get right on the actual live Supabase project, each su
 6. **`INSERT ... RETURNING` (or PostgREST's `Prefer: return=representation`, which is `RETURNING`-equivalent) requires the SELECT policy to permit reading the newly-inserted row — a valid INSERT policy is not enough on its own.** This cost real time chasing the wrong root cause for the registration RLS error (see "Registration and `Prefer: return=representation`" above): the actual `INSERT` was valid and passing its own policy the entire time; the request failed because it *also* implicitly needed a SELECT policy that plainly didn't and couldn't exist for an anonymous pre-login request. **If a write-as-`anon`-or-similarly-restricted-role flow fails with an RLS error, check whether the request is asking for the row back (`RETURNING`, or PostgREST's default `return=representation` on POST) before assuming the write policy itself is wrong** — test the identical statement with and without a returning clause to tell the two apart. Confirmed for this exact case by testing directly against the live database via the Supabase MCP: identical INSERT, no RETURNING → succeeds; with RETURNING → fails with the RLS error every time.
 7. **A `UNIQUE(a, b, c)` constraint can be working *exactly* as defined and still fail to catch what a user would call a duplicate, if the app displays a transformed version of a value without ever normalizing the stored value to match.** `user_categories`' unique constraint was never broken — Postgres text comparison is case-sensitive by design, `DEFAULT_CATEGORIES` seeds lowercase, and the UI capitalizes the first letter for display only (`charAt(0).toUpperCase()`), never touching what's stored. A user typing "Bonus" into the add-category form — reasonably believing it's the same category shown on screen — created a byte-different row the constraint had no way to flag. **Before assuming a unique constraint is buggy or misapplied, check `pg_get_constraintdef()` (confirm it's exactly what you think) and diff the actual byte content of the "duplicate" rows (`encode(col::bytea,'hex')`)** — don't assume "duplicate" means byte-identical just because two rows look the same on screen. Fixed by switching to a `UNIQUE INDEX` on `lower(nama)` instead of `nama` directly (plain unique constraints can't reference expressions, only unique indexes can), plus lowercasing client-side before insert as a second layer of hygiene.
 
-8. **`GET DIAGNOSTICS var = ROW_COUNT` needs `var` declared `INTEGER`, not `BOOLEAN` — PL/pgSQL will let you declare it `BOOLEAN` without erroring at the `GET DIAGNOSTICS` line itself, but then any comparison like `RETURN var > 0` fails at call time with `operator does not exist: boolean > integer`.** `change_password` (block `[17]`) was written with exactly this pattern and has been silently broken in production since it was written — confirmed live via a direct RPC call, which 42883'd instead of returning a real result. Found while writing `set_pin_hash` for block `[28]`, which copied the same (broken) pattern from `change_password` as its template; both are fixed as of block `[28]`. **If you see `DECLARE v_ok BOOLEAN; ... GET DIAGNOSTICS v_ok = ROW_COUNT; RETURN v_ok > 0;` anywhere, it's broken — rename the variable to something like `v_rows`, declare it `INTEGER`, and only compare `> 0` against that.**
+8. **`GET DIAGNOSTICS var = ROW_COUNT` needs `var` declared `INTEGER`, not `BOOLEAN` — PL/pgSQL will let you declare it `BOOLEAN` without erroring at the `GET DIAGNOSTICS` line itself, but then any comparison like `RETURN var > 0` fails at call time with `operator does not exist: boolean > integer`.** `change_password` (block `[17]`) was written with exactly this pattern and has been silently broken in production since it was written — confirmed live via a direct RPC call, which 42883'd instead of returning a real result. Found while writing `set_pin_hash` for block `[29]`, which copied the same (broken) pattern from `change_password` as its template; both are fixed as of block `[29]`. **If you see `DECLARE v_ok BOOLEAN; ... GET DIAGNOSTICS v_ok = ROW_COUNT; RETURN v_ok > 0;` anywhere, it's broken — rename the variable to something like `v_rows`, declare it `INTEGER`, and only compare `> 0` against that.**
 
 If a future migration hits `cannot change return type` or a `function ... does not exist` error from inside a third-party extension function, these are the first things to check. And if anything about per-user isolation seems off, check `pg_policies` directly rather than trusting that the last migration you ran did what it said.

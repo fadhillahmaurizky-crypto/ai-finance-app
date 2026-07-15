@@ -10,7 +10,7 @@ No `.env` for the static site — everything's a hardcoded JS constant in `js/co
 | `SB_KEY` | Supabase anon key — public by design. Used as a fallback before login; after login the real per-user JWT (`sdk_token`) is used instead for anything that matters |
 | `MASTER` | Username treated as admin/unlimited plan |
 | `CS` | WhatsApp number for "Hubungi CS" links |
-| `GAS` | Google Apps Script Web App URL (draft — see `backend.md`) |
+| `GAS` | Google Apps Script Web App URL — real, deployed, points at `gs/fonnte.gs` (see `backend.md`) |
 | `LIMITS` | Per-plan AI token/scan limits (also re-checked server-side in `/api/ai-chat.js` and `/api/ai-scan.js` — don't rely on the client-side copy for actual enforcement) |
 | `DEFAULT_CATEGORIES` / `DEFAULT_PRIORITIES` | Seeded once per user on first load |
 | `DEFAULT_ACCOUNT_NAME` | `'Cash'` — must match `DEFAULT_ACCOUNT_NAME` in the (draft) Apps Script if that's ever revived |
@@ -22,8 +22,11 @@ No `.env` for the static site — everything's a hardcoded JS constant in `js/co
 | Variable | Purpose |
 |---|---|
 | `GROQ_API_KEY` | Required for both `/api/ai-chat.js` and `/api/ai-scan.js` to function at all |
-| `SUPABASE_URL` | Optional override — both functions have the real value hardcoded as a fallback, so this isn't strictly required, but prefer setting it if you want one place to update if the project ever changes |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Required** for both functions — used *only* for the internal plan/token lookup query (see `backend.md`). Get the real value from Supabase Dashboard → Project Settings → API → `service_role` secret, and set it directly in Vercel's environment variables. **Never hardcode this one** (unlike the anon key, which is public by design) and never let it reach any client-facing code path. |
+| `SUPABASE_URL` | Optional override — all four `/api` functions have the real value hardcoded as a fallback, so this isn't strictly required, but prefer setting it if you want one place to update if the project ever changes |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Required** for all four `/api` functions — used for internal server-side lookups/writes that never carry a user's own JWT (see `backend.md`). Get the real value from Supabase Dashboard → Project Settings → API → `service_role` secret, and set it directly in Vercel's environment variables. **Never hardcode this one** (unlike the anon key, which is public by design) and never let it reach any client-facing code path. |
+| `XENDIT_SECRET_KEY_TEST` | **Required** for `/api/create-payment.js` — Xendit's sandbox/test-mode secret key (Xendit Dashboard, test-mode API keys). Set directly in Vercel, never in this repo. Named with `_TEST` specifically so a future `_LIVE` counterpart is a one-line env var swap, not a code change — see `backend.md` §4 |
+| `XENDIT_WEBHOOK_VERIFICATION_TOKEN_TEST` | **Required** for `/api/xendit-webhook.js` — a *separate* credential from the secret key above, found in Xendit Dashboard → Settings → Developers → Webhooks. Compared against the inbound `x-callback-token` header before any webhook payload is trusted |
+| `APP_URL` | Optional override for `/api/create-payment.js`'s Xendit success/failure redirect URLs — hardcoded fallback is the real production URL, same pattern as `SUPABASE_URL` above |
 
 ## Postgres-side secret (lives in the SQL, not in this repo's client code)
 
@@ -37,7 +40,7 @@ The **Supabase JWT secret** (Dashboard → Project Settings → Data API → JWT
 | `sdk_token` | `auth.js` | The custom-signed JWT — this is what actually authorizes requests now |
 | `sdk_bio_user`, `sdk_bio_cred` | `auth.js` | WebAuthn biometric binding |
 | `sdk_ob` | `ui-helpers.js` (`checkOb`/`skipOb`) | Whether the first-time onboarding carousel has been shown/skipped already — see `features.md` |
-| `wangku_pin` (`PIN_KEY`) | `ui-helpers.js` (`showPinScreen`/`pinSubmit`) | The local PIN-lock code — a device-side gate shown after login/session-restore, before `showApp()`. See `frontend.md`'s "Local PIN lock" section |
+| `wangku_pin` (`PIN_KEY`) | `ui-helpers.js` | **Legacy only, as of block `[29]`** — PIN lock itself now lives server-side (`users.pin_hash`, opt-in). This key's only remaining purpose is triggering the one-time "re-set your PIN" migration prompt for accounts that had a PIN under the old local-only design; it's cleared the first time that prompt is answered, either way. See `frontend.md`'s "PIN lock" section |
 | `wangku_balance_hidden` | `dashboard.js` | Saldo show/hide toggle preference |
 | `wangku_aksi_cepat` | `dashboard.js` (`getAksiCepatSelection`/`saveAksiCepat`) | JSON array of up to 5 shortcut ids shown in Home's Aksi Cepat row (user-editable via the "Edit" link) |
 | `wangku_autosync` | `settings.js` | Refresh-on-open + after-transaction toggle |

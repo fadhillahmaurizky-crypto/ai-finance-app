@@ -18,7 +18,7 @@ priorities.js → accounts.js → settings.js → boot.js
 
 ## PIN lock (server-side, per-user, opt-in second auth layer)
 
-After a successful `login_check`/`get_user_by_id` (fresh login **or** silent session restore), `checkPinGate()` (`ui-helpers.js`) decides what happens next, based on the `pin_enabled` boolean the RPC response now includes (derived server-side from whether `users.pin_hash` is set — the raw hash itself is never returned to the client, see `database.md` block `[28]`):
+After a successful `login_check`/`get_user_by_id` (fresh login **or** silent session restore), `checkPinGate()` (`ui-helpers.js`) decides what happens next, based on the `pin_enabled` boolean the RPC response now includes (derived server-side from whether `users.pin_hash` is set — the raw hash itself is never returned to the client, see `database.md` block `[29]`):
 - `pin_enabled === true` → shows `#pin-screen` in `verify` mode; `showApp()` only runs after `verify_pin()` (RPC) confirms the entered PIN's hash matches.
 - `pin_enabled === false` but the legacy `localStorage['wangku_pin']` key is still present (a one-time migration case, for accounts that had a PIN under the old local-only design below) → shows `#pin-screen` in `set` mode, asking them to create a real server-side PIN once. The legacy key is cleared either way once they respond, whether they complete the new PIN or cancel — so this prompt is genuinely one-time, not a recurring nag.
 - Neither → `showApp()` runs directly, no PIN screen at all. This is the default for every new/never-opted-in account.

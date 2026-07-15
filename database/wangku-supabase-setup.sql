@@ -1157,7 +1157,51 @@ GRANT EXECUTE ON FUNCTION public.admin_get_infra_stats() TO anon, authenticated;
 
 
 -- ============================================================
--- [28] PIN LOCK: pindah dari localStorage (per-device, tidak per-user) ke
+-- [28] XENDIT TOKEN TOP-UP: tabel pelacakan pembelian token via Xendit
+-- (test mode) -- lihat wangku-spec-xendit-topup-testmode.md.
+--
+-- CATATAN NOMOR BLOK: ditulis di branch terpisah dari block [28] PIN
+-- lock (fix/server-side-pin-lock, belum merge saat ini ditulis) --
+-- keduanya sama-sama [28] di branch masing-masing karena tidak saling
+-- bergantung. Siapa pun yang merge belakangan WAJIB menomori ulang jadi
+-- [29] mengikuti urutan merge, sama seperti block [26]/[27] yang pernah
+-- ditulis ulang urutannya saat PR-nya digabung (lihat commit merge
+-- "fix/admin-panel-table-laporan" untuk contoh penomoran ulang serupa).
+--
+-- token_purchases TIDAK dibaca/ditulis langsung oleh client sama sekali
+-- (kunci total, sama seperti password_reset_tokens block [17]) -- baris
+-- 'pending' dibuat oleh /api/create-payment.js (pakai id barisnya sendiri
+-- sebagai external_id yang dikirim ke Xendit), lalu di-flip ke 'paid'
+-- oleh /api/xendit-webhook.js SETELAH memverifikasi header
+-- x-callback-token. Idempotensi webhook (Xendit bisa mengirim callback
+-- yang sama lebih dari sekali) diwujudkan lewat
+-- "UPDATE ... WHERE status='pending'" itu sendiri -- kalau baris sudah
+-- 'paid' dari delivery sebelumnya, UPDATE itu mengenai nol baris dan
+-- token TIDAK digrant dua kali, tanpa butuh locking terpisah.
+--
+-- Sengaja tabel BARU, bukan perluasan `orders` (yang punya bentuk data
+-- berbeda -- bukti_url/approval manual untuk pembelian PLAN Basic/Pro,
+-- bukan token top-up otomatis via payment gateway) -- dua alur pembelian
+-- ini sengaja tetap terpisah, per scope spec ini.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.token_purchases (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id            UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  tokens             INTEGER NOT NULL,
+  amount             NUMERIC NOT NULL,
+  status             TEXT NOT NULL DEFAULT 'pending',
+  xendit_invoice_id  TEXT,
+  created_at         TIMESTAMPTZ DEFAULT now(),
+  paid_at            TIMESTAMPTZ
+);
+ALTER TABLE public.token_purchases ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "No direct access to token purchases" ON public.token_purchases;
+CREATE POLICY "No direct access to token purchases" ON public.token_purchases
+  FOR ALL USING (false) WITH CHECK (false);
+
+
+-- ============================================================
+-- [29] PIN LOCK: pindah dari localStorage (per-device, tidak per-user) ke
 -- server-side, per-user, opt-in -- lihat wangku-spec-pin-redesign.md.
 --
 -- Bug yang diperbaiki: PIN lama disimpan cuma di localStorage dengan key
@@ -1228,7 +1272,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.verify_pin(TEXT) TO anon;
 
 -- --- Ganti password: sama seperti block [17], cuma v_ok BOOLEAN diganti
--- v_rows INTEGER -- lihat catatan panjang di awal block [28] soal
+-- v_rows INTEGER -- lihat catatan panjang di awal block [29] soal
 -- "operator does not exist: boolean > integer" yang bikin fungsi ini
 -- gagal total sejak awal. Tidak ada perubahan logika/keamanan lain. ---
 CREATE OR REPLACE FUNCTION public.change_password(p_user_id UUID, p_old_hash TEXT, p_new_hash TEXT)
