@@ -63,12 +63,22 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, already_processed: true });
     }
 
-    // Sama seperti admin.html setUserTokens(): SET tokens_limit ke nilai
-    // paket (bukan menambah di atas sisa yang ada) dan reset tokens_used
-    // ke 0 -- semua top-up (manual admin atau self-service Xendit) pakai
-    // semantik yang sama persis, satu sumber kebenaran untuk arti "beli
-    // paket X juta token".
-    const month = new Date().toISOString().substring(0, 7);
+    // ADDITIF, bukan replace: tokens_limit user ditambah sejumlah token
+    // yang dibeli, tokens_used TIDAK disentuh -- "Beli Token Tambahan" di
+    // Settings menjanjikan penambahan, dan itu yang harus benar-benar
+    // terjadi. Sengaja BEDA dari admin.html setUserTokens() (yang me-SET
+    // tokens_limit ke nilai paket dan reset tokens_used ke 0) -- grant
+    // manual admin itu tindakan override/koreksi yang disengaja, beda
+    // konteks dari top-up self-service ini. Ditemukan lewat pengetesan
+    // pembelian sungguhan: token yang sudah ada malah tertimpa ke nilai
+    // paket alih-alih bertambah -- PATCH langsung tanpa baca tokens_limit
+    // saat ini dulu tidak mungkin additif, makanya perlu GET dulu di sini.
+    const userRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${purchase.user_id}&select=tokens_limit`, {
+      headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+    });
+    const userRows = await userRes.json();
+    const currentLimit = Number(userRows?.[0]?.tokens_limit) || 0;
+
     await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${purchase.user_id}`, {
       method: 'PATCH',
       headers: {
@@ -76,7 +86,7 @@ module.exports = async (req, res) => {
         Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ tokens_limit: purchase.tokens, tokens_used: 0, token_reset_month: month }),
+      body: JSON.stringify({ tokens_limit: currentLimit + purchase.tokens }),
     });
 
     return res.status(200).json({ ok: true });
