@@ -14,12 +14,35 @@ function checkAlerts(data){
 function renderTrialNudge(){
   const wrap=document.getElementById('trial-nudge-wrap');if(!wrap)return;
   const isMaster=user&&(user.role==='admin'||user.username===MASTER);
-  if(isMaster||user?.plan!=='pro'||!user?.trial_ends_at){wrap.innerHTML='';return;}
-  const end=new Date(user.trial_ends_at);const now=new Date();
-  const daysLeft=Math.ceil((end-now)/86400000);
-  if(isNaN(daysLeft)||daysLeft<0||daysLeft>2){wrap.innerHTML='';return;}
-  const sisa=daysLeft===0?'hari ini':`dalam ${daysLeft} hari`;
-  wrap.innerHTML=`<div class="trial-banner" style="cursor:pointer" onclick="openPlanOptions()"><i class="ti ti-hourglass-low"></i><span style="flex:1">Trial-mu berakhir ${sisa}. Upgrade sekarang untuk lanjut pakai AI Chat & WhatsApp bot</span><i class="ti ti-chevron-right"></i></div>`;
+  if(isMaster){wrap.innerHTML='';return;}
+  if(user?.plan==='pro'&&user?.trial_ends_at){
+    const end=new Date(user.trial_ends_at);const now=new Date();
+    const daysLeft=Math.ceil((end-now)/86400000);
+    if(!isNaN(daysLeft)&&daysLeft>=0&&daysLeft<=2){
+      const sisa=daysLeft===0?'hari ini':`dalam ${daysLeft} hari`;
+      wrap.innerHTML=`<div class="trial-banner" style="cursor:pointer" onclick="openPlanOptions()"><i class="ti ti-hourglass-low"></i><span style="flex:1">Trial-mu berakhir ${sisa}. Upgrade sekarang untuk lanjut pakai AI Chat & WhatsApp bot</span><i class="ti ti-chevron-right"></i></div>`;
+      return;
+    }
+  }
+  // Bukan (lagi) trial -- reminder perpanjangan plan berbayar (Basic/Pro),
+  // pola & window yang sama (0-2 hari sebelum berakhir) dipakai ulang dari
+  // nudge trial di atas, cuma field tanggal & aksinya beda -- lihat
+  // wangku-spec-subscription-renewal.md §3. Tap langsung redirect ke
+  // checkout Xendit (buyPlanRenewal), sama seperti buyTokenPackage() --
+  // tidak ada langkah konfirmasi tambahan karena cuma satu plan yang
+  // relevan di sini (plan yang sedang aktif itu sendiri, bukan pilihan
+  // upgrade/downgrade seperti openPlanOptions()).
+  if((user?.plan==='basic'||user?.plan==='pro')&&user?.plan_expires_at){
+    const end=new Date(user.plan_expires_at);const now=new Date();
+    const daysLeft=Math.ceil((end-now)/86400000);
+    if(!isNaN(daysLeft)&&daysLeft>=0&&daysLeft<=2){
+      const sisa=daysLeft===0?'hari ini':`dalam ${daysLeft} hari`;
+      const planLabel=PLANS[user.plan]?.label||user.plan;
+      wrap.innerHTML=`<div class="trial-banner" style="cursor:pointer" onclick="buyPlanRenewal('${user.plan}')"><i class="ti ti-hourglass-low"></i><span style="flex:1">Langganan ${planLabel}-mu berakhir ${sisa}. Perpanjang sekarang untuk lanjut pakai fitur premium</span><i class="ti ti-chevron-right"></i></div>`;
+      return;
+    }
+  }
+  wrap.innerHTML='';
 }
 
 function countTargetInBalance(){return localStorage.getItem('wangku_count_target_balance')==='1';}

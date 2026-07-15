@@ -20,7 +20,19 @@ function renderSettingsExtras(){
 // ========================
 async function buyTokenPackage(packageId){
   try{
-    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,package:packageId})});
+    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,package:packageId,item_type:'tokens'})});
+    const d=await resp.json();
+    if(!resp.ok||d.error)throw new Error(d.error||'Gagal membuat pembayaran');
+    window.location.href=d.checkout_url;
+  }catch(e){showToast('Gagal: '+e.message,'err');}
+}
+// Perpanjangan plan yang SEDANG aktif (Basic/Pro), bukan ganti tier --
+// lihat wangku-spec-subscription-renewal.md §4. Ganti/downgrade tier
+// tetap lewat requestPlanChange() (WhatsApp+approval manual), tidak
+// disentuh di sini -- dua hal yang sengaja dipisah.
+async function buyPlanRenewal(planId){
+  try{
+    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,package:planId,item_type:'plan'})});
     const d=await resp.json();
     if(!resp.ok||d.error)throw new Error(d.error||'Gagal membuat pembayaran');
     window.location.href=d.checkout_url;
@@ -40,15 +52,22 @@ async function checkXenditReturn(){
   if(xr==='failed'){showToast('Pembayaran dibatalkan atau gagal','warn');return;}
   showToast('Memproses pembayaran...','ok');
   const beforeLimit=user?.tokens_limit||0;
+  // Perpanjangan plan tidak selalu menaikkan tokens_limit (mis. Basic
+  // selalu 0, atau Pro yang di-reset ke angka bulanan yang KEBETULAN sama
+  // dengan sebelumnya) -- jadi "berhasil" juga dideteksi dari
+  // plan_expires_at maju, bukan cuma tokens_limit naik. Lihat
+  // wangku-spec-subscription-renewal.md §4.
+  const beforeExpiry=user?.plan_expires_at?new Date(user.plan_expires_at).getTime():0;
   for(let i=0;i<6;i++){
     await new Promise(r=>setTimeout(r,3000));
     try{
       const result=await rpc('get_user_by_id',{p_user_id:user.id});
       if(result?.user){
         user=result.user;localStorage.setItem('sdk_token',result.token);localStorage.setItem('sdk_session',JSON.stringify(user));
-        if(user.tokens_limit>beforeLimit){
+        const afterExpiry=user.plan_expires_at?new Date(user.plan_expires_at).getTime():0;
+        if(user.tokens_limit>beforeLimit||afterExpiry>beforeExpiry){
           renderPlanCard();
-          showToast('Token berhasil ditambahkan ✓','ok');
+          showToast(afterExpiry>beforeExpiry?'Langganan berhasil diperpanjang ✓':'Token berhasil ditambahkan ✓','ok');
           return;
         }
       }
@@ -57,13 +76,20 @@ async function checkXenditReturn(){
   showToast('Pembayaran masih diproses, cek lagi sebentar lagi ya','warn');
 }
 
-// Label paket diturunkan dari jumlah token, bukan kolom terpisah -- tier
-// cuma ada dua (lihat PACKAGES di create-payment.js), jadi tidak perlu
-// simpan label mentah per baris di DB.
-function tokenPurchaseLabel(tokens){
-  if(tokens===2000000)return'2 Juta Token AI';
-  if(tokens===5000000)return'5 Juta Token AI';
-  return(tokens/1000000).toFixed(1)+' Juta Token AI';
+// Label paket diturunkan dari jumlah token / item_type+plan, bukan
+// kolom label terpisah -- tier cuma ada segelintir (lihat
+// TOKEN_PACKAGES/PLAN_PACKAGES di create-payment.js), jadi tidak perlu
+// simpan label mentah per baris di DB. item_type/plan ditambahkan block
+// [31] khusus buat membedakan baris top-up token vs perpanjangan plan
+// (wangku-spec-subscription-renewal.md §4).
+function tokenPurchaseLabel(r){
+  if(r.item_type==='plan'){
+    const planNames={basic:'Basic',pro:'Pro',unlimited:'Ultimate'};
+    return'Perpanjangan Paket '+(planNames[r.plan]||r.plan)+' (30 Hari)';
+  }
+  if(r.tokens===2000000)return'2 Juta Token AI';
+  if(r.tokens===5000000)return'5 Juta Token AI';
+  return(r.tokens/1000000).toFixed(1)+' Juta Token AI';
 }
 const PURCHASE_STATUS_UI={
   pending:{label:'Menunggu Pembayaran',color:'var(--amber)',bg:'var(--amber-bg)'},
@@ -78,14 +104,14 @@ async function showPaymentHistory(){
   modal.classList.add('open');
   body.innerHTML='<div class="skeleton" style="height:60px;margin-bottom:8px"></div><div class="skeleton" style="height:60px"></div>';
   try{
-    const rows=await sb(`token_purchases?user_id=eq.${user.id}&order=created_at.desc&select=id,tokens,amount,status,created_at`);
+    const rows=await sb(`token_purchases?user_id=eq.${user.id}&order=created_at.desc&select=id,tokens,amount,status,created_at,item_type,plan`);
     if(!rows||!rows.length){body.innerHTML='<div style="text-align:center;padding:20px;font-size:12px;color:var(--text3)">Belum ada riwayat pembelian</div>';return;}
     body.innerHTML=rows.map(r=>{
       const st=PURCHASE_STATUS_UI[r.status]||{label:r.status,color:'var(--text3)',bg:'var(--border2)'};
       const tgl=new Date(r.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
       return`<div style="background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
-          <div style="font-size:13px;font-weight:700;color:var(--text)">${tokenPurchaseLabel(r.tokens)}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${tokenPurchaseLabel(r)}</div>
           <div style="font-size:9px;font-weight:600;color:${st.color};background:${st.bg};padding:2px 8px;border-radius:6px;white-space:nowrap">${st.label}</div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">

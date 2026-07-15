@@ -1413,6 +1413,145 @@ CREATE POLICY "Users can view own token purchases" ON public.token_purchases
 
 
 -- ============================================================
+-- [31] SUBSCRIPTION RENEWAL: plan_expires_at (paid-period tracking,
+-- paralel dengan trial_ends_at) + perluasan token_purchases untuk
+-- pembelian PERPANJANGAN PLAN (bukan cuma token top-up) -- lihat
+-- wangku-spec-subscription-renewal.md.
+--
+-- Kolom baru di token_purchases, bukan menebak dari nominal/jumlah
+-- token: item_type membedakan baris 'tokens' (top-up, sudah ada sejak
+-- block [28]) vs 'plan' (perpanjangan Basic/Pro) secara eksplisit --
+-- kolom `plan` cuma terisi untuk baris item_type='plan'.
+--
+-- Lazy-downgrade plan_expires_at MENGIKUTI POLA trial_ends_at PERSIS
+-- (lihat IF block trial_ends_at di bawah, yang tidak diubah) -- dicek
+-- di login_check/get_user_by_username/get_user_by_id setiap kali user
+-- itu login atau sesinya di-restore, BUKAN lewat cron/scheduled job
+-- terpisah. Prinsip "tidak pernah lockout" yang sama: user cuma turun
+-- ke plan='free', datanya tidak disentuh sama sekali. plan_expires_at
+-- SENGAJA tidak di-null-kan saat downgrade (persis trial_ends_at yang
+-- juga dibiarkan apa adanya) -- tetap ada jejak riwayat kapan periode
+-- berbayar terakhir berakhir, dan aman karena setiap pembaca kolom ini
+-- juga selalu ngecek plan yang masih aktif dulu, bukan cuma tanggalnya
+-- sendirian.
+--
+-- "Extend dari plan_expires_at yang ada, bukan dari hari ini" (spec
+-- §1, kalau user perpanjang beberapa hari sebelum periode lamanya
+-- habis) dihitung di JS pemanggil (api/xendit-webhook.js, admin.html
+-- konfirmasiOrder) sebelum PATCH, sama seperti additive token grant di
+-- block [28] yang juga GET dulu baru hitung nilai barunya -- bukan di
+-- fungsi SQL ini, supaya tetap satu pola across kedua jalur pembayaran
+-- (Xendit + approval manual) tanpa RPC baru.
+-- ============================================================
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMPTZ;
+ALTER TABLE public.token_purchases ADD COLUMN IF NOT EXISTS item_type TEXT NOT NULL DEFAULT 'tokens';
+ALTER TABLE public.token_purchases ADD COLUMN IF NOT EXISTS plan TEXT;
+
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.password_hash = p_password_hash AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  IF v_user.plan_expires_at IS NOT NULL AND v_user.plan_expires_at < now() AND v_user.plan IN ('basic','pro','unlimited') THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object(
+      'role','authenticated',
+      'sub', v_user.id::text,
+      'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),
+      'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer
+    ),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password_hash' - 'pin_hash') || jsonb_build_object('pin_enabled', v_user.pin_hash IS NOT NULL),
+    'token', v_token
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+
+CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  IF v_user.plan_expires_at IS NOT NULL AND v_user.plan_expires_at < now() AND v_user.plan IN ('basic','pro','unlimited') THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password_hash' - 'pin_hash') || jsonb_build_object('pin_enabled', v_user.pin_hash IS NOT NULL),
+    'token', v_token
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon;
+
+CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.id = p_user_id AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  IF v_user.plan_expires_at IS NOT NULL AND v_user.plan_expires_at < now() AND v_user.plan IN ('basic','pro','unlimited') THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password_hash' - 'pin_hash') || jsonb_build_object('pin_enabled', v_user.pin_hash IS NOT NULL),
+    'token', v_token
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables

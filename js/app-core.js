@@ -119,6 +119,22 @@ async function changePW(){
   catch(e){err.textContent=e.message;err.style.display='block';}
 }
 
+// Baris "Aktif hingga X, N hari lagi" + tombol Perpanjang Sekarang --
+// cuma tampil kalau plan_expires_at benar-benar ada (periode berbayar
+// nyata lewat Xendit/approval manual, bukan admin override permanen
+// lewat "Ubah Plan" yang sengaja tidak set tanggal ini) dan masih di
+// masa depan. Dipakai ulang untuk Basic & Pro, tidak untuk Ultimate
+// (belum ada jalur perpanjangan mandiri lewat Xendit untuk tier itu --
+// lihat wangku-spec-subscription-renewal.md §4).
+function planRenewalHtml(planId){
+  if(!user?.plan_expires_at)return'';
+  const end=new Date(user.plan_expires_at);
+  if(isNaN(end.getTime()))return'';
+  const daysLeft=Math.ceil((end-new Date())/86400000);
+  if(daysLeft<=0)return'';
+  const tgl=end.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+  return`<div style="margin-top:12px;padding:10px 12px;background:var(--bg3);border-radius:10px"><div style="font-size:11px;color:var(--text3);margin-bottom:8px">Aktif hingga ${tgl} (${daysLeft} hari lagi)</div><button class="upgrade-btn" style="width:100%;background:var(--green);padding:9px;font-size:12px" onclick="buyPlanRenewal('${planId}')">Perpanjang Sekarang</button></div>`;
+}
 function renderPlanCard(){
   const plan=getPlan();const el=document.getElementById('plan-card');if(!el)return;
   const tokenLimit=user?.tokens_limit||0;const tokenUsed=user?.tokens_used||0;const tokenSisa=Math.max(0,tokenLimit-tokenUsed);const tokenPct=tokenLimit>0?Math.min(100,Math.round((tokenSisa/tokenLimit)*100)):0;
@@ -128,10 +144,10 @@ function renderPlanCard(){
   } else if(plan==='free'){
     el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px">${upgradeBtn}<div class="plan-badge" style="background:var(--border2);color:var(--text3)">FREE</div><div class="plan-name">Paket Free</div><div class="plan-feature">Catat transaksi manual ✓</div><div class="plan-feature">Dashboard & Laporan ✓</div><div class="plan-feature" style="opacity:.5">Integrasi WhatsApp ✗</div><div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);border-radius:10px;font-size:12px;color:var(--amber)">⬆️ Upgrade ke Basic mulai Rp 19.000/bln</div></div>`;
   } else if(plan==='basic'){
-    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px">${upgradeBtn}<div class="plan-badge" style="background:var(--border2);color:var(--text3)">BASIC · Rp 19.000/bln</div><div class="plan-name">Paket Basic</div><div class="plan-feature">Catat transaksi manual ✓</div><div class="plan-feature">Dashboard & Laporan ✓</div><div class="plan-feature">Integrasi WhatsApp ✓</div><div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);border-radius:10px;font-size:12px;color:var(--amber)">🤖 Upgrade ke Pro untuk AI mulai Rp 39.000/bln</div></div>`;
+    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px">${upgradeBtn}<div class="plan-badge" style="background:var(--border2);color:var(--text3)">BASIC · Rp 19.000/bln</div><div class="plan-name">Paket Basic</div><div class="plan-feature">Catat transaksi manual ✓</div><div class="plan-feature">Dashboard & Laporan ✓</div><div class="plan-feature">Integrasi WhatsApp ✓</div><div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);border-radius:10px;font-size:12px;color:var(--amber)">🤖 Upgrade ke Pro untuk AI mulai Rp 39.000/bln</div>${planRenewalHtml('basic')}</div>`;
   } else {
     const planInfo=PLANS[plan]||PLANS['pro'];
-    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px;border-color:var(--green)">${upgradeBtn}<div class="plan-badge" style="background:var(--green);color:#fff">${planInfo.label.toUpperCase()} · ${planInfo.price}</div><div class="plan-name">${planInfo.label}</div><div class="plan-feature">Semua fitur Basic ✓</div><div class="plan-feature">AI Chat & Scan Struk ✓</div><div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px"><span style="color:var(--text3)">Token AI bulan ini</span><span style="color:var(--green);font-weight:600">${(tokenSisa/1000).toFixed(0)}K / ${(tokenLimit/1000).toFixed(0)}K</span></div><div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden"><div style="width:${tokenPct}%;height:100%;background:var(--green);border-radius:3px;transition:width .5s"></div></div></div><div style="margin-top:12px"><div style="font-size:11px;color:var(--text3);margin-bottom:6px">Beli Token Tambahan</div><div style="display:flex;gap:8px"><button class="upgrade-btn" style="background:var(--blue);flex:1;padding:9px 6px;font-size:11px;line-height:1.5" onclick="buyTokenPackage('2jt')">+2 Juta<br>Rp 35.000</button><button class="upgrade-btn" style="background:#7C3AED;flex:1;padding:9px 6px;font-size:11px;line-height:1.5" onclick="buyTokenPackage('5jt')">+5 Juta<br>Rp 59.000</button></div></div></div>`;
+    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px;border-color:var(--green)">${upgradeBtn}<div class="plan-badge" style="background:var(--green);color:#fff">${planInfo.label.toUpperCase()} · ${planInfo.price}</div><div class="plan-name">${planInfo.label}</div><div class="plan-feature">Semua fitur Basic ✓</div><div class="plan-feature">AI Chat & Scan Struk ✓</div><div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px"><span style="color:var(--text3)">Token AI bulan ini</span><span style="color:var(--green);font-weight:600">${(tokenSisa/1000).toFixed(0)}K / ${(tokenLimit/1000).toFixed(0)}K</span></div><div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden"><div style="width:${tokenPct}%;height:100%;background:var(--green);border-radius:3px;transition:width .5s"></div></div></div><div style="margin-top:12px"><div style="font-size:11px;color:var(--text3);margin-bottom:6px">Beli Token Tambahan</div><div style="display:flex;gap:8px"><button class="upgrade-btn" style="background:var(--blue);flex:1;padding:9px 6px;font-size:11px;line-height:1.5" onclick="buyTokenPackage('2jt')">+2 Juta<br>Rp 35.000</button><button class="upgrade-btn" style="background:#7C3AED;flex:1;padding:9px 6px;font-size:11px;line-height:1.5" onclick="buyTokenPackage('5jt')">+5 Juta<br>Rp 59.000</button></div></div>${plan==='pro'?planRenewalHtml('pro'):''}</div>`;
   }
 }
 

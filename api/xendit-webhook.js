@@ -85,31 +85,73 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, already_processed: true });
     }
 
-    // ADDITIF, bukan replace: tokens_limit user ditambah sejumlah token
-    // yang dibeli, tokens_used TIDAK disentuh -- "Beli Token Tambahan" di
-    // Settings menjanjikan penambahan, dan itu yang harus benar-benar
-    // terjadi. Sengaja BEDA dari admin.html setUserTokens() (yang me-SET
-    // tokens_limit ke nilai paket dan reset tokens_used ke 0) -- grant
-    // manual admin itu tindakan override/koreksi yang disengaja, beda
-    // konteks dari top-up self-service ini. Ditemukan lewat pengetesan
-    // pembelian sungguhan: token yang sudah ada malah tertimpa ke nilai
-    // paket alih-alih bertambah -- PATCH langsung tanpa baca tokens_limit
-    // saat ini dulu tidak mungkin additif, makanya perlu GET dulu di sini.
-    const userRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${purchase.user_id}&select=tokens_limit`, {
-      headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
-    });
-    const userRows = await userRes.json();
-    const currentLimit = Number(userRows?.[0]?.tokens_limit) || 0;
+    if (purchase.item_type === 'plan') {
+      // Perpanjangan plan (Basic/Pro), BUKAN top-up token -- semantik
+      // beda dari cabang 'tokens' di bawah: ini "mulai/perpanjang periode
+      // berbayar 30 hari", jadi tokens_limit di-SET ke alokasi bulanan
+      // plan itu dan tokens_used di-reset ke 0 (sama seperti registrasi/
+      // konfirmasiOrder admin.html yang juga selalu mulai fresh per
+      // periode) -- BUKAN additif seperti top-up token biasa.
+      //
+      // "Extend dari plan_expires_at yang ada" (spec §1): kalau user
+      // masih dalam periode aktif (plan_expires_at di masa depan),
+      // tambahkan 30 hari dari TANGGAL ITU, bukan dari sekarang -- supaya
+      // perpanjangan beberapa hari lebih awal tidak memotong sisa hari
+      // yang sudah dibayar. trial_ends_at ikut dibersihkan di sini juga
+      // (spec §5: bayar plan sungguhan selagi masih trial = konversi ke
+      // pelanggan berbayar beneran, bukan trial lagi).
+      const userRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${purchase.user_id}&select=plan_expires_at`, {
+        headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+      });
+      const userRows = await userRes.json();
+      const currentExpiry = userRows?.[0]?.plan_expires_at ? new Date(userRows[0].plan_expires_at) : null;
+      const base = currentExpiry && currentExpiry.getTime() > Date.now() ? currentExpiry : new Date();
+      const newExpiry = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const month = new Date().toISOString().substring(0, 7);
 
-    await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${purchase.user_id}`, {
-      method: 'PATCH',
-      headers: {
-        apikey: SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ tokens_limit: currentLimit + purchase.tokens }),
-    });
+      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${purchase.user_id}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan: purchase.plan,
+          plan_expires_at: newExpiry.toISOString(),
+          trial_ends_at: null,
+          tokens_limit: purchase.tokens,
+          tokens_used: 0,
+          token_reset_month: month,
+        }),
+      });
+    } else {
+      // ADDITIF, bukan replace: tokens_limit user ditambah sejumlah token
+      // yang dibeli, tokens_used TIDAK disentuh -- "Beli Token Tambahan" di
+      // Settings menjanjikan penambahan, dan itu yang harus benar-benar
+      // terjadi. Sengaja BEDA dari admin.html setUserTokens() (yang me-SET
+      // tokens_limit ke nilai paket dan reset tokens_used ke 0) -- grant
+      // manual admin itu tindakan override/koreksi yang disengaja, beda
+      // konteks dari top-up self-service ini. Ditemukan lewat pengetesan
+      // pembelian sungguhan: token yang sudah ada malah tertimpa ke nilai
+      // paket alih-alih bertambah -- PATCH langsung tanpa baca tokens_limit
+      // saat ini dulu tidak mungkin additif, makanya perlu GET dulu di sini.
+      const userRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${purchase.user_id}&select=tokens_limit`, {
+        headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+      });
+      const userRows = await userRes.json();
+      const currentLimit = Number(userRows?.[0]?.tokens_limit) || 0;
+
+      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${purchase.user_id}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tokens_limit: currentLimit + purchase.tokens }),
+      });
+    }
 
     return res.status(200).json({ ok: true });
   } catch (e) {

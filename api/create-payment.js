@@ -16,9 +16,19 @@ const APP_URL = process.env.APP_URL || 'https://ai-finance-app-murex.vercel.app'
 // token banyak. Nominal & jumlah token harus sama persis dengan tier
 // manual admin.html (setUserTokens) supaya tidak ada dua sumber kebenaran
 // untuk paket yang sama.
-const PACKAGES = {
+const TOKEN_PACKAGES = {
   '2jt': { tokens: 2000000, amount: 35000, label: '2 Juta Token AI' },
   '5jt': { tokens: 5000000, amount: 59000, label: '5 Juta Token AI' },
+};
+// Perpanjangan plan (bukan top-up token) -- harga & token bundel harus
+// sama persis dengan tier manual admin.html (konfirmasiOrder) dan
+// PLANS di config.js, supaya tidak ada dua sumber kebenaran untuk plan
+// yang sama. Hanya Basic/Pro yang punya jalur perpanjangan mandiri lewat
+// Xendit -- Ultimate tetap lewat WhatsApp+approval manual saja, sesuai
+// scope spec ini.
+const PLAN_PACKAGES = {
+  basic: { amount: 19000, tokens: 0, label: 'Paket Basic (30 Hari)' },
+  pro: { amount: 39000, tokens: 2000000, label: 'Paket Pro (30 Hari)' },
 };
 
 module.exports = async (req, res) => {
@@ -32,9 +42,16 @@ module.exports = async (req, res) => {
     if (!XENDIT_SECRET_KEY) return res.status(500).json({ error: 'Server belum dikonfigurasi (XENDIT_SECRET_KEY_TEST kosong)' });
     if (!SUPABASE_SERVICE_ROLE_KEY) return res.status(500).json({ error: 'Server belum dikonfigurasi (SUPABASE_SERVICE_ROLE_KEY kosong)' });
 
-    const { user_id, package: packageId } = req.body || {};
-    const pkg = PACKAGES[packageId];
-    if (!user_id || !pkg) return res.status(400).json({ error: 'user_id dan package (2jt/5jt) wajib diisi' });
+    const { user_id, package: packageId, item_type } = req.body || {};
+    // item_type default 'tokens' -- request lama (buyTokenPackage(), belum
+    // pernah kirim item_type sama sekali) tetap jalan tanpa perubahan.
+    const itemType = item_type === 'plan' ? 'plan' : 'tokens';
+    const pkg = itemType === 'plan' ? PLAN_PACKAGES[packageId] : TOKEN_PACKAGES[packageId];
+    if (!user_id || !pkg) {
+      return res.status(400).json({
+        error: itemType === 'plan' ? 'user_id dan package (basic/pro) wajib diisi' : 'user_id dan package (2jt/5jt) wajib diisi',
+      });
+    }
 
     // Sama seperti ai-chat.js: fungsi ini tidak pernah membawa JWT milik
     // user (cuma user_id polos), jadi service role dipakai untuk lookup
@@ -59,7 +76,14 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/json',
         Prefer: 'return=representation',
       },
-      body: JSON.stringify({ user_id: u.id, tokens: pkg.tokens, amount: pkg.amount, status: 'pending' }),
+      body: JSON.stringify({
+        user_id: u.id,
+        tokens: pkg.tokens,
+        amount: pkg.amount,
+        status: 'pending',
+        item_type: itemType,
+        plan: itemType === 'plan' ? packageId : null,
+      }),
     });
     if (!insertRes.ok) return res.status(500).json({ error: 'Gagal membuat catatan pembelian' });
     const [purchase] = await insertRes.json();
