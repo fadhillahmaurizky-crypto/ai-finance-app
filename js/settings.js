@@ -15,6 +15,48 @@ function renderSettingsExtras(){
 }
 
 // ========================
+// TOKEN TOP-UP (Xendit, test mode) — lihat backend.md
+// ========================
+async function buyTokenPackage(packageId){
+  try{
+    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,package:packageId})});
+    const d=await resp.json();
+    if(!resp.ok||d.error)throw new Error(d.error||'Gagal membuat pembayaran');
+    window.location.href=d.checkout_url;
+  }catch(e){showToast('Gagal: '+e.message,'err');}
+}
+// Dipanggil sekali tiap showApp() -- cek apakah kita baru kembali dari
+// redirect Xendit (?xendit_return=success|failed di URL). Webhook Xendit
+// (sumber kebenaran sebenarnya, lihat api/xendit-webhook.js) bisa baru
+// sampai beberapa detik SETELAH redirect balik ini terjadi -- jangan
+// anggap token sudah ter-update cuma karena user sudah kembali ke app,
+// makanya di-poll beberapa kali alih-alih langsung dipercaya.
+async function checkXenditReturn(){
+  const params=new URLSearchParams(window.location.search);
+  const xr=params.get('xendit_return');
+  if(!xr)return;
+  history.replaceState(null,'',window.location.pathname);
+  if(xr==='failed'){showToast('Pembayaran dibatalkan atau gagal','warn');return;}
+  showToast('Memproses pembayaran...','ok');
+  const beforeLimit=user?.tokens_limit||0;
+  for(let i=0;i<6;i++){
+    await new Promise(r=>setTimeout(r,3000));
+    try{
+      const result=await rpc('get_user_by_id',{p_user_id:user.id});
+      if(result?.user){
+        user=result.user;localStorage.setItem('sdk_token',result.token);localStorage.setItem('sdk_session',JSON.stringify(user));
+        if(user.tokens_limit>beforeLimit){
+          renderPlanCard();
+          showToast('Token berhasil ditambahkan ✓','ok');
+          return;
+        }
+      }
+    }catch(e){}
+  }
+  showToast('Pembayaran masih diproses, cek lagi sebentar lagi ya','warn');
+}
+
+// ========================
 // TRIAL BANNER
 // ========================
 function renderTrialBanner(){

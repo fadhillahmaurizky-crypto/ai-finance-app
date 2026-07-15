@@ -14,6 +14,7 @@ erDiagram
     users ||--o{ orders : owns
     users ||--o{ detected_transactions : owns
     users ||--o{ password_reset_tokens : owns
+    users ||--o{ token_purchases : owns
     accounts ||--o{ transactions : "account_id (source)"
     accounts ||--o{ transactions : "to_account_id (transfer dest)"
     targets ||--o{ transactions : "target_id (contribution)"
@@ -119,6 +120,16 @@ erDiagram
         bool used "single-use"
     }
 
+    token_purchases {
+        uuid id PK "also sent to Xendit as external_id"
+        uuid user_id FK
+        int tokens "tier size, e.g. 2000000"
+        numeric amount "Rp, e.g. 35000"
+        text status "pending | paid — the UPDATE...WHERE status='pending' IS the webhook idempotency check"
+        text xendit_invoice_id "Xendit's own id, for dashboard cross-reference only — not the idempotency key"
+        timestamptz paid_at
+    }
+
     settings {
         text key PK
         text value
@@ -149,7 +160,10 @@ Defaults are seeded as real rows (`is_default=true`) once per user, the first ti
 **As of block `[23]`, uniqueness is case-insensitive** — enforced via a `UNIQUE INDEX ... (user_id, lower(nama), jenis)` rather than a plain column-list constraint (Postgres unique constraints can't reference expressions like `lower(...)`, only unique indexes can). This replaced the block-`[19]` constraint, not stacked alongside it. Root cause it fixes: `DEFAULT_CATEGORIES` seeds lowercase (`'bonus'`), the UI displays categories with the first letter capitalized purely for readability (`charAt(0).toUpperCase()`) without ever touching the stored value, and Postgres's default text comparison is case-*sensitive* — so a user manually typing "Bonus" (believing it's the same category as the default they see displayed as "Bonus") was creating a byte-different row that the old exact-match constraint couldn't catch. It only caught a *second* identical-case attempt against that new row, which read as "inconsistent" duplicate detection until traced to the byte level. `categories.js` also lowercases `nama` client-side before every insert/update now, so stored values stay consistently lowercase (matching the existing capitalize-on-display convention) — the DB index is the authoritative backstop, the client-side lowercasing is just for data hygiene.
 
 ### `orders`
-Payment proof submissions for plan upgrades, reviewed manually via `admin.html`.
+Payment proof submissions for plan upgrades, reviewed manually via `admin.html`. **Not** used for token top-ups — see `token_purchases` below; the two purchase flows are deliberately kept separate.
+
+### `token_purchases`
+Xendit token top-up tracking (block `[28]`, test mode — see `backend.md` §4). **Fully locked down** (`FOR ALL USING (false)`), same as `password_reset_tokens` — the client never reads or writes this table; only `/api/create-payment.js`/`/api/xendit-webhook.js` touch it, via the service role key. `id` doubles as the `external_id` sent to Xendit, so the webhook can `UPDATE ... WHERE id=<external_id> AND status='pending'` directly instead of needing a separate lookup — and that same `WHERE status='pending'` clause is the entire idempotency mechanism for handling Xendit's webhook retries.
 
 ### `detected_transactions`
 Support table for "auto-detect transactions." **Nothing in this codebase writes to it.** It's designed so a phone-side automation tool (Tasker/MacroDroid) posts directly to Supabase's REST API on notification-received, and the app polls + shows a confirm/dismiss popup. See `ai.md` and `roadmap.md`.
