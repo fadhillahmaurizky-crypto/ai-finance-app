@@ -82,6 +82,21 @@ module.exports = async (req, res) => {
     });
     const invoice = await invoiceRes.json();
     if (!invoiceRes.ok || !invoice.invoice_url) {
+      // Baris 'pending' sudah kadung dibuat di atas -- kalau dibiarkan,
+      // baris ini nyangkut 'pending' selamanya di Riwayat Pembayaran
+      // padahal invoice-nya sendiri tidak pernah benar-benar dibuat.
+      // Ditandai 'failed' di sini juga, bukan cuma via webhook EXPIRED
+      // (kasus ini beda: gagal SEBELUM sempat jadi invoice Xendit sama
+      // sekali, jadi tidak akan pernah ada webhook yang datang untuknya).
+      await fetch(`${SUPABASE_URL}/rest/v1/token_purchases?id=eq.${purchase.id}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'failed' }),
+      }).catch(() => {});
       return res.status(502).json({ error: invoice.message || 'Gagal membuat invoice Xendit' });
     }
 

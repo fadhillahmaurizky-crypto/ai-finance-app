@@ -66,6 +66,7 @@ Laporan (page-laporan) — Financial Report
 
 Settings (page-settings)
 ├── Paket Saya — plan card with inline "Upgrade" pill button (hidden automatically at Ultimate/unlimited); trial banner above it shows remaining days or "trial sudah berakhir" once auto-downgraded (renderTrialBanner). Pro-plan card includes a "Beli Token Tambahan" section — two tier buttons (+2 Juta/Rp 35.000, +5 Juta/Rp 59.000) that redirect to a Xendit-hosted checkout page (`buyTokenPackage()` → `/api/create-payment`, test mode — see `backend.md` §4). Replaces the old single "Isi Token Lagi" button, which just opened WhatsApp and quoted a stale price matching neither real tier
+├── Riwayat Pembayaran — row just below Paket Saya, opens a modal (`showPaymentHistory()`) listing every `token_purchases` row the user owns (not just successful ones — pending/paid/expired/failed all show, each with a color-coded status badge), newest first. Package label is derived from the `tokens` count client-side, not a stored column
 ├── Profil — name + avatar edit; avatar also shows as the header's profile-picture button app-wide
 ├── Akun — list, add/edit/delete; "Tambah Akun" is a small button inline with the section title (not a full-width button below the list); Cash is undeletable but renamable
 ├── Kategori & Prioritas — links to full-page management (not popups)

@@ -18,7 +18,7 @@ All calls go through `sb(path, method, body)` (table access) or `rpc(fnName, par
 | `user_categories` / `user_priorities` | Full CRUD from the dedicated management pages |
 | `orders` | `POST` on payment submission (manual Basic/Pro plan purchases only — token top-ups use `token_purchases` instead, see below) |
 | `detected_transactions` | `SELECT status=eq.pending`, `PATCH status` (never `INSERT`ed by this codebase) |
-| `token_purchases` | **Never read/written by the client at all** — `FOR ALL USING (false)`, same lockdown as `password_reset_tokens`. Only `/api/create-payment.js`/`/api/xendit-webhook.js` touch it, via the service role key |
+| `token_purchases` | **Never written by the client** — `FOR ALL USING (false)`, same lockdown as `password_reset_tokens`; only `/api/create-payment.js`/`/api/xendit-webhook.js` write to it, via the service role key. **Reads are allowed for the row's own owner** (block `[30]`, a separate `FOR SELECT` policy alongside the write lockdown) — powers the "Riwayat Pembayaran" page in Settings |
 
 ### RPC functions (`rpc()`)
 | Function | Purpose |
@@ -38,8 +38,8 @@ All calls go through `sb(path, method, body)` (table access) or `rpc(fnName, par
 |---|---|
 | `POST /api/ai-chat` | Chat completion, server-side plan/token check, Groq key never leaves the server |
 | `POST /api/ai-scan` | Receipt vision parsing, same server-side gating |
-| `POST /api/create-payment` | Token top-up (Xendit, test mode) — `{user_id, package}` → creates a `token_purchases` row + a Xendit-hosted invoice, returns `{checkout_url}`. Package tiers (2jt/Rp35rb, 5jt/Rp59rb) are hardcoded server-side, never trusted from the client |
-| `POST /api/xendit-webhook` | **The only inbound webhook this app receives** — see below. Xendit's invoice-paid callback; verifies `x-callback-token` against `XENDIT_WEBHOOK_VERIFICATION_TOKEN_TEST` before trusting anything, then idempotently grants tokens (see `backend.md`) |
+| `POST /api/create-payment` | Token top-up (Xendit, test mode) — `{user_id, package}` → creates a `token_purchases` row + a Xendit-hosted invoice, returns `{checkout_url}`. Package tiers (2jt/Rp35rb, 5jt/Rp59rb) are hardcoded server-side, never trusted from the client. If the Xendit invoice-creation call itself fails, the row is marked `'failed'` instead of left dangling as `'pending'` |
+| `POST /api/xendit-webhook` | **The only inbound webhook this app receives** — see below. Handles Xendit's invoice callback for both terminal states: `PAID` (idempotently grants tokens) and `EXPIRED` (marks the row `'expired'`, no grant) — verifies `x-callback-token` against `XENDIT_WEBHOOK_VERIFICATION_TOKEN_TEST` before trusting either (see `backend.md`) |
 
 The two AI functions are same-origin with the static site (no CORS handling needed). `create-payment.js` (called from the browser) sets explicit CORS headers; `xendit-webhook.js` (called only by Xendit's servers, never the browser) doesn't need any.
 

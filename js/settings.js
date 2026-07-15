@@ -57,6 +57,46 @@ async function checkXenditReturn(){
   showToast('Pembayaran masih diproses, cek lagi sebentar lagi ya','warn');
 }
 
+// Label paket diturunkan dari jumlah token, bukan kolom terpisah -- tier
+// cuma ada dua (lihat PACKAGES di create-payment.js), jadi tidak perlu
+// simpan label mentah per baris di DB.
+function tokenPurchaseLabel(tokens){
+  if(tokens===2000000)return'2 Juta Token AI';
+  if(tokens===5000000)return'5 Juta Token AI';
+  return(tokens/1000000).toFixed(1)+' Juta Token AI';
+}
+const PURCHASE_STATUS_UI={
+  pending:{label:'Menunggu Pembayaran',color:'var(--amber)',bg:'var(--amber-bg)'},
+  paid:{label:'Berhasil',color:'var(--green)',bg:'var(--green-bg)'},
+  expired:{label:'Kedaluwarsa',color:'var(--text3)',bg:'var(--border2)'},
+  failed:{label:'Gagal',color:'var(--red)',bg:'var(--red-bg)'},
+};
+async function showPaymentHistory(){
+  if(!user)return;
+  const modal=document.getElementById('payment-history-modal');
+  const body=document.getElementById('payment-history-body');
+  modal.classList.add('open');
+  body.innerHTML='<div class="skeleton" style="height:60px;margin-bottom:8px"></div><div class="skeleton" style="height:60px"></div>';
+  try{
+    const rows=await sb(`token_purchases?user_id=eq.${user.id}&order=created_at.desc&select=id,tokens,amount,status,created_at`);
+    if(!rows||!rows.length){body.innerHTML='<div style="text-align:center;padding:20px;font-size:12px;color:var(--text3)">Belum ada riwayat pembelian</div>';return;}
+    body.innerHTML=rows.map(r=>{
+      const st=PURCHASE_STATUS_UI[r.status]||{label:r.status,color:'var(--text3)',bg:'var(--border2)'};
+      const tgl=new Date(r.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      return`<div style="background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${tokenPurchaseLabel(r.tokens)}</div>
+          <div style="font-size:9px;font-weight:600;color:${st.color};background:${st.bg};padding:2px 8px;border-radius:6px;white-space:nowrap">${st.label}</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">
+          <span>${tgl}</span>
+          <span style="font-weight:600;color:var(--text)">${rpF(r.amount)}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Gagal memuat riwayat pembayaran</div>';}
+}
+
 // ========================
 // TRIAL BANNER
 // ========================

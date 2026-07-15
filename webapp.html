@@ -430,6 +430,12 @@
         <div id="plan-card"></div>
 
         <div class="set-section">
+          <div class="set-card">
+            <div class="set-row" onclick="showPaymentHistory()"><div class="set-ico" style="background:var(--blue-bg);color:var(--blue)"><i class="ti ti-receipt"></i></div><div><div class="set-lbl">Riwayat Pembayaran</div><div class="set-sub">Lihat semua pembelian token</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
+          </div>
+        </div>
+
+        <div class="set-section">
           <div class="set-sec-title">Profil</div>
           <div class="set-card">
             <div class="set-row" onclick="openProfileEdit()">
@@ -760,6 +766,15 @@
     <div class="modal-title"><i class="ti ti-chart-pie" style="color:var(--green)"></i> Rincian Saldo per Akun</div>
     <div id="breakdown-body"></div>
     <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:4px;cursor:pointer" onclick="document.getElementById('balance-breakdown-modal').classList.remove('open')">Tutup</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="payment-history-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title"><i class="ti ti-receipt" style="color:var(--blue)"></i> Riwayat Pembayaran</div>
+    <div id="payment-history-body"></div>
+    <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:4px;cursor:pointer" onclick="document.getElementById('payment-history-modal').classList.remove('open')">Tutup</button>
   </div>
 </div>
 
