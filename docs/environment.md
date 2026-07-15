@@ -40,7 +40,7 @@ The **Supabase JWT secret** (Dashboard → Project Settings → Data API → JWT
 | `sdk_token` | `auth.js` | The custom-signed JWT — this is what actually authorizes requests now |
 | `sdk_bio_user`, `sdk_bio_cred` | `auth.js` | WebAuthn biometric binding |
 | `sdk_ob` | `ui-helpers.js` (`checkOb`/`skipOb`) | Whether the first-time onboarding carousel has been shown/skipped already — see `features.md` |
-| `wangku_pin` (`PIN_KEY`) | `ui-helpers.js` | **Legacy only, as of block `[28]`** — PIN lock itself now lives server-side (`users.pin_hash`, opt-in). This key's only remaining purpose is triggering the one-time "re-set your PIN" migration prompt for accounts that had a PIN under the old local-only design; it's cleared the first time that prompt is answered, either way. See `frontend.md`'s "PIN lock" section |
+| `wangku_pin` (`PIN_KEY`) | `ui-helpers.js` | **Legacy only, as of block `[29]`** — PIN lock itself now lives server-side (`users.pin_hash`, opt-in). This key's only remaining purpose is triggering the one-time "re-set your PIN" migration prompt for accounts that had a PIN under the old local-only design; it's cleared the first time that prompt is answered, either way. See `frontend.md`'s "PIN lock" section |
 | `wangku_balance_hidden` | `dashboard.js` | Saldo show/hide toggle preference |
 | `wangku_aksi_cepat` | `dashboard.js` (`getAksiCepatSelection`/`saveAksiCepat`) | JSON array of up to 5 shortcut ids shown in Home's Aksi Cepat row (user-editable via the "Edit" link) |
 | `wangku_autosync` | `settings.js` | Refresh-on-open + after-transaction toggle |

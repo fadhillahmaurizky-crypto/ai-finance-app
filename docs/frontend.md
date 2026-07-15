@@ -16,14 +16,22 @@ priorities.js → accounts.js → settings.js → boot.js
 
 `#ob-wrap` in `webapp.html` is a 3-slide onboarding carousel (`checkOb()`/`nextOb()`/`skipOb()` in `ui-helpers.js`) shown before the login screen the very first time the app loads on a device — gated by the `sdk_ob` localStorage flag (`checkOb()` returns early and shows it if that key isn't set yet; `skipOb()`/reaching the last slide's "Mulai Sekarang" button sets it and reveals the login page). Purely a marketing/explainer screen — no auth or data implications, and it never reappears once `sdk_ob` is set.
 
-## Local PIN lock (second auth layer, on top of the JWT login)
+## PIN lock (server-side, per-user, opt-in second auth layer)
 
-After a successful `login_check`/`get_user_by_id` (fresh login **or** silent session restore), the app does **not** go straight to `showApp()`. It shows `#pin-screen` (`showPinScreen()`/`pinSubmit()` in `ui-helpers.js`) first:
-- If `localStorage['wangku_pin']` isn't set yet, the user is asked to create one (`mode:'set'` → `mode:'confirm'`, both entries must match).
-- If a PIN already exists, the user must re-enter it (`mode:'verify'`) before `showApp()` runs.
-- `pinForgot()` clears the stored PIN and drops the user back to the login screen (there's no PIN-reset flow beyond "log in again").
+After a successful `login_check`/`get_user_by_id` (fresh login **or** silent session restore), `checkPinGate()` (`ui-helpers.js`) decides what happens next, based on the `pin_enabled` boolean the RPC response now includes (derived server-side from whether `users.pin_hash` is set — the raw hash itself is never returned to the client, see `database.md` block `[29]`):
+- `pin_enabled === true` → shows `#pin-screen` in `verify` mode; `showApp()` only runs after `verify_pin()` (RPC) confirms the entered PIN's hash matches.
+- `pin_enabled === false` but the legacy `localStorage['wangku_pin']` key is still present (a one-time migration case, for accounts that had a PIN under the old local-only design below) → shows `#pin-screen` in `set` mode, asking them to create a real server-side PIN once. The legacy key is cleared either way once they respond, whether they complete the new PIN or cancel — so this prompt is genuinely one-time, not a recurring nag.
+- Neither → `showApp()` runs directly, no PIN screen at all. This is the default for every new/never-opted-in account.
 
-This is purely a **local, device-side gate** — it has nothing to do with the JWT/session model in `architecture.md` §4. It doesn't re-authenticate against Supabase in any way; it only decides whether `showApp()` is allowed to run on *this* device, after the real auth (login or silent session restore) has already succeeded.
+PIN lock is opt-in via a "Kunci dengan PIN" toggle in Settings (`togglePinLock()`/`syncPinToggleUI()` in `settings.js`), off by default — it is **not** forced on first login the way the old design (below) was.
+
+Unlike the old design, this is genuinely tied to the *account*, not the device: `set_pin_hash()`/`verify_pin()` (both `SECURITY DEFINER` RPCs) derive identity from the caller's own JWT (`auth.jwt()->>'user_id'` + `token_version`), never from anything the client claims about which user it is. That's what fixes the two real bugs the old design had: a second account logging in on the same device no longer inherits the first account's PIN (there was nothing distinguishing whose PIN a bare `localStorage` key belonged to before), and the same account's PIN now works across devices (previously it never left `localStorage`, so a second device had no way to know it).
+
+The "Lupa"/"Batal" button on `#pin-screen` means two different things depending on `pinMode` (`pinForgot()` in `ui-helpers.js`), retexted dynamically by `showPinScreen()`:
+- `verify` mode (an existing PIN, genuinely forgotten) — labeled "Lupa": disables PIN lock server-side (`set_pin_hash(null)`) and forces a full re-login. There's no separate PIN-reset flow; logging in again *is* the reset, and PIN lock stays off until re-enabled via Settings.
+- `set`/`confirm` mode (creating a PIN for the first time — either the migration case above, or the Settings toggle) — labeled "Batal": nothing has been saved yet, so this is purely a cancel, not a reset. It proceeds into the app (migration case, PIN lock stays off) or just closes back to Settings (toggle case, session untouched).
+
+**Superseded local-only design** (kept here for context, since the migration path above only makes sense against it): PINs used to live entirely in `localStorage['wangku_pin']`, generic and not tied to any account — a second user on the same device inherited the first user's PIN, and a PIN never worked on a second device since it never left local storage. See `wangku-spec-pin-redesign.md` for the full rationale.
 
 ## Layout structure — read this before adding anything to the header or Home page
 

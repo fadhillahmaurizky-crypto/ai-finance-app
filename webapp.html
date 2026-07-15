@@ -52,7 +52,7 @@
     <button class="pin-btn" onclick="pinPress('7')">7<div class="pin-sub-lbl">PQRS</div></button>
     <button class="pin-btn" onclick="pinPress('8')">8<div class="pin-sub-lbl">TUV</div></button>
     <button class="pin-btn" onclick="pinPress('9')">9<div class="pin-sub-lbl">WXYZ</div></button>
-    <button class="pin-btn" onclick="pinForgot()" style="font-size:11px;color:var(--text3);background:transparent;border-color:transparent">Lupa</button>
+    <button class="pin-btn" id="pin-forgot-btn" onclick="pinForgot()" style="font-size:11px;color:var(--text3);background:transparent;border-color:transparent">Lupa</button>
     <button class="pin-btn" onclick="pinPress('0')">0</button>
     <button class="pin-btn" onclick="pinDelete()"><i class="ti ti-backspace"></i></button>
   </div>
@@ -546,6 +546,17 @@
               <div class="set-ico" style="background:var(--amber-bg);color:var(--amber)"><i class="ti ti-moon-stars"></i></div>
               <div style="flex:1"><div class="set-lbl">Mode Gelap</div><div class="set-sub">Ganti tampilan</div></div>
               <div class="toggle-track" id="toggle-track"><div class="toggle-thumb"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="set-section">
+          <div class="set-sec-title">Keamanan</div>
+          <div class="set-card">
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer" onclick="togglePinLock()">
+              <div class="set-ico" style="background:var(--red-bg);color:var(--red)"><i class="ti ti-shield-lock"></i></div>
+              <div style="flex:1"><div class="set-lbl">Kunci dengan PIN</div><div class="set-sub">Minta PIN 6 digit tiap buka app</div></div>
+              <div class="toggle-track" id="pin-lock-track"><div class="toggle-thumb"></div></div>
             </div>
           </div>
         </div>

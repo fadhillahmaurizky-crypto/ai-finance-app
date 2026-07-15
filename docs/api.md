@@ -29,7 +29,7 @@ All calls go through `sb(path, method, body)` (table access) or `rpc(fnName, par
 | `change_password(user_id, old_hash, new_hash)` | Requires proof of old password |
 | `create_password_reset(email)` | Forgot-password step 1 |
 | `confirm_password_reset(user_id, otp, new_hash)` | Forgot-password step 2 |
-| `set_pin_hash(pin_hash)` | Set/clear the caller's own PIN lock — identity from JWT, not a parameter (block `[28]`, see `database.md`) |
+| `set_pin_hash(pin_hash)` | Set/clear the caller's own PIN lock — identity from JWT, not a parameter (block `[29]`, see `database.md`) |
 | `verify_pin(pin_hash)` | Check the caller's own PIN — same JWT-derived identity |
 
 ## Vercel serverless functions (`/api`)

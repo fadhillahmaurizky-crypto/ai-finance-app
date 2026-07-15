@@ -18,10 +18,7 @@ async function doLogin(){
     await sb(`users?id=eq.${user.id}`,'PATCH',{last_login:new Date().toISOString()});
     localStorage.setItem('sdk_session',JSON.stringify(user));
     if(window.PublicKeyCredential)localStorage.setItem('sdk_bio_user',un);
-    // Cek PIN
-    const hasPIN=localStorage.getItem(PIN_KEY);
-    if(hasPIN){showPinScreen('verify');}
-    else{showPinScreen('set');}// Buat PIN baru
+    checkPinGate();
   }catch(e){err.textContent=e.message;err.style.display='block';}
   btn.disabled=false;btn.innerHTML='<i class="ti ti-login"></i> Masuk ke Wangku';
 }
