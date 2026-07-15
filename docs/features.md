@@ -35,8 +35,8 @@ Catat (page-catat) — Add/Edit Transaction
 ├── Prioritas ("+" quick-add)
 ├── Keterangan
 ├── Balance check before submit — Pengeluaran/Pindah Saldo are blocked (inline toast) if the source account's own all-time balance can't cover the nominal, both client-side and as a server-side Postgres trigger safety net (see `database.md`)
-└── Foto/Scan Struk — camera → /api/ai-scan (Groq vision, server-side) → autofills form for review
-    Files: transactions.js (submitTrx, setJenis, editTrx, scanStruk), accounts.js (getAccountBalance)
+└── "Scan Struk/Foto" card (single entry point, replaces the old "Via App" card + separate Kamera/Galeri button pair) → native file picker, no forced `capture` attribute so the OS offers both camera and gallery → /api/ai-scan (Groq vision, server-side) → autofills form for review
+    Files: transactions.js (submitTrx, setJenis, editTrx, triggerCam, scanStrukNav, scanStruk), accounts.js (getAccountBalance)
     DB: transactions, accounts, user_categories, user_priorities
 
 Transaksi (page-transaksi)
@@ -102,8 +102,8 @@ AI Chat Assistant (chat-sheet, floating from Home's "Tanya AI")
     Files: chat-ai.js — see ai.md
 
 Bottom Navigation
-└── Beranda, Transaksi, Foto (camera, raised center FAB), Target, Laporan
-    Note: Settings and a separate AI button were removed from the bottom nav — Settings is reachable via the header's profile-picture button, AI via Home's "Tanya AI" quick action. There is also no in-app Admin shortcut (even for role='admin' users) — admin.html is reached by navigating to it directly, never from inside the consumer app's nav
+└── Beranda, Transaksi, Catat (raised center FAB — navigates to page-catat via `resetTrxForm();goPage('catat')`, no longer a direct camera trigger), Target, Tanya AI (opens the chat widget directly, `openChat()` — not a page nav, so deliberately has no `ni-`/`nl-`/`nd-` active-state tracking ids, unlike every other nav item)
+    Note: the center slot and the last slot were relabeled from Foto/Laporan in a later pass — Laporan is still reachable via Aksi Cepat on Home, just no longer has a dedicated bottom-nav slot. Settings is reachable via the header's profile-picture button. There is also no in-app Admin shortcut (even for role='admin' users) — admin.html is reached by navigating to it directly, never from inside the consumer app's nav
 
 Admin Panel (admin.html — separate standalone app)
 ├── Real login (login_check RPC, requires role='admin') — replaced an earlier single shared static password with no connection to real accounts
