@@ -55,16 +55,21 @@ async function buyTokenSlider(){
   }catch(e){showToast('Gagal: '+e.message,'err');}
 }
 // Perpanjangan plan yang SEDANG aktif (Basic/Pro), bukan ganti tier --
-// lihat wangku-spec-subscription-renewal.md §4. Ganti/downgrade tier
-// tetap lewat requestPlanChange() (WhatsApp+approval manual), tidak
-// disentuh di sini -- dua hal yang sengaja dipisah.
-async function buyPlanRenewal(planId){
-  try{
-    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,package:planId,item_type:'plan'})});
-    const d=await resp.json();
-    if(!resp.ok||d.error)throw new Error(d.error||'Gagal membuat pembayaran');
-    window.location.href=d.checkout_url;
-  }catch(e){showToast('Gagal: '+e.message,'err');}
+// lihat wangku-spec-subscription-renewal.md §4. Ganti tier tetap lewat
+// requestPlanChange()/Ganti Paket, tidak disentuh di sini -- dua hal
+// yang sengaja dipisah (restart:false vs restart:true di confirmGantiPaket()).
+// Dulu langsung redirect ke Xendit tanpa konfirmasi apapun -- sekarang
+// buka modal konfirmasi yang SAMA dengan Ganti Paket (ganti-paket-confirm-modal),
+// dibedakan lewat gantiPaketIsRenewal supaya teksnya bilang "Perpanjang",
+// bukan "Ganti ke", dan supaya confirmGantiPaket() tahu harus kirim
+// restart:false (extend), bukan restart:true (reset fresh).
+function buyPlanRenewal(planId){
+  if(!user)return;
+  gantiPaketTarget=planId;gantiPaketIsRenewal=true;
+  const info=PLANS[planId];
+  document.getElementById('ganti-paket-confirm-title').textContent='Konfirmasi Perpanjangan';
+  document.getElementById('ganti-paket-confirm-text').innerHTML=`Perpanjang <b>${info.label}</b> 30 hari lagi — ${info.price}, lanjutkan?`;
+  document.getElementById('ganti-paket-confirm-modal').classList.add('open');
 }
 // Dipanggil sekali tiap showApp() -- cek apakah kita baru kembali dari
 // redirect Xendit (?xendit_return=success|failed di URL). Webhook Xendit
@@ -181,8 +186,10 @@ async function showPaymentHistory(){
 }
 // Tap sebuah baris Riwayat Pembayaran -- lihat wangku-fixes-pr25-26-27.md #2b.
 // 'pending' langsung lanjutkan pembayaran yang sama (tidak ada layar
-// konfirmasi terpisah, sama seperti buyTokenPackage()/buyPlanRenewal()
-// yang juga langsung redirect). Status lain (paid/expired/failed) cuma
+// konfirmasi terpisah lagi) -- baris ini kan sudah lahir dari intent yang
+// SUDAH dikonfirmasi user sebelumnya (lewat modal Ganti Paket/Perpanjang
+// atau slider token), jadi resume tidak perlu minta konfirmasi ulang.
+// Status lain (paid/expired/failed) cuma
 // tampilan info read-only -- tidak ada aksi "beli lagi" di sini, sengaja
 // (spec awal payment-history sudah bilang mulai pembelian baru cukup
 // lewat tombol Beli Token biasa, tidak perlu resume flow untuk itu).
@@ -281,18 +288,27 @@ function renderPlanOptions(){
 // konsisten dengan keputusan sebelumnya untuk menyembunyikan Ultimate
 // dari UI user-facing.
 let gantiPaketTarget=null;
+// true kalau modal konfirmasi ini dibuka dari buyPlanRenewal() (tier
+// SAMA, restart:false, extend dari plan_expires_at yang ada) -- false
+// kalau dari requestPlanChange()/Ganti Paket (tier LAIN, restart:true,
+// selalu reset fresh). Satu modal dipakai bareng buat dua flow ini
+// karena bentuknya identik (teks konfirmasi -> bayar lewat Xendit),
+// cuma beda kalimat & restart flag.
+let gantiPaketIsRenewal=false;
 function requestPlanChange(plan){
   if(!user)return;
-  gantiPaketTarget=plan;
+  gantiPaketTarget=plan;gantiPaketIsRenewal=false;
   const info=PLANS[plan];
+  document.getElementById('ganti-paket-confirm-title').textContent='Konfirmasi Ganti Paket';
   document.getElementById('ganti-paket-confirm-text').innerHTML=`Ganti ke <b>${info.label}</b> — ${info.price}, lanjutkan?`;
   document.getElementById('ganti-paket-confirm-modal').classList.add('open');
 }
 async function confirmGantiPaket(){
   document.getElementById('ganti-paket-confirm-modal').classList.remove('open');
   const plan=gantiPaketTarget;if(!plan)return;
+  const restart=!gantiPaketIsRenewal;
   try{
-    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,package:plan,item_type:'plan',restart:true})});
+    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,package:plan,item_type:'plan',restart})});
     const d=await resp.json();
     if(!resp.ok||d.error)throw new Error(d.error||'Gagal membuat pembayaran');
     window.location.href=d.checkout_url;
