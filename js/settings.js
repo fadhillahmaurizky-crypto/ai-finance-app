@@ -10,7 +10,6 @@ function renderSettingsExtras(){
   syncAutoDetectUI();
   syncCountTargetUI();
   syncPinToggleUI();
-  if(typeof renderAccountManageSection==='function')renderAccountManageSection();
   const track=document.getElementById('autosync-track');
   if(track)track.className='toggle-track'+(autosyncEnabled()?' on':'');
 }
@@ -121,11 +120,18 @@ async function checkXenditReturn(){
 // TOKEN_PACKAGES/PLAN_PACKAGES di create-payment.js), jadi tidak perlu
 // simpan label mentah per baris di DB. item_type/plan ditambahkan block
 // [31] khusus buat membedakan baris top-up token vs perpanjangan plan
-// (wangku-spec-subscription-renewal.md §4).
+// (wangku-spec-subscription-renewal.md §4). restart_period (block [33])
+// dipakai lagi di sini buat membedakan baris ganti-tier/reaktivasi
+// (restart_period=true, dari Ganti Paket) vs perpanjangan tier yang sama
+// (restart_period=false, dari tombol Perpanjang) -- lihat
+// wangku-spec-downgrade-payment-akun.md §2, dua kasus ini butuh label
+// beda supaya tidak menyesatkan (mis. upgrade Free->Basic ditampilkan
+// sebagai "Perpanjangan" padahal sebelumnya belum pernah bayar Basic).
 function tokenPurchaseLabel(r){
   if(r.item_type==='plan'){
     const planNames={basic:'Basic',pro:'Pro',unlimited:'Ultimate'};
-    return'Perpanjangan Paket '+(planNames[r.plan]||r.plan)+' (30 Hari)';
+    const nama=planNames[r.plan]||r.plan;
+    return r.restart_period?('Upgrade ke Paket '+nama):('Perpanjangan Paket '+nama+' (30 Hari)');
   }
   // Kuantitas token sekarang bebas (slider 100rb-20jt), bukan cuma dua
   // tier tetap lama -- pakai formatter yang sama dengan slider-nya sendiri
@@ -154,7 +160,7 @@ async function showPaymentHistory(){
   modal.classList.add('open');
   body.innerHTML='<div class="skeleton" style="height:60px;margin-bottom:8px"></div><div class="skeleton" style="height:60px"></div>';
   try{
-    const rows=await sb(`token_purchases?user_id=eq.${user.id}&order=created_at.desc&select=id,tokens,amount,status,created_at,item_type,plan,payment_channel`);
+    const rows=await sb(`token_purchases?user_id=eq.${user.id}&order=created_at.desc&select=id,tokens,amount,status,created_at,item_type,plan,payment_channel,restart_period`);
     paymentHistoryRows=rows||[];
     if(!rows||!rows.length){body.innerHTML='<div style="text-align:center;padding:20px;font-size:12px;color:var(--text3)">Belum ada riwayat pembelian</div>';return;}
     body.innerHTML=rows.map(r=>{
@@ -235,51 +241,52 @@ function openPlanOptions(){
   renderPlanOptions();
   document.getElementById('plan-options-modal').classList.add('open');
 }
+// Cuma tawarkan tier yang lebih tinggi dari yang sekarang -- lihat
+// wangku-spec-downgrade-payment-akun.md #1. Downgrade sukarela (termasuk
+// ke Free) SENGAJA tidak lagi ditawarkan lewat picker ini sama sekali --
+// beda dari mekanisme lapse-ke-Free OTOMATIS saat plan_expires_at lewat
+// (login_check/get_user_by_id), yang TIDAK disentuh sama sekali di sini,
+// tetap jalan seperti biasa. User Pro tidak dapat opsi apa-apa (sudah
+// tier tertinggi yang bisa di-self-service) -- entry point "Upgrade"
+// tetap ditampilkan (tidak disembunyikan), cuma isi modalnya jadi pesan
+// info tanpa aksi, supaya tombolnya tidak terkesan hilang/rusak.
 function renderPlanOptions(){
   const el=document.getElementById('plan-options');if(!el)return;
   const isMaster=user&&(user.role==='admin'||user.username===MASTER);
   if(isMaster)return;
   const current=user?.plan||'free';
-  const order=['free','basic','pro'];
   const rank={free:0,basic:1,pro:2,unlimited:3};
-  el.innerHTML=order.map(p=>{
-    const info=PLANS[p];const isCurrent=p===current;let btn;
-    if(isCurrent)btn=`<button class="plan-opt-btn current-tag" disabled>Aktif</button>`;
-    else if(rank[p]>rank[current])btn=`<button class="plan-opt-btn" onclick="requestPlanChange('${p}')">Upgrade</button>`;
-    else btn=`<button class="plan-opt-btn down" onclick="requestPlanChange('${p}')">Downgrade</button>`;
-    return `<div class="plan-opt-row${isCurrent?' current':''}"><div class="plan-opt-info"><div class="plan-opt-name">${info.label}</div><div class="plan-opt-price">${info.price}</div></div>${btn}</div>`;
+  const upgradeTargets=['free','basic','pro'].filter(p=>rank[p]>rank[current]);
+  if(!upgradeTargets.length){
+    el.innerHTML=`<div style="text-align:center;padding:20px 8px;font-size:13px;color:var(--text3)">Kamu sudah di paket tertinggi 🎉</div>`;
+    return;
+  }
+  el.innerHTML=upgradeTargets.map(p=>{
+    const info=PLANS[p];
+    return `<div class="plan-opt-row"><div class="plan-opt-info"><div class="plan-opt-name">${info.label}</div><div class="plan-opt-price">${info.price}</div></div><button class="plan-opt-btn" onclick="requestPlanChange('${p}')">Upgrade</button></div>`;
   }).join('');
 }
-// Ganti Paket (Upgrade/Downgrade dari plan-options-modal) -- lihat
-// wangku-spec-token-slider-ganti-paket.md Part 2. Dulu SELALU cuma buka
-// WhatsApp ke admin, terlepas dari tier tujuannya. Sekarang:
-//   - target Free: langsung diterapkan, tanpa konfirmasi/pembayaran --
-//     tidak ada yang perlu dibayar untuk Rp 0.
-//   - target Basic/Pro: popup konfirmasi, lalu bayar lewat Xendit
-//     (restart:true -- SELALU restart fresh, beda dari buyPlanRenewal()
-//     yang extend dari plan_expires_at yang ada, karena ganti tier
-//     adalah produk berbeda, tidak mewarisi sisa hari tier lama).
-// Ultimate tidak muncul di sini sama sekali -- renderPlanOptions() cuma
-// menawarkan free/basic/pro, konsisten dengan keputusan sebelumnya untuk
-// menyembunyikan Ultimate dari UI user-facing.
+// Ganti Paket (Upgrade dari plan-options-modal) -- lihat
+// wangku-spec-token-slider-ganti-paket.md Part 2 dan
+// wangku-spec-downgrade-payment-akun.md #1. Dulu SELALU cuma buka
+// WhatsApp ke admin, terlepas dari tier tujuannya. Sekarang popup
+// konfirmasi, lalu bayar lewat Xendit (restart:true -- SELALU restart
+// fresh, beda dari buyPlanRenewal() yang extend dari plan_expires_at
+// yang ada, karena ganti tier adalah produk berbeda, tidak mewarisi
+// sisa hari tier lama). Target selalu Basic/Pro sekarang --
+// renderPlanOptions() di atas tidak pernah lagi menawarkan 'free' lewat
+// picker ini (downgrade sukarela dihapus), jadi versi lama fungsi ini
+// yang menangani 'free' (applyFreeDowngrade()) sudah dihapus, genuinely
+// tidak terpakai lagi. Ultimate tidak muncul di sini sama sekali --
+// konsisten dengan keputusan sebelumnya untuk menyembunyikan Ultimate
+// dari UI user-facing.
 let gantiPaketTarget=null;
 function requestPlanChange(plan){
   if(!user)return;
-  if(plan==='free'){applyFreeDowngrade();return;}
   gantiPaketTarget=plan;
   const info=PLANS[plan];
   document.getElementById('ganti-paket-confirm-text').innerHTML=`Ganti ke <b>${info.label}</b> — ${info.price}, lanjutkan?`;
   document.getElementById('ganti-paket-confirm-modal').classList.add('open');
-}
-async function applyFreeDowngrade(){
-  try{
-    await sb(`users?id=eq.${user.id}`,'PATCH',{plan:'free',plan_expires_at:null,plan_started_at:null});
-    user.plan='free';user.plan_expires_at=null;user.plan_started_at=null;
-    localStorage.setItem('sdk_session',JSON.stringify(user));
-    document.getElementById('plan-options-modal').classList.remove('open');
-    renderPlanCard();renderPlanOptions();
-    showToast('Plan berhasil diubah ke Free ✓','ok');
-  }catch(e){showToast('Gagal: '+e.message,'err');}
 }
 async function confirmGantiPaket(){
   document.getElementById('ganti-paket-confirm-modal').classList.remove('open');

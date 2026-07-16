@@ -41,7 +41,7 @@ The "Lupa"/"Batal" button on `#pin-screen` means two different things depending 
 │   └── .header-top: greeting/name (left) + sync button, mini-balance, dark-mode toggle, profile-picture/settings button (right)
 ├── .pages (flex:1, scrollable area)
 │   └── .page-home, .page-catat, .page-transaksi, .page-target, .page-laporan,
-│       .page-settings, .page-kategori, .page-prioritas (siblings, toggled via .active)
+│       .page-settings, .page-kategori, .page-prioritas, .page-akun (siblings, toggled via .active)
 └── .bottom-nav (fixed): Beranda, Transaksi, Catat (raised FAB, center, navigates to page-catat), Target, Tanya AI (opens chat, no page nav)
 ```
 
@@ -60,8 +60,8 @@ The header's right-side "settings" button now doubles as a **profile picture** b
 | `page-transaksi` | Full transaction list — jenis filter tabs + **date-range pickers** (not preset buttons), Excel export button, FAB to add | `transactions.js` |
 | `page-target` | Target cards: progress, edit/delete, "Tambah Tabungan" contribution button per card | `transactions.js` |
 | `page-laporan` | Financial report: hero summary w/ MoM trend, savings-rate bar, category donuts, priority analysis, rule-based tips, per-category tables | `dashboard.js` |
-| `page-settings` | Plan card (with inline "Upgrade" pill, hidden at highest plan), profile, accounts (inline "Tambah Akun" button next to the section title), category/priority entry points, notifications, sync, reset-data, help | `settings.js`, `accounts.js` |
-| `page-kategori` / `page-prioritas` | Full-page CRUD (not popups) | `categories.js` / `priorities.js` |
+| `page-settings` | Plan card (with inline "Upgrade" pill, hidden at highest plan), profile, category/priority/account entry points (Kategori, Prioritas & Akun), notifications, sync, reset-data, help | `settings.js`, `accounts.js` |
+| `page-kategori` / `page-prioritas` / `page-akun` | Full-page CRUD (not popups) | `categories.js` / `priorities.js` / `accounts.js` |
 
 ## Home page specifics (this area has had the most iteration — read carefully)
 
@@ -78,13 +78,12 @@ The header's right-side "settings" button now doubles as a **profile picture** b
 |---|---|
 | `add-kat-modal` / `add-pri-modal` | Quick-add only (from the Catat form's "+"); full management is the dedicated pages |
 | `aksi-cepat-modal` | Picker for which Aksi Cepat shortcuts show on Home (max 5, checkbox) and in what order (↑/↓ move buttons), opened via the "Edit" link next to the section title |
-| `account-modal` | Add/edit account, with a "Selesai" success screen instead of auto-closing |
 | `target-modal` | Add/edit target, same success-screen pattern |
 | `target-contribute-modal` | "Tambah Tabungan" |
 | `balance-breakdown-modal` | Per-account balance/income/expense, opened from "Lihat Detail" |
 | `trx-detail-modal` | Transaction detail sheet — Edit/Hapus |
 | `profile-edit-modal` | Name + avatar upload, success-screen pattern |
-| `plan-options-modal` | Upgrade/downgrade picker |
+| `plan-options-modal` | Upgrade-only picker (Ganti Paket) — target list is filtered to tiers above the user's current one; empty means a "sudah di paket tertinggi" message instead, see `wangku-spec-downgrade-payment-akun.md` |
 | `reset-data-modal` | Multi-step verification (checkbox + typed phrase) before wiping transactions/targets |
 | `detected-trx-modal` | Confirm/dismiss for the auto-detect-transactions stub |
 | `chpass-modal` | Change password (now via `change_password` RPC) |

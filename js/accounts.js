@@ -2,7 +2,6 @@
 // AKUN (default: Cash)
 // ========================
 let accountsList=[];
-let editingAccountId=null;
 
 async function ensureDefaultAccount(){
   try{
@@ -17,7 +16,7 @@ async function loadAccounts(){
     const data=await sb(`accounts?user_id=eq.${user.id}&order=is_default.desc,created_at.asc`);
     accountsList=data||[];
     renderAccountSelects();
-    if(document.getElementById('page-settings')?.classList.contains('active'))renderAccountManageSection();
+    if(document.getElementById('page-akun')?.classList.contains('active'))renderAkunFullList();
   }catch(e){accountsList=[];}
 }
 
@@ -123,64 +122,83 @@ async function showBalanceBreakdown(){
 }
 
 // ------------------------
-// Kelola Akun (Settings)
+// Kelola Akun (page-akun, halaman penuh) -- lihat
+// wangku-spec-downgrade-payment-akun.md #3. Dulu section inline di
+// Settings + popup (account-modal, dua langkah form->success). Sekarang
+// dipindah ke halaman penuh tersendiri, pola edit-inline yang SAMA
+// dengan Kelola Kategori/Kelola Prioritas (categories.js/priorities.js)
+// -- tap pensil menukar isi baris jadi form inline, bukan modal terpisah.
+// Aturan is_system/is_default/minimal-1-akun di bawah TIDAK berubah,
+// cuma tempat renderingnya yang pindah.
 // ------------------------
-function renderAccountManageSection(){
-  const el=document.getElementById('account-list');if(!el)return;
-  if(!accountsList.length){el.innerHTML='<div style="text-align:center;padding:12px;font-size:12px;color:var(--text3)">Belum ada akun</div>';return;}
-  el.innerHTML=accountsList.map(a=>`<div class="set-row" style="cursor:default">
-      <div class="set-ico" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-wallet"></i></div>
-      <div style="flex:1"><div class="set-lbl">${a.nama}${a.is_default?' <span style="font-size:9px;font-weight:600;color:var(--text3);background:var(--border2);padding:1px 6px;border-radius:6px">Default</span>':''}${a.is_system?' <span style="font-size:9px;font-weight:600;color:var(--blue);background:var(--blue-bg);padding:1px 6px;border-radius:6px">Sistem</span>':''}</div><div class="set-sub">Saldo awal: ${rpF(a.saldo_awal)}</div></div>
-      <button onclick="openAccountEdit('${a.id}')" style="background:var(--blue-bg);border:1px solid var(--blue);color:var(--blue);padding:5px 9px;border-radius:7px;font-size:11px;cursor:pointer;margin-right:4px"><i class="ti ti-pencil"></i></button>
-      ${a.is_system?'':`<button onclick="deleteAccount('${a.id}')" style="background:var(--red-bg);border:1px solid var(--red);color:var(--red);padding:5px 9px;border-radius:7px;font-size:11px;cursor:pointer"><i class="ti ti-trash"></i></button>`}
-    </div>`).join('');
+async function renderAkunFullList(){
+  const el=document.getElementById('akun-full-list');if(!el)return;
+  if(!accountsList.length){el.innerHTML='<div style="text-align:center;padding:20px;font-size:12px;color:var(--text3)">Belum ada akun</div>';return;}
+  el.innerHTML=accountsList.map(akunRowHtml).join('');
 }
-function openAccountAdd(){
-  editingAccountId=null;
-  document.getElementById('acc-form-view').style.display='block';
-  document.getElementById('acc-success-view').style.display='none';
-  document.getElementById('acc-modal-title').textContent='Tambah Akun';
-  document.getElementById('acc-nama').value='';
-  document.getElementById('acc-saldo').value='0';
-  document.getElementById('acc-default').checked=accountsList.length===0;
-  document.getElementById('account-modal').classList.add('open');
+function akunRowHtml(a){
+  return `<div id="akun-row-${a.id}" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;margin-bottom:8px">
+    <div class="set-ico" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-wallet"></i></div>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:600;color:var(--text)">${a.nama}${a.is_default?' <span style="font-size:9px;font-weight:600;color:var(--text3);background:var(--border2);padding:1px 6px;border-radius:6px">Default</span>':''}${a.is_system?' <span style="font-size:9px;font-weight:600;color:var(--blue);background:var(--blue-bg);padding:1px 6px;border-radius:6px">Sistem</span>':''}</div>
+      <div style="font-size:11px;color:var(--text3)">Saldo awal: ${rpF(a.saldo_awal)}</div>
+    </div>
+    <button onclick="editAkunFull('${a.id}')" style="background:var(--blue-bg);border:1px solid var(--blue);color:var(--blue);padding:6px 11px;border-radius:8px;font-size:11px;cursor:pointer"><i class="ti ti-pencil"></i></button>
+    ${a.is_system?'':`<button onclick="deleteAccount('${a.id}')" style="background:var(--red-bg);border:1px solid var(--red);color:var(--red);padding:6px 11px;border-radius:8px;font-size:11px;cursor:pointer"><i class="ti ti-trash"></i></button>`}
+  </div>`;
 }
-function openAccountEdit(id){
+function editAkunFull(id){
   const a=accountsList.find(x=>x.id===id);if(!a)return;
-  editingAccountId=id;
-  document.getElementById('acc-form-view').style.display='block';
-  document.getElementById('acc-success-view').style.display='none';
-  document.getElementById('acc-modal-title').textContent='Edit Akun';
-  document.getElementById('acc-nama').value=a.nama;
-  document.getElementById('acc-saldo').value=a.saldo_awal;
-  document.getElementById('acc-default').checked=!!a.is_default;
-  document.getElementById('account-modal').classList.add('open');
+  const row=document.getElementById('akun-row-'+id);if(!row)return;
+  row.innerHTML=`
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+      <input id="edit-akun-nama-${id}" value="${a.nama}" placeholder="Nama akun" style="background:var(--bg3);border:1.5px solid var(--green);border-radius:8px;padding:7px 10px;font-size:13px;color:var(--text);outline:none"/>
+      <input id="edit-akun-saldo-${id}" type="number" value="${a.saldo_awal}" placeholder="Saldo awal" style="background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text);outline:none"/>
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2)"><input type="checkbox" id="edit-akun-default-${id}" ${a.is_default?'checked':''} style="width:15px;height:15px;accent-color:var(--green)"/> Jadikan default</label>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button onclick="simpanEditAkun('${id}')" style="background:var(--green);border:none;color:#fff;padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer"><i class="ti ti-check"></i></button>
+      <button onclick="renderAkunFullList()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text3);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer"><i class="ti ti-x"></i></button>
+    </div>
+  `;
+  document.getElementById('edit-akun-nama-'+id).focus();
 }
-async function saveAccount(){
-  const nama=document.getElementById('acc-nama').value.trim();
-  const saldo=parseFloat(document.getElementById('acc-saldo').value)||0;
-  const wantDefault=document.getElementById('acc-default').checked;
+async function simpanEditAkun(id){
+  const nama=document.getElementById('edit-akun-nama-'+id)?.value.trim();
+  const saldo=parseFloat(document.getElementById('edit-akun-saldo-'+id)?.value)||0;
+  const wantDefault=document.getElementById('edit-akun-default-'+id)?.checked;
   if(!nama){showToast('Nama akun wajib diisi!','err');return;}
   try{
-    let accId=editingAccountId;
-    const wasEdit=!!accId;
-    if(accId){
-      await sb(`accounts?id=eq.${accId}&user_id=eq.${user.id}`,'PATCH',{nama,saldo_awal:saldo});
-    }else{
-      const res=await sb('accounts','POST',{user_id:user.id,nama,saldo_awal:saldo,is_default:false});
-      accId=res?.[0]?.id;
+    await sb(`accounts?id=eq.${id}&user_id=eq.${user.id}`,'PATCH',{nama,saldo_awal:saldo});
+    if(wantDefault){
+      await sb(`accounts?user_id=eq.${user.id}`,'PATCH',{is_default:false});
+      await sb(`accounts?id=eq.${id}`,'PATCH',{is_default:true});
     }
-    if(wantDefault&&accId){
+    await loadAccounts();
+    if(typeof loadSummary==='function')await loadSummary();
+    renderAkunFullList();
+    showToast('Akun diupdate ✓','ok');
+  }catch(e){showToast(e.message.includes('unique')?'Nama akun sudah ada!':'Gagal: '+e.message,'err');}
+}
+async function saveAkunFull(){
+  const nama=document.getElementById('akun-full-nama').value.trim();
+  const saldo=parseFloat(document.getElementById('akun-full-saldo').value)||0;
+  const wantDefault=document.getElementById('akun-full-default').checked;
+  if(!nama){showToast('Nama akun wajib diisi!','err');return;}
+  try{
+    const res=await sb('accounts','POST',{user_id:user.id,nama,saldo_awal:saldo,is_default:accountsList.length===0});
+    const accId=res?.[0]?.id;
+    if(wantDefault&&accId&&accountsList.length>0){
       await sb(`accounts?user_id=eq.${user.id}`,'PATCH',{is_default:false});
       await sb(`accounts?id=eq.${accId}`,'PATCH',{is_default:true});
     }
-    editingAccountId=null;
+    document.getElementById('akun-full-nama').value='';
+    document.getElementById('akun-full-saldo').value='0';
+    document.getElementById('akun-full-default').checked=false;
     await loadAccounts();
     if(typeof loadSummary==='function')await loadSummary();
-    document.getElementById('acc-form-view').style.display='none';
-    document.getElementById('acc-success-msg').textContent=wasEdit?'Akun berhasil diupdate!':'Akun berhasil ditambahkan!';
-    document.getElementById('acc-success-view').style.display='block';
-    showToast('Akun disimpan ✓','ok');
+    renderAkunFullList();
+    showToast('Akun ditambahkan ✓','ok');
   }catch(e){showToast(e.message.includes('unique')?'Nama akun sudah ada!':'Gagal: '+e.message,'err');}
 }
 async function deleteAccount(id){
@@ -194,6 +212,7 @@ async function deleteAccount(id){
     await loadAccounts();
     if(wasDefault&&accountsList.length)await sb(`accounts?id=eq.${accountsList[0].id}`,'PATCH',{is_default:true});
     await loadAccounts();
+    renderAkunFullList();
     showToast('Akun dihapus','ok');
   }catch(e){showToast('Gagal hapus akun','err');}
 }
