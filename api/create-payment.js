@@ -10,16 +10,6 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const XENDIT_SECRET_KEY = process.env.XENDIT_SECRET_KEY_TEST;
 const APP_URL = process.env.APP_URL || 'https://ai-finance-app-murex.vercel.app';
 
-// Tier definitions sengaja hardcode di server, BUKAN dipercaya dari body
-// request client -- sama alasan dengan plan/limit gating di ai-chat.js:
-// client yang dimodifikasi tidak boleh bisa minta invoice murah untuk
-// token banyak. Nominal & jumlah token harus sama persis dengan tier
-// manual admin.html (setUserTokens) supaya tidak ada dua sumber kebenaran
-// untuk paket yang sama.
-const TOKEN_PACKAGES = {
-  '2jt': { tokens: 2000000, amount: 35000, label: '2 Juta Token AI' },
-  '5jt': { tokens: 5000000, amount: 59000, label: '5 Juta Token AI' },
-};
 // Perpanjangan plan (bukan top-up token) -- harga & token bundel harus
 // sama persis dengan tier manual admin.html (konfirmasiOrder) dan
 // PLANS di config.js, supaya tidak ada dua sumber kebenaran untuk plan
@@ -30,6 +20,35 @@ const PLAN_PACKAGES = {
   basic: { amount: 19000, tokens: 0, label: 'Paket Basic (30 Hari)' },
   pro: { amount: 39000, tokens: 2000000, label: 'Paket Pro (30 Hari)' },
 };
+
+// Token top-up: slider 100.000-20.000.000, kelipatan 100.000 --
+// menggantikan dua tombol tetap (2jt/5jt) lama. Harga interpolasi linear
+// antara dua titik (100.000 token -> Rp3.000, 20.000.000 token ->
+// Rp150.000), dibulatkan ke Rp100 terdekat -- lihat
+// wangku-spec-token-slider-ganti-paket.md Part 1. SELALU dihitung ulang
+// di server dari `tokens`, TIDAK PERNAH dipercaya dari `amount` yang
+// client kirim -- sama alasan dengan tier tetap yang dulu hardcode di
+// sini: client yang dimodifikasi tidak boleh bisa minta invoice murah
+// untuk token banyak.
+const TOKEN_MIN = 100000, TOKEN_MAX = 20000000, TOKEN_STEP = 100000;
+const PRICE_AT_MIN = 3000, PRICE_AT_MAX = 150000;
+function isValidTokenQty(tokens) {
+  return Number.isInteger(tokens) && tokens >= TOKEN_MIN && tokens <= TOKEN_MAX && tokens % TOKEN_STEP === 0;
+}
+function computeTokenPrice(tokens) {
+  const raw = PRICE_AT_MIN + ((tokens - TOKEN_MIN) / (TOKEN_MAX - TOKEN_MIN)) * (PRICE_AT_MAX - PRICE_AT_MIN);
+  return Math.round(raw / 100) * 100;
+}
+// Dipakai untuk description Xendit dan (via handleResume) label baris
+// token_purchases yang di-resume -- js/settings.js punya salinan sendiri
+// untuk tampilan Riwayat Pembayaran (tidak ada modul bersama di app
+// no-build-step ini, sama seperti PLANS/pricing yang juga diduplikasi
+// manual di beberapa tempat, lihat roadmap.md).
+function formatTokenLabel(tokens) {
+  if (tokens % 1000000 === 0) return `${tokens / 1000000} Juta Token AI`;
+  if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)} Juta Token AI`;
+  return `${tokens / 1000} Ribu Token AI`;
+}
 
 // Panggil Xendit Invoice API -- dipakai baik untuk pembelian baru maupun
 // resume (baris token_purchases yang sama, invoice baru karena yang lama
@@ -104,7 +123,7 @@ async function handleResume(req, res, purchaseId, userId) {
   const email = userRows?.[0]?.email;
   const label = purchase.item_type === 'plan'
     ? `Perpanjangan Paket ${purchase.plan === 'pro' ? 'Pro' : 'Basic'} (30 Hari)`
-    : `${(purchase.tokens / 1000000).toFixed(purchase.tokens % 1000000 ? 1 : 0)} Juta Token AI`;
+    : formatTokenLabel(purchase.tokens);
 
   const { ok, invoice } = await createXenditInvoice({ purchaseId: purchase.id, amount: purchase.amount, label, email, resume: true });
   if (!ok) return res.status(502).json({ error: invoice.message || 'Gagal membuat invoice Xendit' });
@@ -129,17 +148,22 @@ module.exports = async (req, res) => {
     if (!XENDIT_SECRET_KEY) return res.status(500).json({ error: 'Server belum dikonfigurasi (XENDIT_SECRET_KEY_TEST kosong)' });
     if (!SUPABASE_SERVICE_ROLE_KEY) return res.status(500).json({ error: 'Server belum dikonfigurasi (SUPABASE_SERVICE_ROLE_KEY kosong)' });
 
-    const { user_id, package: packageId, item_type, resume_purchase_id } = req.body || {};
+    const { user_id, package: packageId, item_type, resume_purchase_id, tokens: tokensQty, restart } = req.body || {};
     if (resume_purchase_id) return await handleResume(req, res, resume_purchase_id, user_id);
 
     // item_type default 'tokens' -- request lama (buyTokenPackage(), belum
     // pernah kirim item_type sama sekali) tetap jalan tanpa perubahan.
     const itemType = item_type === 'plan' ? 'plan' : 'tokens';
-    const pkg = itemType === 'plan' ? PLAN_PACKAGES[packageId] : TOKEN_PACKAGES[packageId];
-    if (!user_id || !pkg) {
-      return res.status(400).json({
-        error: itemType === 'plan' ? 'user_id dan package (basic/pro) wajib diisi' : 'user_id dan package (2jt/5jt) wajib diisi',
-      });
+    let pkg;
+    if (itemType === 'plan') {
+      pkg = PLAN_PACKAGES[packageId];
+      if (!user_id || !pkg) return res.status(400).json({ error: 'user_id dan package (basic/pro) wajib diisi' });
+    } else {
+      const tokens = Number(tokensQty);
+      if (!user_id || !isValidTokenQty(tokens)) {
+        return res.status(400).json({ error: 'user_id wajib diisi, tokens harus 100.000-20.000.000 (kelipatan 100.000)' });
+      }
+      pkg = { tokens, amount: computeTokenPrice(tokens), label: formatTokenLabel(tokens) };
     }
 
     // Sama seperti ai-chat.js: fungsi ini tidak pernah membawa JWT milik
@@ -172,6 +196,11 @@ module.exports = async (req, res) => {
         status: 'pending',
         item_type: itemType,
         plan: itemType === 'plan' ? packageId : null,
+        // restart_period cuma berarti untuk item_type='plan' -- true dari
+        // "Ganti Paket" (requestPlanChange() ganti tier), false/default dari
+        // "Perpanjang Sekarang" (buyPlanRenewal(), tier yang sama). Diabaikan
+        // webhook untuk baris 'tokens'. Lihat block [33] di database.md.
+        restart_period: itemType === 'plan' ? !!restart : false,
       }),
     });
     if (!insertRes.ok) return res.status(500).json({ error: 'Gagal membuat catatan pembelian' });
