@@ -24,7 +24,7 @@ ai-finance-app/
 │   ├── app-core.js        # goPage() router + back-button history handling, showApp() bootstrap, session refresh, logout/auth-expiry
 │   ├── dashboard.js        # loadSummary() (balance engine), renderPie(), renderLaporan(), sparkline, insight card, health score
 │   ├── transactions.js      # Transaction CRUD, filters, Excel export, target CRUD + contributions, receipt-scan trigger
-│   ├── accounts.js           # Account CRUD, balance breakdown popup
+│   ├── accounts.js           # Account CRUD (full-page management), balance breakdown popup
 │   ├── categories.js          # Category CRUD (default + custom, unified, full-page management)
 │   ├── priorities.js           # Priority CRUD (default + custom, unified, full-page management)
 │   ├── chat-ai.js                # AI chat assistant — calls /api/ai-chat, never touches Groq directly

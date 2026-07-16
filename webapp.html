@@ -424,7 +424,7 @@
 
         <div class="set-section">
           <div class="set-card">
-            <div class="set-row" onclick="showPaymentHistory()"><div class="set-ico" style="background:var(--blue-bg);color:var(--blue)"><i class="ti ti-receipt"></i></div><div><div class="set-lbl">Riwayat Pembayaran</div><div class="set-sub">Lihat semua pembelian token</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
+            <div class="set-row" onclick="showPaymentHistory()"><div class="set-ico" style="background:var(--blue-bg);color:var(--blue)"><i class="ti ti-receipt"></i></div><div><div class="set-lbl">Riwayat Pembayaran</div><div class="set-sub">Lihat semua riwayat pembayaran</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
           </div>
         </div>
 
@@ -441,18 +441,11 @@
         </div>
 
         <div class="set-section">
-          <div class="set-sec-title" style="display:flex;justify-content:space-between;align-items:center;padding-right:16px">
-            <span>Akun</span>
-            <button class="inline-add-btn" onclick="openAccountAdd()"><i class="ti ti-plus"></i> Tambah Akun</button>
-          </div>
-          <div class="set-card" id="account-list"></div>
-        </div>
-
-        <div class="set-section">
-          <div class="set-sec-title">Kategori & Prioritas</div>
+          <div class="set-sec-title">Kategori, Prioritas & Akun</div>
           <div class="set-card">
             <div class="set-row" onclick="goPage('kategori')"><div class="set-ico" style="background:#F3EEFF;color:#7C3AED"><i class="ti ti-tags"></i></div><div><div class="set-lbl">Kelola Kategori</div><div class="set-sub">Ubah atau hapus semua kategori (termasuk bawaan)</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
             <div class="set-row" onclick="goPage('prioritas')"><div class="set-ico" style="background:var(--amber-bg);color:var(--amber)"><i class="ti ti-flag"></i></div><div><div class="set-lbl">Kelola Prioritas</div><div class="set-sub">Ubah atau hapus semua prioritas (termasuk bawaan)</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
+            <div class="set-row" onclick="goPage('akun')"><div class="set-ico" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-wallet"></i></div><div><div class="set-lbl">Kelola Akun</div><div class="set-sub">Tambah, ubah, atau hapus akun (Cash, BCA, GoPay, dst.)</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
           </div>
         </div>
 
@@ -602,6 +595,26 @@
         <div style="padding:0 16px" id="prioritas-full-list"></div>
       </div>
     </div>
+
+    <!-- KELOLA AKUN (full page) -->
+    <div class="page" id="page-akun">
+      <div class="page-back-hdr">
+        <div class="page-back-btn" onclick="goPage('settings')"><i class="ti ti-arrow-left"></i></div>
+        <div class="page-back-title">Kelola Akun</div>
+      </div>
+      <div class="sp" style="padding-top:2px">
+        <div class="form-card" style="margin:0 16px 16px">
+          <div class="f-group"><label class="f-label">Nama Akun Baru</label><input class="f-input" id="akun-full-nama" placeholder="Contoh: BCA, GoPay, OVO..."/></div>
+          <div class="f-group"><label class="f-label">Saldo Awal (Rp)</label><input class="f-input" id="akun-full-saldo" type="number" placeholder="0"/></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:4px 2px 14px">
+            <input type="checkbox" id="akun-full-default" style="width:18px;height:18px;accent-color:var(--green)"/>
+            <label for="akun-full-default" style="font-size:12px;color:var(--text2)">Jadikan akun default</label>
+          </div>
+          <button class="f-submit" onclick="saveAkunFull()"><i class="ti ti-plus"></i> Tambah Akun</button>
+        </div>
+        <div style="padding:0 16px" id="akun-full-list"></div>
+      </div>
+    </div>
   </div>
 
   <!-- BOTTOM NAV -->
@@ -731,28 +744,6 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="account-modal">
-  <div class="modal-sheet">
-    <div class="modal-drag"></div>
-    <div id="acc-form-view">
-      <div class="modal-title"><i class="ti ti-wallet" style="color:var(--green)"></i> <span id="acc-modal-title">Tambah Akun</span></div>
-      <div class="f-group"><label class="f-label">Nama Akun</label><input class="f-input" id="acc-nama" placeholder="Contoh: Cash, BCA, GoPay..."/></div>
-      <div class="f-group"><label class="f-label">Saldo Awal (Rp)</label><input class="f-input" id="acc-saldo" type="number" placeholder="0"/></div>
-      <div style="display:flex;align-items:center;gap:10px;padding:4px 2px 14px">
-        <input type="checkbox" id="acc-default" style="width:18px;height:18px;accent-color:var(--green)"/>
-        <label for="acc-default" style="font-size:12px;color:var(--text2)">Jadikan akun default</label>
-      </div>
-      <button class="f-submit" onclick="saveAccount()"><i class="ti ti-device-floppy"></i> Simpan Akun</button>
-      <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('account-modal').classList.remove('open')">Batal</button>
-    </div>
-    <div id="acc-success-view" style="display:none;text-align:center;padding:16px 0">
-      <i class="ti ti-circle-check" style="font-size:48px;color:var(--green)"></i>
-      <div style="margin-top:10px;font-weight:700;color:var(--text)" id="acc-success-msg">Akun berhasil disimpan!</div>
-      <button class="f-submit" style="margin-top:16px" onclick="document.getElementById('account-modal').classList.remove('open')">Selesai</button>
-    </div>
-  </div>
-</div>
-
 <div class="modal-overlay" id="balance-breakdown-modal">
   <div class="modal-sheet">
     <div class="modal-drag"></div>
@@ -784,7 +775,7 @@
 <div class="modal-overlay" id="ganti-paket-confirm-modal">
   <div class="modal-sheet">
     <div class="modal-drag"></div>
-    <div class="modal-title"><i class="ti ti-replace" style="color:var(--blue)"></i> Konfirmasi Ganti Paket</div>
+    <div class="modal-title"><i class="ti ti-replace" style="color:var(--blue)"></i> <span id="ganti-paket-confirm-title">Konfirmasi Ganti Paket</span></div>
     <div id="ganti-paket-confirm-text" style="text-align:center;padding:10px 0 18px;font-size:14px;color:var(--text)"></div>
     <button class="f-submit" style="margin-bottom:8px" onclick="confirmGantiPaket()">Lanjutkan ke Pembayaran</button>
     <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;cursor:pointer" onclick="document.getElementById('ganti-paket-confirm-modal').classList.remove('open')">Batal</button>
