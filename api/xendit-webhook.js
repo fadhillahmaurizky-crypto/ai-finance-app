@@ -28,8 +28,13 @@ module.exports = async (req, res) => {
       return res.status(401).json({ error: 'Token verifikasi tidak valid' });
     }
 
-    const { external_id, status } = req.body || {};
+    const { external_id, status, payment_channel, payment_method } = req.body || {};
     if (!external_id) return res.status(400).json({ error: 'external_id kosong' });
+    // payment_channel = channel spesifik (mis. "BCA", "GOPAY"), lebih
+    // berguna ditampilkan ke user daripada payment_method (kategori umum,
+    // mis. "BANK_TRANSFER") -- dipakai sebagai fallback kalau
+    // payment_channel tidak ada di payload untuk metode tertentu.
+    const paidChannel = payment_channel || payment_method || null;
 
     // EXPIRED: invoice Xendit kedaluwarsa otomatis kalau tidak dibayar
     // dalam window waktu tertentu -- ini yang bikin baris 'pending' tidak
@@ -73,7 +78,7 @@ module.exports = async (req, res) => {
           'Content-Type': 'application/json',
           Prefer: 'return=representation',
         },
-        body: JSON.stringify({ status: 'paid', paid_at: new Date().toISOString() }),
+        body: JSON.stringify({ status: 'paid', paid_at: new Date().toISOString(), payment_channel: paidChannel }),
       }
     );
     const updated = await updateRes.json();

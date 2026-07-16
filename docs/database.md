@@ -132,6 +132,7 @@ erDiagram
         text xendit_invoice_id "Xendit's own id, for dashboard cross-reference only — not the idempotency key"
         text item_type "'tokens' (default, top-up) | 'plan' (renewal) — block [31]"
         text plan "target plan id ('basic'/'pro'), only set when item_type='plan'"
+        text payment_channel "e.g. 'GOPAY', 'BCA' — from the webhook's payment_channel/payment_method field, block [32]"
         timestamptz paid_at
     }
 

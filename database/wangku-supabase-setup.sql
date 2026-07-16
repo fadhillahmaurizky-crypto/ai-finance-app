@@ -1552,6 +1552,24 @@ GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
 
 
 -- ============================================================
+-- [32] Simpan metode/channel pembayaran Xendit -- feedback dari
+-- pengetesan PR Riwayat Pembayaran: user tidak bisa lihat DENGAN APA dia
+-- bayar (GoPay/BCA VA/QRIS/dst). Diisi webhook dari field
+-- payment_channel (lebih spesifik, mis. "BCA"/"GOPAY") atau
+-- payment_method (kategori lebih umum, mis. "BANK_TRANSFER"/"EWALLET")
+-- sebagai fallback kalau payment_channel tidak ada di payload -- lihat
+-- api/xendit-webhook.js.
+--
+-- CATATAN NOMOR BLOK: ditulis [31] di branch terpisah dari block [31]
+-- subscription-renewal (plan_expires_at) -- keduanya independen, tidak
+-- saling bergantung. Dinomori ulang jadi [32] di sini saat kedua branch
+-- digabung, mengikuti urutan gabung -- pola yang sama seperti collision
+-- [28]/[29] dan [26]/[27] sebelumnya di file ini.
+-- ============================================================
+ALTER TABLE public.token_purchases ADD COLUMN IF NOT EXISTS payment_channel TEXT;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables
