@@ -21,6 +21,93 @@ const PACKAGES = {
   '5jt': { tokens: 5000000, amount: 59000, label: '5 Juta Token AI' },
 };
 
+// Panggil Xendit Invoice API -- dipakai baik untuk pembelian baru maupun
+// resume (baris token_purchases yang sama, invoice baru karena yang lama
+// sudah kedaluwarsa di sisi Xendit). external_id SELALU purchase.id --
+// Xendit tidak mewajibkan external_id unik antar invoice, jadi aman
+// dipakai ulang untuk invoice kedua/ketiga pada baris yang sama.
+async function createXenditInvoice({ purchaseId, amount, label, email, resume }) {
+  const res = await fetch('https://api.xendit.co/v2/invoices', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Basic ' + Buffer.from(XENDIT_SECRET_KEY + ':').toString('base64'),
+    },
+    body: JSON.stringify({
+      external_id: purchaseId,
+      amount,
+      payer_email: email || undefined,
+      description: `${label} - Wangku`,
+      success_redirect_url: `${APP_URL}/app?xendit_return=success${resume ? '&resume=1' : ''}`,
+      failure_redirect_url: `${APP_URL}/app?xendit_return=failed${resume ? '&resume=1' : ''}`,
+    }),
+  });
+  const invoice = await res.json();
+  return { ok: res.ok && !!invoice.invoice_url, invoice };
+}
+
+// Lanjutkan pembayaran 'pending' yang ditinggalkan -- lihat
+// wangku-fixes-pr25-26-27.md #2b. Sengaja HANYA untuk baris yang masih
+// 'pending' di DB kita: kalau webhook EXPIRED sudah keburu datang dan
+// baris ini sudah 'expired', itu bukan lagi kasus resume -- user tinggal
+// mulai pembelian baru lewat buyTokenPackage()/buyPlanRenewal() biasa,
+// sama seperti keputusan di spec payment-history awal ("no special
+// resume flow needed" untuk itu). Dicek dulu status invoice yang SEBENARNYA
+// di sisi Xendit (bukan cuma percaya baris kita) -- kalau masih PENDING di
+// sana, checkout_url lama dipakai lagi (tidak perlu invoice baru); kalau
+// sudah EXPIRED di Xendit tapi baris kita belum sempat di-update webhook
+// (race, jarang tapi mungkin), invoice baru dibuat untuk baris yang SAMA.
+async function handleResume(req, res, purchaseId, userId) {
+  const rowRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/token_purchases?id=eq.${encodeURIComponent(purchaseId)}&select=*`,
+    { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } }
+  );
+  const rows = await rowRes.json();
+  const purchase = Array.isArray(rows) ? rows[0] : null;
+  if (!purchase) return res.status(404).json({ error: 'Pembelian tidak ditemukan' });
+  if (userId && purchase.user_id !== userId) return res.status(403).json({ error: 'Bukan pembelian milik user ini' });
+  if (purchase.status !== 'pending') {
+    return res.status(400).json({ error: 'Pembelian ini sudah tidak bisa dilanjutkan (status: ' + purchase.status + ')' });
+  }
+
+  if (purchase.xendit_invoice_id) {
+    const xRes = await fetch(`https://api.xendit.co/v2/invoices/${purchase.xendit_invoice_id}`, {
+      headers: { Authorization: 'Basic ' + Buffer.from(XENDIT_SECRET_KEY + ':').toString('base64') },
+    });
+    if (xRes.ok) {
+      const xInvoice = await xRes.json();
+      if (xInvoice.status === 'PENDING' && xInvoice.invoice_url) {
+        return res.status(200).json({ checkout_url: xInvoice.invoice_url });
+      }
+      if (xInvoice.status === 'PAID') {
+        return res.status(409).json({ error: 'Pembayaran ini sudah berhasil diproses, coba muat ulang halaman' });
+      }
+      // xInvoice.status === 'EXPIRED' (atau lainnya) -- lanjut buat invoice baru di bawah.
+    }
+  }
+
+  const userRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/users?id=eq.${purchase.user_id}&select=email`,
+    { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } }
+  );
+  const userRows = await userRes.json();
+  const email = userRows?.[0]?.email;
+  const label = purchase.item_type === 'plan'
+    ? `Perpanjangan Paket ${purchase.plan === 'pro' ? 'Pro' : 'Basic'} (30 Hari)`
+    : `${(purchase.tokens / 1000000).toFixed(purchase.tokens % 1000000 ? 1 : 0)} Juta Token AI`;
+
+  const { ok, invoice } = await createXenditInvoice({ purchaseId: purchase.id, amount: purchase.amount, label, email, resume: true });
+  if (!ok) return res.status(502).json({ error: invoice.message || 'Gagal membuat invoice Xendit' });
+
+  await fetch(`${SUPABASE_URL}/rest/v1/token_purchases?id=eq.${purchase.id}`, {
+    method: 'PATCH',
+    headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ xendit_invoice_id: invoice.id }),
+  }).catch(() => {});
+
+  return res.status(200).json({ checkout_url: invoice.invoice_url });
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -32,7 +119,9 @@ module.exports = async (req, res) => {
     if (!XENDIT_SECRET_KEY) return res.status(500).json({ error: 'Server belum dikonfigurasi (XENDIT_SECRET_KEY_TEST kosong)' });
     if (!SUPABASE_SERVICE_ROLE_KEY) return res.status(500).json({ error: 'Server belum dikonfigurasi (SUPABASE_SERVICE_ROLE_KEY kosong)' });
 
-    const { user_id, package: packageId } = req.body || {};
+    const { user_id, package: packageId, resume_purchase_id } = req.body || {};
+    if (resume_purchase_id) return await handleResume(req, res, resume_purchase_id, user_id);
+
     const pkg = PACKAGES[packageId];
     if (!user_id || !pkg) return res.status(400).json({ error: 'user_id dan package (2jt/5jt) wajib diisi' });
 
@@ -64,24 +153,23 @@ module.exports = async (req, res) => {
     if (!insertRes.ok) return res.status(500).json({ error: 'Gagal membuat catatan pembelian' });
     const [purchase] = await insertRes.json();
 
-    const invoiceRes = await fetch('https://api.xendit.co/v2/invoices', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // Xendit pakai HTTP Basic Auth: secret key sebagai username, password kosong.
-        Authorization: 'Basic ' + Buffer.from(XENDIT_SECRET_KEY + ':').toString('base64'),
-      },
-      body: JSON.stringify({
-        external_id: purchase.id,
-        amount: pkg.amount,
-        payer_email: u.email || undefined,
-        description: `${pkg.label} - Wangku`,
-        success_redirect_url: `${APP_URL}/app?xendit_return=success`,
-        failure_redirect_url: `${APP_URL}/app?xendit_return=failed`,
-      }),
-    });
-    const invoice = await invoiceRes.json();
-    if (!invoiceRes.ok || !invoice.invoice_url) {
+    const { ok, invoice } = await createXenditInvoice({ purchaseId: purchase.id, amount: pkg.amount, label: pkg.label, email: u.email });
+    if (!ok) {
+      // Baris 'pending' sudah kadung dibuat di atas -- kalau dibiarkan,
+      // baris ini nyangkut 'pending' selamanya di Riwayat Pembayaran
+      // padahal invoice-nya sendiri tidak pernah benar-benar dibuat.
+      // Ditandai 'failed' di sini juga, bukan cuma via webhook EXPIRED
+      // (kasus ini beda: gagal SEBELUM sempat jadi invoice Xendit sama
+      // sekali, jadi tidak akan pernah ada webhook yang datang untuknya).
+      await fetch(`${SUPABASE_URL}/rest/v1/token_purchases?id=eq.${purchase.id}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'failed' }),
+      }).catch(() => {});
       return res.status(502).json({ error: invoice.message || 'Gagal membuat invoice Xendit' });
     }
 

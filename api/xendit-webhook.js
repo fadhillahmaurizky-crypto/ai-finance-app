@@ -28,11 +28,38 @@ module.exports = async (req, res) => {
       return res.status(401).json({ error: 'Token verifikasi tidak valid' });
     }
 
-    const { external_id, status } = req.body || {};
+    const { external_id, status, payment_channel, payment_method } = req.body || {};
     if (!external_id) return res.status(400).json({ error: 'external_id kosong' });
+    // payment_channel = channel spesifik (mis. "BCA", "GOPAY"), lebih
+    // berguna ditampilkan ke user daripada payment_method (kategori umum,
+    // mis. "BANK_TRANSFER") -- dipakai sebagai fallback kalau
+    // payment_channel tidak ada di payload untuk metode tertentu.
+    const paidChannel = payment_channel || payment_method || null;
 
-    // Selain PAID (mis. EXPIRED, PENDING) sengaja diabaikan -- tidak ada
-    // token yang perlu digrant, cukup 200 supaya Xendit tidak retry terus.
+    // EXPIRED: invoice Xendit kedaluwarsa otomatis kalau tidak dibayar
+    // dalam window waktu tertentu -- ini yang bikin baris 'pending' tidak
+    // nyangkut selamanya di Riwayat Pembayaran kalau user membatalkan/
+    // meninggalkan checkout. Sama seperti PAID, WHERE status='pending' di
+    // sini yang menjaga idempotensi (delivery kedua mengenai nol baris).
+    if (status === 'EXPIRED') {
+      await fetch(
+        `${SUPABASE_URL}/rest/v1/token_purchases?id=eq.${encodeURIComponent(external_id)}&status=eq.pending`,
+        {
+          method: 'PATCH',
+          headers: {
+            apikey: SUPABASE_SERVICE_ROLE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ status: 'expired' }),
+        }
+      );
+      return res.status(200).json({ ok: true });
+    }
+
+    // Selain PAID/EXPIRED (mis. PENDING) sengaja diabaikan -- tidak ada
+    // token yang perlu digrant maupun status yang perlu diupdate, cukup
+    // 200 supaya Xendit tidak retry terus.
     if (status !== 'PAID') return res.status(200).json({ ok: true, ignored: status });
 
     // Idempotensi: UPDATE ini hanya mengenai baris yang MASIH 'pending'.
@@ -51,7 +78,7 @@ module.exports = async (req, res) => {
           'Content-Type': 'application/json',
           Prefer: 'return=representation',
         },
-        body: JSON.stringify({ status: 'paid', paid_at: new Date().toISOString() }),
+        body: JSON.stringify({ status: 'paid', paid_at: new Date().toISOString(), payment_channel: paidChannel }),
       }
     );
     const updated = await updateRes.json();

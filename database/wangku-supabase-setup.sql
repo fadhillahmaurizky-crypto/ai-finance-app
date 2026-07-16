@@ -1390,6 +1390,47 @@ GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
 
 
 -- ============================================================
+-- [30] XENDIT PAYMENT HISTORY: izinkan user baca baris token_purchases
+-- miliknya sendiri -- lihat wangku-spec-xendit-payment-history.md.
+--
+-- token_purchases block [28] sengaja FOR ALL USING(false) (kunci total,
+-- tidak ada yang bisa baca ATAU tulis langsung dari client). Sekarang
+-- fitur "Riwayat Pembayaran" butuh user bisa MELIHAT baris miliknya
+-- sendiri -- policy SELECT baru ini ditambahkan TERPISAH dari policy
+-- FOR ALL yang sudah ada, bukan menggantikannya. Di Postgres RLS,
+-- beberapa policy permissive untuk command yang sama digabung dengan OR,
+-- jadi untuk SELECT hasilnya jadi "false OR is_owner_or_admin(user_id)"
+-- = is_owner_or_admin(user_id) -- sementara INSERT/UPDATE/DELETE tetap
+-- hanya diatur oleh policy FOR ALL lama itu (USING(false)/WITH CHECK(false)
+-- tidak disentuh, tidak ada policy INSERT/UPDATE/DELETE baru yang
+-- menambah izin) -- jadi client tetap sama sekali tidak bisa menulis ke
+-- tabel ini, cuma bisa baca baris miliknya sendiri sekarang. Webhook
+-- (service_role) tidak terpengaruh RLS sama sekali seperti biasa.
+-- ============================================================
+DROP POLICY IF EXISTS "Users can view own token purchases" ON public.token_purchases;
+CREATE POLICY "Users can view own token purchases" ON public.token_purchases
+  FOR SELECT USING (public.is_owner_or_admin(user_id));
+
+
+-- ============================================================
+-- [31] Simpan metode/channel pembayaran Xendit -- feedback dari
+-- pengetesan PR Riwayat Pembayaran: user tidak bisa lihat DENGAN APA dia
+-- bayar (GoPay/BCA VA/QRIS/dst). Diisi webhook dari field
+-- payment_channel (lebih spesifik, mis. "BCA"/"GOPAY") atau
+-- payment_method (kategori lebih umum, mis. "BANK_TRANSFER"/"EWALLET")
+-- sebagai fallback kalau payment_channel tidak ada di payload -- lihat
+-- api/xendit-webhook.js.
+--
+-- CATATAN NOMOR BLOK: kalau branch ini dan feat/subscription-renewal
+-- (yang independen menulis block [31]-nya sendiri untuk plan_expires_at)
+-- sama-sama ke-merge, salah satunya WAJIB dinomori ulang jadi [32]
+-- mengikuti urutan merge -- pola yang sama seperti collision [28]/[29]
+-- dan [26]/[27] sebelumnya di file ini.
+-- ============================================================
+ALTER TABLE public.token_purchases ADD COLUMN IF NOT EXISTS payment_channel TEXT;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables

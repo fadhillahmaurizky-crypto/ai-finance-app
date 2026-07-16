@@ -127,8 +127,9 @@ erDiagram
         uuid user_id FK
         int tokens "tier size, e.g. 2000000"
         numeric amount "Rp, e.g. 35000"
-        text status "pending | paid — the UPDATE...WHERE status='pending' IS the webhook idempotency check"
+        text status "pending | paid | expired | failed — the UPDATE...WHERE status='pending' IS the webhook idempotency check"
         text xendit_invoice_id "Xendit's own id, for dashboard cross-reference only — not the idempotency key"
+        text payment_channel "e.g. 'GOPAY', 'BCA' — from the webhook's payment_channel/payment_method field, block [31]"
         timestamptz paid_at
     }
 
@@ -165,7 +166,9 @@ Defaults are seeded as real rows (`is_default=true`) once per user, the first ti
 Payment proof submissions for plan upgrades, reviewed manually via `admin.html`. **Not** used for token top-ups — see `token_purchases` below; the two purchase flows are deliberately kept separate.
 
 ### `token_purchases`
-Xendit token top-up tracking (block `[28]`, test mode — see `backend.md` §4). **Fully locked down** (`FOR ALL USING (false)`), same as `password_reset_tokens` — the client never reads or writes this table; only `/api/create-payment.js`/`/api/xendit-webhook.js` touch it, via the service role key. `id` doubles as the `external_id` sent to Xendit, so the webhook can `UPDATE ... WHERE id=<external_id> AND status='pending'` directly instead of needing a separate lookup — and that same `WHERE status='pending'` clause is the entire idempotency mechanism for handling Xendit's webhook retries.
+Xendit token top-up tracking (block `[28]`, test mode — see `backend.md` §4). **Writes are still fully locked down** (`FOR ALL USING (false)`, same as `password_reset_tokens`) — only `/api/create-payment.js`/`/api/xendit-webhook.js` touch rows, via the service role key. `id` doubles as the `external_id` sent to Xendit, so the webhook can `UPDATE ... WHERE id=<external_id> AND status='pending'` directly instead of needing a separate lookup — and that same `WHERE status='pending'` clause is the entire idempotency mechanism for handling Xendit's webhook retries, for **both** terminal states it can reach: `'paid'` (grants tokens) and `'expired'` (Xendit's invoice auto-expiry callback, no grant — added in block `[30]`, see below). `'failed'` is a third possible status, set directly by `/api/create-payment.js` itself (not the webhook) if the Xendit invoice-creation API call errors out synchronously — without this, that row would otherwise sit as `'pending'` forever since no webhook is ever coming for an invoice that was never actually created.
+
+**As of block `[30]`, reads are opened up narrowly**: a `FOR SELECT` policy (`is_owner_or_admin(user_id)`) was added *alongside* the original `FOR ALL USING (false)` policy, not replacing it. Postgres RLS OR's together every permissive policy that applies to a given command — so for `SELECT` specifically the effective check becomes `false OR is_owner_or_admin(user_id)`, while `INSERT`/`UPDATE`/`DELETE` still only ever see the original `false` (no new policy was added for those commands). This is what powers the "Riwayat Pembayaran" page in Settings — the user can now read their own purchase history directly (`sb('token_purchases?user_id=eq....')`, no RPC needed), but still can't write a single byte to this table from the client.
 
 ### `detected_transactions`
 Support table for "auto-detect transactions." **Nothing in this codebase writes to it.** It's designed so a phone-side automation tool (Tasker/MacroDroid) posts directly to Supabase's REST API on notification-received, and the app polls + shows a confirm/dismiss popup. See `ai.md` and `roadmap.md`.
