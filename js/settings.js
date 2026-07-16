@@ -18,9 +18,38 @@ function renderSettingsExtras(){
 // ========================
 // TOKEN TOP-UP (Xendit, test mode) — lihat backend.md
 // ========================
-async function buyTokenPackage(packageId){
+// Slider 100rb-20jt token, kelipatan 100rb -- menggantikan dua tombol
+// tetap (+2 Juta/+5 Juta) lama. Harga interpolasi linear, dihitung ulang
+// di SINI cuma untuk tampilan langsung -- server (create-payment.js)
+// menghitung ulang sendiri dari `tokens` sebelum bikin invoice, angka di
+// sini tidak pernah dipercaya/dikirim sebagai harga final. Lihat
+// wangku-spec-token-slider-ganti-paket.md Part 1.
+let tokenSliderValue=2000000;
+function computeTokenPriceClient(tokens){
+  const raw=3000+((tokens-100000)/(20000000-100000))*(150000-3000);
+  return Math.round(raw/100)*100;
+}
+function formatTokenCountClient(tokens){
+  if(tokens%1000000===0)return(tokens/1000000)+' Juta Token';
+  if(tokens>=1000000)return(tokens/1000000).toFixed(1)+' Juta Token';
+  return(tokens/1000)+' Ribu Token';
+}
+function updateTokenSliderPrice(){
+  const el=document.getElementById('token-slider');if(!el)return;
+  tokenSliderValue=Number(el.value);
+  document.getElementById('token-slider-count').textContent=formatTokenCountClient(tokenSliderValue);
+  document.getElementById('token-slider-price').textContent=rpF(computeTokenPriceClient(tokenSliderValue));
+}
+function confirmTokenSliderPurchase(){
+  const tokens=tokenSliderValue;
+  const price=computeTokenPriceClient(tokens);
+  document.getElementById('token-confirm-text').innerHTML=`Beli <b>${formatTokenCountClient(tokens)}</b> seharga <b>${rpF(price)}</b>?`;
+  document.getElementById('token-confirm-modal').classList.add('open');
+}
+async function buyTokenSlider(){
+  document.getElementById('token-confirm-modal').classList.remove('open');
   try{
-    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,package:packageId,item_type:'tokens'})});
+    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,item_type:'tokens',tokens:tokenSliderValue})});
     const d=await resp.json();
     if(!resp.ok||d.error)throw new Error(d.error||'Gagal membuat pembayaran');
     window.location.href=d.checkout_url;
@@ -67,8 +96,13 @@ async function checkXenditReturn(){
         user=result.user;localStorage.setItem('sdk_token',result.token);localStorage.setItem('sdk_session',JSON.stringify(user));
         const afterExpiry=user.plan_expires_at?new Date(user.plan_expires_at).getTime():0;
         if(user.tokens_limit>beforeLimit||afterExpiry>beforeExpiry){
-          renderPlanCard();
-          showToast(afterExpiry>beforeExpiry?'Langganan berhasil diperpanjang ✓':'Token berhasil ditambahkan ✓','ok');
+          renderPlanCard();renderPlanOptions();
+          // "diperbarui" (bukan "diperpanjang") sengaja generik -- sinyal
+          // plan_expires_at maju ini sama untuk perpanjangan tier SAMA
+          // (buyPlanRenewal()) maupun Ganti Paket tier LAIN
+          // (confirmGantiPaket()), dan "diperpanjang" salah kalau yang
+          // terjadi sebenarnya ganti tier, bukan extend.
+          showToast(afterExpiry>beforeExpiry?'Plan berhasil diperbarui ✓':'Token berhasil ditambahkan ✓','ok');
           // "resume" berasal dari Riwayat Pembayaran (lanjutkan pembelian
           // pending), bukan dari tombol Beli Token biasa -- kembalikan ke
           // situ, bukan cuma diam di Settings, per wangku-fixes-pr25-26-27.md #2b.
@@ -93,9 +127,11 @@ function tokenPurchaseLabel(r){
     const planNames={basic:'Basic',pro:'Pro',unlimited:'Ultimate'};
     return'Perpanjangan Paket '+(planNames[r.plan]||r.plan)+' (30 Hari)';
   }
-  if(r.tokens===2000000)return'2 Juta Token AI';
-  if(r.tokens===5000000)return'5 Juta Token AI';
-  return(r.tokens/1000000).toFixed(1)+' Juta Token AI';
+  // Kuantitas token sekarang bebas (slider 100rb-20jt), bukan cuma dua
+  // tier tetap lama -- pakai formatter yang sama dengan slider-nya sendiri
+  // (formatTokenCountClient()) supaya label baris lama (dari tier tetap)
+  // dan baru (dari slider) konsisten.
+  return formatTokenCountClient(r.tokens)+' AI';
 }
 // Channel Xendit (mis. "BCA", "GOPAY") disimpan mentah dari webhook --
 // tidak ada kamus lengkap semua channel Xendit di sini, jadi ditampilkan
@@ -214,13 +250,46 @@ function renderPlanOptions(){
     return `<div class="plan-opt-row${isCurrent?' current':''}"><div class="plan-opt-info"><div class="plan-opt-name">${info.label}</div><div class="plan-opt-price">${info.price}</div></div>${btn}</div>`;
   }).join('');
 }
+// Ganti Paket (Upgrade/Downgrade dari plan-options-modal) -- lihat
+// wangku-spec-token-slider-ganti-paket.md Part 2. Dulu SELALU cuma buka
+// WhatsApp ke admin, terlepas dari tier tujuannya. Sekarang:
+//   - target Free: langsung diterapkan, tanpa konfirmasi/pembayaran --
+//     tidak ada yang perlu dibayar untuk Rp 0.
+//   - target Basic/Pro: popup konfirmasi, lalu bayar lewat Xendit
+//     (restart:true -- SELALU restart fresh, beda dari buyPlanRenewal()
+//     yang extend dari plan_expires_at yang ada, karena ganti tier
+//     adalah produk berbeda, tidak mewarisi sisa hari tier lama).
+// Ultimate tidak muncul di sini sama sekali -- renderPlanOptions() cuma
+// menawarkan free/basic/pro, konsisten dengan keputusan sebelumnya untuk
+// menyembunyikan Ultimate dari UI user-facing.
+let gantiPaketTarget=null;
 function requestPlanChange(plan){
   if(!user)return;
-  const info=PLANS[plan];const current=user.plan||'free';
-  const rank={free:0,basic:1,pro:2,unlimited:3};
-  const action=rank[plan]>rank[current]?'upgrade':'downgrade';
-  const msg='Halo Admin Wangku, saya '+(user.full_name||user.username)+' (@'+user.username+') ingin '+action+' paket dari '+(PLANS[current]?.label||current)+' ke '+info.label+' ('+info.price+'). Mohon dibantu ya 🙏';
-  window.open('https://wa.me/'+CS+'?text='+encodeURIComponent(msg),'_blank');
+  if(plan==='free'){applyFreeDowngrade();return;}
+  gantiPaketTarget=plan;
+  const info=PLANS[plan];
+  document.getElementById('ganti-paket-confirm-text').innerHTML=`Ganti ke <b>${info.label}</b> — ${info.price}, lanjutkan?`;
+  document.getElementById('ganti-paket-confirm-modal').classList.add('open');
+}
+async function applyFreeDowngrade(){
+  try{
+    await sb(`users?id=eq.${user.id}`,'PATCH',{plan:'free',plan_expires_at:null,plan_started_at:null});
+    user.plan='free';user.plan_expires_at=null;user.plan_started_at=null;
+    localStorage.setItem('sdk_session',JSON.stringify(user));
+    document.getElementById('plan-options-modal').classList.remove('open');
+    renderPlanCard();renderPlanOptions();
+    showToast('Plan berhasil diubah ke Free ✓','ok');
+  }catch(e){showToast('Gagal: '+e.message,'err');}
+}
+async function confirmGantiPaket(){
+  document.getElementById('ganti-paket-confirm-modal').classList.remove('open');
+  const plan=gantiPaketTarget;if(!plan)return;
+  try{
+    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,package:plan,item_type:'plan',restart:true})});
+    const d=await resp.json();
+    if(!resp.ok||d.error)throw new Error(d.error||'Gagal membuat pembayaran');
+    window.location.href=d.checkout_url;
+  }catch(e){showToast('Gagal: '+e.message,'err');}
 }
 
 // ========================

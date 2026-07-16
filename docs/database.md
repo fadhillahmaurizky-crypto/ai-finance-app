@@ -40,6 +40,7 @@ erDiagram
         text avatar_url "base64 image"
         timestamptz trial_ends_at
         timestamptz plan_expires_at "paid-period tracking, parallel to trial_ends_at — block [31], see below"
+        timestamptz plan_started_at "when the CURRENT continuous paid period began — block [33], see below. Untouched on a same-tier renewal, reset on a Ganti Paket tier switch"
         timestamptz last_login "set on every successful doLogin()"
         timestamptz last_active "column exists, currently unused by app code"
         uuid token_version "random nonce embedded in every JWT, checked by is_owner_or_admin() — block [26]"
@@ -126,13 +127,14 @@ erDiagram
     token_purchases {
         uuid id PK "also sent to Xendit as external_id"
         uuid user_id FK
-        int tokens "tier size (2000000/5000000), or the plan's bundled monthly allotment when item_type='plan'"
-        numeric amount "Rp, e.g. 35000"
+        int tokens "arbitrary quantity via slider (100.000-20.000.000, step 100.000) since block [33], or the plan's bundled monthly allotment when item_type='plan'"
+        numeric amount "Rp, server-computed via linear interpolation for token purchases (block [33]) — never trusted from the client"
         text status "pending | paid | expired | failed — the UPDATE...WHERE status='pending' IS the webhook idempotency check"
         text xendit_invoice_id "Xendit's own id, for dashboard cross-reference only — not the idempotency key"
         text item_type "'tokens' (default, top-up) | 'plan' (renewal) — block [31]"
         text plan "target plan id ('basic'/'pro'), only set when item_type='plan'"
         text payment_channel "e.g. 'GOPAY', 'BCA' — from the webhook's payment_channel/payment_method field, block [32]"
+        bool restart_period "item_type='plan' only — true from Ganti Paket (always restart fresh), false/default from buyPlanRenewal (extend existing) — block [33]"
         timestamptz paid_at
     }
 
@@ -265,6 +267,21 @@ Registration (`verifyRegOTP()` in `auth.js`) sets `plan='pro'`, `trial_ends_at =
 **Deliberately NOT touched: `admin.html`'s `updateUserPlan()`** (the raw plan-change dropdown in the Detail User modal, `setUserTokens()`'s sibling). This is a permanent override/correction tool, same category as `setUserTokens()` — an admin forcing a plan via this path gets no expiry at all (`plan_expires_at` untouched, so `NULL` for a never-before-paid user), staying in effect until changed again by hand. Only the two genuine *payment-confirming* paths above set a real expiry.
 
 **Lazy downgrade — same mechanism as trial, in the same three functions**: if `plan_expires_at IS NOT NULL AND plan_expires_at < now() AND plan IN ('basic','pro','unlimited')`, downgrade to `plan='free'`. Not cleared on downgrade (mirrors `trial_ends_at`'s own behavior) — every reader of this column already checks `plan` is still one of the paid tiers first, so a stale past date next to `plan='free'` is unambiguous, and keeping it preserves a record of when the last paid period actually ended.
+
+## Token slider & Ganti Paket mechanics (block `[33]`)
+
+Two independent additions, per `wangku-spec-token-slider-ganti-paket.md`.
+
+**Token top-up becomes a slider, not two fixed buttons.** `/api/create-payment.js` no longer looks up a `packageId` against a hardcoded map for `item_type='tokens'` — it validates an arbitrary `tokens` quantity from the client (100.000-20.000.000, must be a multiple of 100.000) and computes the price itself via linear interpolation (100.000 tokens → Rp 3.000, 20.000.000 tokens → Rp 150.000, rounded to the nearest Rp 100). The client-sent quantity is validated, but the **price is always server-computed**, never trusted from the client, same reasoning as the fixed tiers this replaces. `js/settings.js` has its own copy of the same interpolation formula purely for the slider's live price display — the server recomputes it independently before ever creating a Xendit invoice.
+
+**`plan_started_at`** tracks when the user's *current continuous* paid period began — closes a gap the original subscription-renewal spec didn't cover (it only tracked the end date). Two different things can happen to it when a `'plan'` purchase completes, distinguished by `token_purchases.restart_period`:
+- **`restart_period=false`** (default; `buyPlanRenewal()`, renewing the *same* tier) — if there's an active existing period, extend `plan_expires_at` from it (per the section above) and leave `plan_started_at` **untouched**. The continuous period isn't restarting, just getting longer.
+- **`restart_period=true`** (`requestPlanChange()`'s "Ganti Paket" flow, switching to a *different* tier) — **always** restart fresh: `plan_expires_at` = now + 30 days regardless of how many days remained on the old tier, and `plan_started_at` = now. Switching what you're paying for is a different product; it doesn't inherit unused days from the tier you're leaving.
+- Either way, if there's **no** active existing period at all (new subscriber, or already lapsed), it's a restart regardless of the flag — there's nothing to extend from.
+
+`admin.html`'s `konfirmasiOrder()` (manual approval) applies the same "fresh → set `plan_started_at`, extend → leave it alone" rule directly, without needing a `restart_period` flag of its own — a manual approval never distinguishes "renew this tier" from "switch tiers," it just sets `plan` to whatever the admin picked, so there's no separate intent to track. `updateUserPlan()` (the raw override dropdown, see above) still touches neither `plan_expires_at` nor `plan_started_at` — same reasoning as before.
+
+**"Ganti Paket" itself** (`requestPlanChange()` in `js/settings.js`, triggered from the plan-options-modal's Upgrade/Downgrade buttons) used to *always* just open WhatsApp to message admin, regardless of target tier. Now: target `'free'` applies immediately (a direct `PATCH`, no confirmation, no payment — nothing to charge for Rp 0; also nulls `plan_expires_at`/`plan_started_at`, since a voluntary downgrade isn't the same "preserve the historical date" case as an automatic lazy-expiry one). Target `'basic'`/`'pro'` shows a confirmation modal, then pays via the same `/api/create-payment.js` plan-purchase path as renewal, with `restart:true`. `'unlimited'` was never offered here to begin with — `renderPlanOptions()` only ever lists free/basic/pro, consistent with Ultimate being hidden from user-facing plan-selection UI.
 
 ## PIN lock mechanics (block `[29]`)
 

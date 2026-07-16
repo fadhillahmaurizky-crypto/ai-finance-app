@@ -1570,6 +1570,36 @@ ALTER TABLE public.token_purchases ADD COLUMN IF NOT EXISTS payment_channel TEXT
 
 
 -- ============================================================
+-- [33] TOKEN SLIDER + GANTI PAKET: plan_started_at (kapan periode
+-- berbayar SEKARANG dimulai, paralel dengan plan_expires_at) +
+-- token_purchases.restart_period -- lihat
+-- wangku-spec-token-slider-ganti-paket.md.
+--
+-- restart_period membedakan DUA cara sebuah 'plan' purchase bisa lahir:
+--   - false (default) -- perpanjangan plan yang SAMA (buyPlanRenewal()):
+--     extend dari plan_expires_at yang ada kalau masih aktif, plan_started_at
+--     TIDAK disentuh (periode berjalan terus, cuma diperpanjang).
+--   - true -- ganti ke tier LAIN lewat "Ganti Paket" (requestPlanChange()
+--     untuk target Basic/Pro): SELALU restart fresh (base=sekarang,
+--     bukan plan_expires_at lama) terlepas dari berapa hari tersisa di
+--     tier sebelumnya -- ganti yang dibayar itu beda produk, tidak
+--     mewarisi sisa hari tier lama. plan_started_at di-set ke sekarang.
+-- Kedua kasus di atas SAMA-SAMA restart fresh + set plan_started_at kalau
+-- user memang belum punya plan_expires_at aktif sama sekali (pelanggan
+-- baru/sudah lapse) -- logika ini ada di api/xendit-webhook.js, bukan di
+-- kolom ini sendiri, kolom ini cuma penanda niat dari sisi pembelian.
+--
+-- admin.html konfirmasiOrder() (approval manual) ikut mengisi
+-- plan_started_at dengan aturan sederhana yang sama (fresh -> set,
+-- extend -> biarkan) -- tidak butuh restart_period di jalur itu karena
+-- approval manual tidak membedakan "perpanjang tier sama" vs "ganti
+-- tier", setiap approval memang selalu menetapkan plan apa adanya.
+-- ============================================================
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS plan_started_at TIMESTAMPTZ;
+ALTER TABLE public.token_purchases ADD COLUMN IF NOT EXISTS restart_period BOOLEAN NOT NULL DEFAULT false;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables

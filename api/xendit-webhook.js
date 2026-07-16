@@ -98,20 +98,37 @@ module.exports = async (req, res) => {
       // konfirmasiOrder admin.html yang juga selalu mulai fresh per
       // periode) -- BUKAN additif seperti top-up token biasa.
       //
-      // "Extend dari plan_expires_at yang ada" (spec §1): kalau user
-      // masih dalam periode aktif (plan_expires_at di masa depan),
-      // tambahkan 30 hari dari TANGGAL ITU, bukan dari sekarang -- supaya
-      // perpanjangan beberapa hari lebih awal tidak memotong sisa hari
-      // yang sudah dibayar. trial_ends_at ikut dibersihkan di sini juga
-      // (spec §5: bayar plan sungguhan selagi masih trial = konversi ke
-      // pelanggan berbayar beneran, bukan trial lagi).
-      const userRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${purchase.user_id}&select=plan_expires_at`, {
+      // Dua cara baris 'plan' ini bisa lahir (lihat block [33],
+      // database.md, dan wangku-spec-token-slider-ganti-paket.md Part 2):
+      //   - restart_period=false (buyPlanRenewal(), perpanjang tier SAMA):
+      //     kalau masih ada periode aktif (plan_expires_at di masa depan),
+      //     extend 30 hari dari TANGGAL ITU -- perpanjangan beberapa hari
+      //     lebih awal tidak memotong sisa hari yang sudah dibayar --
+      //     dan plan_started_at TIDAK disentuh (periode berjalan yang
+      //     sama, cuma diperpanjang, tanggal mulainya tidak berubah).
+      //   - restart_period=true (requestPlanChange(), ganti ke tier LAIN):
+      //     SELALU restart fresh dari sekarang, terlepas dari sisa hari
+      //     tier sebelumnya -- ganti yang dibayar itu produk berbeda,
+      //     tidak mewarisi sisa hari tier lama. plan_started_at di-set
+      //     ke sekarang.
+      // Kedua kasus di atas restart fresh + set plan_started_at kalau
+      // user memang belum punya periode aktif sama sekali (pelanggan
+      // baru/sudah lapse), terlepas dari restart_period.
+      //
+      // trial_ends_at ikut dibersihkan di sini juga (spec subscription-
+      // renewal §5: bayar plan sungguhan selagi masih trial = konversi
+      // ke pelanggan berbayar beneran, bukan trial lagi).
+      const userRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${purchase.user_id}&select=plan_expires_at,plan_started_at`, {
         headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
       });
       const userRows = await userRes.json();
       const currentExpiry = userRows?.[0]?.plan_expires_at ? new Date(userRows[0].plan_expires_at) : null;
-      const base = currentExpiry && currentExpiry.getTime() > Date.now() ? currentExpiry : new Date();
+      const isActive = currentExpiry && currentExpiry.getTime() > Date.now();
+      const restart = !!purchase.restart_period || !isActive;
+
+      const base = restart ? new Date() : currentExpiry;
       const newExpiry = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const newStart = restart ? new Date().toISOString() : userRows?.[0]?.plan_started_at;
       const month = new Date().toISOString().substring(0, 7);
 
       await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${purchase.user_id}`, {
@@ -124,6 +141,7 @@ module.exports = async (req, res) => {
         body: JSON.stringify({
           plan: purchase.plan,
           plan_expires_at: newExpiry.toISOString(),
+          plan_started_at: newStart,
           trial_ends_at: null,
           tokens_limit: purchase.tokens,
           tokens_used: 0,

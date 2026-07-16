@@ -740,7 +740,7 @@ async function loadAllData() {
   if(ico) ico.classList.add('spinning');
   try {
     // Load dari Supabase
-    supaUsers = await sbFetch('users?select=id,username,full_name,wa_number,email,role,status,plan,trial_ends_at,plan_expires_at,avatar_color,gas_user_id,ai_chat_count,ai_scan_count,usage_month,tokens_limit,tokens_used,token_reset_month,created_at,updated_at,last_login,last_active&order=created_at.desc') || [];
+    supaUsers = await sbFetch('users?select=id,username,full_name,wa_number,email,role,status,plan,trial_ends_at,plan_expires_at,plan_started_at,avatar_color,gas_user_id,ai_chat_count,ai_scan_count,usage_month,tokens_limit,tokens_used,token_reset_month,created_at,updated_at,last_login,last_active&order=created_at.desc') || [];
     // Load dari GAS
     try {
       const res = await fetch(GAS_URL+'?action=adminData');
@@ -927,7 +927,7 @@ function showDetailUser(userId) {
     <div class="detail-section">
       <div class="detail-section-title">💳 Plan & Token AI</div>
       <div class="detail-grid">
-        <div class="detail-item ${(trial||planExp)?'full':''}"><div class="detail-label">Plan Sekarang</div><div class="detail-value" style="font-weight:700;color:var(--green)">${trial?`Trial (Pro) — berakhir ${fmtDateShort(u.trial_ends_at)}, ${trial.daysLeft} hari lagi`:planExp?`${planLabel} — berakhir ${fmtDateShort(u.plan_expires_at)}, ${planExp.daysLeft} hari lagi`:planLabel}</div></div>
+        <div class="detail-item ${(trial||planExp)?'full':''}"><div class="detail-label">Plan Sekarang</div><div class="detail-value" style="font-weight:700;color:var(--green)">${trial?`Trial (Pro) — berakhir ${fmtDateShort(u.trial_ends_at)}, ${trial.daysLeft} hari lagi`:planExp?`${planLabel} — ${u.plan_started_at?`mulai ${fmtDateShort(u.plan_started_at)}, `:''}berakhir ${fmtDateShort(u.plan_expires_at)}, ${planExp.daysLeft} hari lagi`:planLabel}</div></div>
         <div class="detail-item"><div class="detail-label">Token Dipakai</div><div class="detail-value">${((u.tokens_used||0)/1000).toFixed(0)}K / ${((u.tokens_limit||0)/1000).toFixed(0)}K</div></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
@@ -1042,12 +1042,22 @@ async function konfirmasiOrder(orderId, userId, plan){
     // beberapa hari lebih awal tidak memotong sisa hari yang sudah
     // dibayar. trial_ends_at ikut dibersihkan (§5: bayar plan sungguhan
     // selagi masih trial = konversi ke pelanggan berbayar beneran).
+    //
+    // plan_started_at (block [33], wangku-spec-token-slider-ganti-paket.md
+    // Part 2): cuma di-set kalau periode ini genuinely fresh (belum ada
+    // periode aktif) -- kalau masih extend periode yang sudah berjalan,
+    // dibiarkan apa adanya, sama seperti api/xendit-webhook.js. Approval
+    // manual tidak membedakan "perpanjang tier sama" vs "ganti tier"
+    // (tidak ada restart_period di jalur ini) -- setiap approval memang
+    // selalu menetapkan plan apa adanya.
     const u=supaUsers.find(x=>x.id===userId);
     const currentExpiry=u?.plan_expires_at?new Date(u.plan_expires_at):null;
-    const base=(currentExpiry&&currentExpiry.getTime()>Date.now())?currentExpiry:new Date();
+    const isActive=currentExpiry&&currentExpiry.getTime()>Date.now();
+    const base=isActive?currentExpiry:new Date();
     const planExpiresAt=new Date(base.getTime()+30*24*60*60*1000).toISOString();
+    const planStartedAt=isActive?u?.plan_started_at:new Date().toISOString();
     await sbFetch(`orders?id=eq.${orderId}`,'PATCH',{status:'paid'});
-    await sbFetch(`users?id=eq.${userId}`,'PATCH',{status:'active',plan,tokens_limit:tokens,tokens_used:0,token_reset_month:month,plan_expires_at:planExpiresAt,trial_ends_at:null});
+    await sbFetch(`users?id=eq.${userId}`,'PATCH',{status:'active',plan,tokens_limit:tokens,tokens_used:0,token_reset_month:month,plan_expires_at:planExpiresAt,plan_started_at:planStartedAt,trial_ends_at:null});
     showToast('Order dikonfirmasi & akun diaktifkan ✓','ok');
     await loadOrders();
     await loadUsers();
