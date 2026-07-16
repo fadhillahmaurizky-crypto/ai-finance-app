@@ -295,24 +295,17 @@
               <div style="font-size:11px;color:var(--text3);line-height:1.4">Kirim ke bot → otomatis tercatat</div>
               <div style="margin-top:10px;padding:5px 10px;background:#E8F8EF;border-radius:8px;font-size:11px;color:#25D366;font-weight:600;text-align:center">Cara pakai →</div>
             </div>
-            <div style="background:var(--bg2);border-radius:14px;padding:14px;border:1px solid var(--border);box-shadow:var(--shadow);cursor:pointer" onclick="document.getElementById('page-catat').scrollTo({top:300,behavior:'smooth'})">
-              <div style="width:38px;height:38px;background:var(--green-bg);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:10px;color:var(--green)"><i class="ti ti-device-mobile"></i></div>
-              <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Via App</div>
-              <div style="font-size:11px;color:var(--text3);line-height:1.4">Input manual atau foto struk</div>
-              <div style="margin-top:10px;padding:5px 10px;background:var(--green-bg);border-radius:8px;font-size:11px;color:var(--green);font-weight:600;text-align:center">Catat sekarang →</div>
+            <div style="background:var(--bg2);border-radius:14px;padding:14px;border:1px solid var(--border);box-shadow:var(--shadow);cursor:pointer" onclick="triggerCam()">
+              <div style="width:38px;height:38px;background:var(--amber-bg);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:10px;color:var(--amber)"><i class="ti ti-camera-spark"></i></div>
+              <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Scan Struk/Foto</div>
+              <div style="font-size:11px;color:var(--text3);line-height:1.4">Foto struk → AI baca & isi otomatis</div>
+              <div style="margin-top:10px;padding:5px 10px;background:var(--amber-bg);border-radius:8px;font-size:11px;color:var(--amber);font-weight:600;text-align:center">Scan sekarang →</div>
+              <input type="file" id="nav-cam" accept="image/*" style="display:none" onchange="scanStrukNav(this)"/>
             </div>
           </div>
         </div>
-        <div class="struk-wrap">
-          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:8px"><i class="ti ti-camera-spark" style="color:var(--amber)"></i> Scan Struk / Foto</div>
-          <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Foto struk → AI baca & isi form otomatis ✨</div>
-          <div id="struk-prev-wrap" style="display:none"><img id="struk-prev" style="width:100%;border-radius:10px;border:1px solid var(--border);max-height:180px;object-fit:cover;margin-bottom:10px"/><div id="struk-result" style="display:none;background:var(--green-bg);border-radius:10px;padding:10px 12px;font-size:11px;color:var(--green-dk);line-height:1.7"></div></div>
-          <div id="struk-loading" style="display:none;text-align:center;padding:10px;font-size:13px;color:var(--green)"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> AI membaca struk...</div>
-          <div class="struk-btns">
-            <label style="flex:1;cursor:pointer"><input type="file" id="struk-cam" accept="image/*" capture="environment" style="display:none" onchange="scanStruk(this)"/><div class="struk-btn" onclick="document.getElementById('struk-cam').click()"><i class="ti ti-camera"></i> Kamera</div></label>
-            <label style="flex:1;cursor:pointer"><input type="file" id="struk-gal" accept="image/*" style="display:none" onchange="scanStruk(this)"/><div class="struk-btn blue" onclick="document.getElementById('struk-gal').click()"><i class="ti ti-photo"></i> Galeri</div></label>
-          </div>
-        </div>
+        <div class="struk-wrap" id="struk-prev-wrap" style="display:none"><img id="struk-prev" style="width:100%;border-radius:10px;border:1px solid var(--border);max-height:180px;object-fit:cover;margin-bottom:10px"/><div id="struk-result" style="display:none;background:var(--green-bg);border-radius:10px;padding:10px 12px;font-size:11px;color:var(--green-dk);line-height:1.7"></div></div>
+        <div class="struk-wrap" id="struk-loading" style="display:none;text-align:center;padding:18px;font-size:13px;color:var(--green)"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> AI membaca struk...</div>
         <div class="form-card">
           <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px"><i class="ti ti-edit" style="color:var(--green)"></i> <span id="form-title">Transaksi Baru</span></div>
           <div class="f-group"><label class="f-label">Jenis</label><div class="jenis-row"><button class="jenis-btn in" id="btn-in" onclick="setJenis('pemasukan')">✅ Pemasukan</button><button class="jenis-btn" id="btn-out" onclick="setJenis('pengeluaran')">💸 Pengeluaran</button><button class="jenis-btn" id="btn-transfer" onclick="setJenis('transfer')">🔁 Pindah Saldo</button></div></div>
@@ -609,13 +602,13 @@
   <div class="bottom-nav">
     <div class="nav-item" onclick="goPage('home')"><i class="ti ti-home nav-ico act" id="ni-home"></i><div class="nav-lbl act" id="nl-home">Beranda</div><div class="nav-dot show" id="nd-home"></div></div>
     <div class="nav-item" onclick="goPage('transaksi')"><i class="ti ti-list nav-ico" id="ni-transaksi"></i><div class="nav-lbl" id="nl-transaksi">Transaksi</div><div class="nav-dot" id="nd-transaksi"></div></div>
-    <div class="nav-item" onclick="triggerCam()">
-      <div style="position:relative;width:52px;height:52px;background:linear-gradient(135deg,#00B26A,#007A48);border-radius:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,178,106,.4);margin-top:-20px;border:3px solid var(--bg2)"><i class="ti ti-camera" style="font-size:24px;color:#fff"></i><span class="nav-badge-dot" id="foto-badge"></span></div>
-      <div class="nav-lbl" style="color:var(--green);margin-top:2px">Foto</div>
-      <input type="file" id="nav-cam" accept="image/*" capture="environment" style="display:none" onchange="scanStrukNav(this)"/>
+    <div class="nav-item" onclick="resetTrxForm();goPage('catat')">
+      <div style="position:relative;width:52px;height:52px;background:linear-gradient(135deg,#00B26A,#007A48);border-radius:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,178,106,.4);margin-top:-20px;border:3px solid var(--bg2)"><i class="ti ti-plus nav-ico" id="ni-catat" style="font-size:24px;color:#fff"></i><span class="nav-badge-dot" id="foto-badge"></span></div>
+      <div class="nav-lbl" id="nl-catat" style="color:var(--green);margin-top:2px">Catat</div>
+      <div class="nav-dot" id="nd-catat"></div>
     </div>
     <div class="nav-item" onclick="goPage('target')"><i class="ti ti-target nav-ico" id="ni-target"></i><div class="nav-lbl" id="nl-target">Target</div><div class="nav-dot" id="nd-target"></div></div>
-    <div class="nav-item" onclick="goPage('laporan')"><i class="ti ti-chart-bar nav-ico" id="ni-laporan"></i><div class="nav-lbl" id="nl-laporan">Laporan</div><div class="nav-dot" id="nd-laporan"></div></div>
+    <div class="nav-item" onclick="openChat()"><i class="ti ti-robot nav-ico"></i><div class="nav-lbl">Tanya AI</div><div class="nav-dot"></div></div>
   </div>
 </div>
 

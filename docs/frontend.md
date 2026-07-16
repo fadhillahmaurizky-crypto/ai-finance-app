@@ -42,7 +42,7 @@ The "Lupa"/"Batal" button on `#pin-screen` means two different things depending 
 ├── .pages (flex:1, scrollable area)
 │   └── .page-home, .page-catat, .page-transaksi, .page-target, .page-laporan,
 │       .page-settings, .page-kategori, .page-prioritas (siblings, toggled via .active)
-└── .bottom-nav (fixed): Beranda, Transaksi, Foto (raised camera FAB, center), Target, Laporan
+└── .bottom-nav (fixed): Beranda, Transaksi, Catat (raised FAB, center, navigates to page-catat), Target, Tanya AI (opens chat, no page nav)
 ```
 
 **Important**: the big green balance card (`.bal-card`) lives **inside** `#page-home`'s scrollable content now, not in the fixed `.header` — it scrolls away like any other content on Home. This was a deliberate late change; earlier in the project it lived in the header and stayed pinned across all pages, which turned out to be the wrong call once collapsed to a mini-balance readout on other pages was already handling that need. If you see references to the balance card being "sticky," that's the old behavior — it isn't anymore.

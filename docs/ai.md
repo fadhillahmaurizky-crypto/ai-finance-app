@@ -37,7 +37,7 @@ sequenceDiagram
     participant API as /api/ai-scan (Vercel)
     participant GROQ as Groq (llama-4-scout, vision)
 
-    U->>Cam: taps Foto nav button
+    U->>Cam: taps "Scan Struk/Foto" card on Catat page (formerly the bottom-nav Foto button, before the nav/Catat consolidation)
     Cam->>Cam: canScan() check, opens native camera
     U->>Cam: takes photo
     Scan->>Scan: FileReader → base64
