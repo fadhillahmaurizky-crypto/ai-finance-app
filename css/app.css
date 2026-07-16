@@ -252,9 +252,6 @@ input,select{font-family:var(--font)}
 .f-submit:active{opacity:.85}
 .f-submit:disabled{opacity:.4;cursor:not-allowed}
 .struk-wrap{background:var(--bg2);border-radius:16px;padding:18px;border:1px solid var(--border);box-shadow:var(--shadow);margin:0 16px 12px}
-.struk-btns{display:flex;gap:8px;margin-top:12px}
-.struk-btn{flex:1;padding:11px;border-radius:12px;background:var(--green-bg);border:1.5px solid var(--green);color:var(--green);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px}
-.struk-btn.blue{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
 
 /* LAPORAN */
 .rin-table{background:var(--bg2);border-radius:14px;overflow:hidden;border:1px solid var(--border);box-shadow:var(--shadow);margin-bottom:10px}

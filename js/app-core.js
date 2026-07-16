@@ -20,10 +20,7 @@ async function checkSession(){
     const result=await rpc('get_user_by_id',{p_user_id:user.id});
     if(!result||!result.user){localStorage.removeItem('sdk_session');localStorage.removeItem('sdk_token');showLoginPage();return;}
     user=result.user;localStorage.setItem('sdk_token',result.token);localStorage.setItem('sdk_session',JSON.stringify(user));
-    // Cek PIN
-    const hasPIN=localStorage.getItem(PIN_KEY);
-    if(hasPIN){showPinScreen('verify');}
-    else{showPinScreen('set');} // Minta buat PIN baru
+    checkPinGate();
   }catch(e){showLoginPage();}
 }
 
@@ -46,6 +43,8 @@ function showApp(){
     }
     aiChat=user.ai_chat_count||0;aiScan=user.ai_scan_count||0;
     renderPlanCard();
+    if(typeof checkXenditReturn==='function')checkXenditReturn();
+    if(typeof renderTrialNudge==='function')renderTrialNudge();
     if(typeof renderHeaderAvatar==='function')renderHeaderAvatar();
     if(typeof renderSettingsExtras==='function')renderSettingsExtras();
     try{PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(av=>{const row=document.getElementById('bio-row');if(row)row.style.display=av?'flex':'none';if(av&&localStorage.getItem('sdk_bio_cred')){const bs=document.getElementById('bio-status');if(bs)bs.textContent='Fingerprint aktif ✓';}});}catch(e){}
@@ -55,6 +54,14 @@ function showApp(){
   (async()=>{
     if(typeof ensureDefaultAccount==='function')await ensureDefaultAccount();
     if(typeof loadAccounts==='function')await loadAccounts();
+    // loadTrx('semua','txn-home',5) di atas start bersamaan (bukan nunggu)
+    // loadAccounts -- kalau transaksi kebetulan selesai duluan, baris
+    // transfer sempat ke-render pakai fallback jenisLabel (lihat
+    // accountFlowLabel di transactions.js) karena accountsList masih
+    // kosong. Re-render sekali di sini supaya label "Akun → Akun" yang
+    // benar tetap muncul begitu accountsList sudah ada, tanpa nunda
+    // render pertama Home.
+    if(typeof loadTrx==='function')loadTrx('semua','txn-home',5);
     if(typeof seedDefaultCategories==='function')await seedDefaultCategories();
     loadKategori();
     if(typeof seedDefaultPriorities==='function')await seedDefaultPriorities();
@@ -74,7 +81,6 @@ function resetSessionState(){
   sumData=null;targets=[];chatHist=[];
   if(typeof ctx!=='undefined')ctx='';
   if(typeof accountsList!=='undefined')accountsList=[];
-  if(typeof editingAccountId!=='undefined')editingAccountId=null;
   if(typeof kategoriList!=='undefined')kategoriList=[];
   if(typeof prioritasList!=='undefined')prioritasList=[];
   if(typeof txnCache!=='undefined')txnCache={};
@@ -112,6 +118,22 @@ async function changePW(){
   catch(e){err.textContent=e.message;err.style.display='block';}
 }
 
+// Baris "Aktif hingga X, N hari lagi" + tombol Perpanjang Sekarang --
+// cuma tampil kalau plan_expires_at benar-benar ada (periode berbayar
+// nyata lewat Xendit/approval manual, bukan admin override permanen
+// lewat "Ubah Plan" yang sengaja tidak set tanggal ini) dan masih di
+// masa depan. Dipakai ulang untuk Basic & Pro, tidak untuk Ultimate
+// (belum ada jalur perpanjangan mandiri lewat Xendit untuk tier itu --
+// lihat wangku-spec-subscription-renewal.md §4).
+function planRenewalHtml(planId){
+  if(!user?.plan_expires_at)return'';
+  const end=new Date(user.plan_expires_at);
+  if(isNaN(end.getTime()))return'';
+  const daysLeft=Math.ceil((end-new Date())/86400000);
+  if(daysLeft<=0)return'';
+  const tgl=end.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+  return`<div style="margin-top:12px;padding:10px 12px;background:var(--bg3);border-radius:10px"><div style="font-size:11px;color:var(--text3);margin-bottom:8px">Aktif hingga ${tgl} (${daysLeft} hari lagi)</div><button class="upgrade-btn" style="width:100%;background:var(--green);padding:9px;font-size:12px" onclick="buyPlanRenewal('${planId}')">Perpanjang Sekarang</button></div>`;
+}
 function renderPlanCard(){
   const plan=getPlan();const el=document.getElementById('plan-card');if(!el)return;
   const tokenLimit=user?.tokens_limit||0;const tokenUsed=user?.tokens_used||0;const tokenSisa=Math.max(0,tokenLimit-tokenUsed);const tokenPct=tokenLimit>0?Math.min(100,Math.round((tokenSisa/tokenLimit)*100)):0;
@@ -121,15 +143,24 @@ function renderPlanCard(){
   } else if(plan==='free'){
     el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px">${upgradeBtn}<div class="plan-badge" style="background:var(--border2);color:var(--text3)">FREE</div><div class="plan-name">Paket Free</div><div class="plan-feature">Catat transaksi manual ✓</div><div class="plan-feature">Dashboard & Laporan ✓</div><div class="plan-feature" style="opacity:.5">Integrasi WhatsApp ✗</div><div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);border-radius:10px;font-size:12px;color:var(--amber)">⬆️ Upgrade ke Basic mulai Rp 19.000/bln</div></div>`;
   } else if(plan==='basic'){
-    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px">${upgradeBtn}<div class="plan-badge" style="background:var(--border2);color:var(--text3)">BASIC · Rp 19.000/bln</div><div class="plan-name">Paket Basic</div><div class="plan-feature">Catat transaksi manual ✓</div><div class="plan-feature">Dashboard & Laporan ✓</div><div class="plan-feature">Integrasi WhatsApp ✓</div><div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);border-radius:10px;font-size:12px;color:var(--amber)">🤖 Upgrade ke Pro untuk AI mulai Rp 34.000/bln</div></div>`;
+    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px">${upgradeBtn}<div class="plan-badge" style="background:var(--border2);color:var(--text3)">BASIC · Rp 19.000/bln</div><div class="plan-name">Paket Basic</div><div class="plan-feature">Catat transaksi manual ✓</div><div class="plan-feature">Dashboard & Laporan ✓</div><div class="plan-feature">Integrasi WhatsApp ✓</div><div style="margin-top:12px;padding:10px 12px;background:var(--amber-bg);border-radius:10px;font-size:12px;color:var(--amber)">🤖 Upgrade ke Pro untuk AI mulai Rp 39.000/bln</div>${planRenewalHtml('basic')}</div>`;
   } else {
     const planInfo=PLANS[plan]||PLANS['pro'];
-    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px;border-color:var(--green)">${upgradeBtn}<div class="plan-badge" style="background:var(--green);color:#fff">${planInfo.label.toUpperCase()} · ${planInfo.price}</div><div class="plan-name">${planInfo.label}</div><div class="plan-feature">Semua fitur Basic ✓</div><div class="plan-feature">AI Chat & Scan Struk ✓</div><div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px"><span style="color:var(--text3)">Token AI bulan ini</span><span style="color:var(--green);font-weight:600">${(tokenSisa/1000).toFixed(0)}K / ${(tokenLimit/1000).toFixed(0)}K</span></div><div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden"><div style="width:${tokenPct}%;height:100%;background:var(--green);border-radius:3px;transition:width .5s"></div></div></div>${tokenSisa<100000?`<button class="upgrade-btn" style="background:var(--blue);margin-top:12px" onclick="hubungiCS()">Isi Token Lagi → mulai Rp 29.000</button>`:''}</div>`;
+    // Slider (100rb-20jt token, kelipatan 100rb) menggantikan dua tombol
+    // tetap (+2 Juta/+5 Juta) lama -- lihat
+    // wangku-spec-token-slider-ganti-paket.md Part 1. tokenSliderValue
+    // (js/settings.js) persisten lintas render ulang plan-card ini,
+    // supaya posisi slider yang sudah digeser user tidak reset diam-diam
+    // tiap kali renderPlanCard() dipanggil ulang (mis. setelah showApp()).
+    const sliderVal=typeof tokenSliderValue!=='undefined'?tokenSliderValue:2000000;
+    const sliderCountLabel=formatTokenCountClient(sliderVal);
+    const sliderPriceLabel=rpF(computeTokenPriceClient(sliderVal));
+    el.innerHTML=`<div class="plan-card" style="margin:0 16px 16px;border-color:var(--green)">${upgradeBtn}<div class="plan-badge" style="background:var(--green);color:#fff">${planInfo.label.toUpperCase()} · ${planInfo.price}</div><div class="plan-name">${planInfo.label}</div><div class="plan-feature">Semua fitur Basic ✓</div><div class="plan-feature">AI Chat & Scan Struk ✓</div><div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px"><span style="color:var(--text3)">Token AI bulan ini</span><span style="color:var(--green);font-weight:600">${(tokenSisa/1000).toFixed(0)}K / ${(tokenLimit/1000).toFixed(0)}K</span></div><div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden"><div style="width:${tokenPct}%;height:100%;background:var(--green);border-radius:3px;transition:width .5s"></div></div></div><div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:6px"><span>Beli Token Tambahan</span><span id="token-slider-count" style="font-weight:600;color:var(--text)">${sliderCountLabel}</span></div><input type="range" id="token-slider" min="100000" max="20000000" step="100000" value="${sliderVal}" oninput="updateTokenSliderPrice()" style="width:100%;accent-color:var(--green)"><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px"><span id="token-slider-price" style="font-size:15px;font-weight:800;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sliderPriceLabel}</span><button class="upgrade-btn" style="width:auto;margin-top:0;flex-shrink:0;background:var(--blue);padding:8px 16px;font-size:12px;white-space:nowrap" onclick="confirmTokenSliderPurchase()">Beli Token</button></div></div>${plan==='pro'?planRenewalHtml('pro'):''}</div>`;
   }
 }
 
-const PAGES=['home','catat','transaksi','target','laporan','settings','kategori','prioritas'];
-function goPage(n){PAGES.forEach(p=>{document.getElementById('page-'+p)?.classList.remove('active');document.getElementById('ni-'+p)?.classList.remove('active');document.getElementById('nl-'+p)?.classList.remove('active');document.getElementById('nd-'+p)?.classList.remove('show');});document.getElementById('page-'+n)?.classList.add('active');document.getElementById('ni-'+n)?.classList.add('active');document.getElementById('nl-'+n)?.classList.add('active');document.getElementById('nd-'+n)?.classList.add('show');document.querySelector('.header')?.classList.toggle('compact',n!=='home');if(n==='transaksi'){renderTransaksiFilters();applyTransaksiFilter();}if(n==='laporan')renderLaporan();if(n==='target')renderTargets();if(n==='settings')renderSettingsExtras();if(n==='kategori')renderKategoriManageList();if(n==='prioritas')renderPrioritasManageList();if(n==='catat'){if(typeof renderAccountSelects==='function')renderAccountSelects();if(typeof renderKategoriSelect==='function')renderKategoriSelect();if(typeof renderPrioritasSelect==='function')renderPrioritasSelect();}if(!window.__wangkuHandlingPop&&history.state?.wangkuPage!==n){try{history.pushState({wangkuPage:n},'');}catch(e){}}}
+const PAGES=['home','catat','transaksi','target','laporan','settings','kategori','prioritas','akun'];
+function goPage(n){PAGES.forEach(p=>{document.getElementById('page-'+p)?.classList.remove('active');document.getElementById('ni-'+p)?.classList.remove('active');document.getElementById('nl-'+p)?.classList.remove('active');document.getElementById('nd-'+p)?.classList.remove('show');});document.getElementById('page-'+n)?.classList.add('active');document.getElementById('ni-'+n)?.classList.add('active');document.getElementById('nl-'+n)?.classList.add('active');document.getElementById('nd-'+n)?.classList.add('show');document.querySelector('.header')?.classList.toggle('compact',n!=='home');if(n==='transaksi'){renderTransaksiFilters();applyTransaksiFilter();}if(n==='laporan')renderLaporan();if(n==='target')renderTargets();if(n==='settings')renderSettingsExtras();if(n==='kategori')renderKategoriManageList();if(n==='prioritas')renderPrioritasManageList();if(n==='akun'){if(typeof renderAkunFullList==='function')renderAkunFullList();}if(n==='catat'){if(typeof renderAccountSelects==='function')renderAccountSelects();if(typeof renderKategoriSelect==='function')renderKategoriSelect();if(typeof renderPrioritasSelect==='function')renderPrioritasSelect();}if(!window.__wangkuHandlingPop&&history.state?.wangkuPage!==n){try{history.pushState({wangkuPage:n},'');}catch(e){}}}
 
 
 // ========================

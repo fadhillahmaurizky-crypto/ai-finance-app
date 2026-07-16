@@ -809,6 +809,797 @@ CREATE UNIQUE INDEX user_categories_user_id_nama_ci_jenis_key
 
 
 -- ============================================================
+-- [24] SUBSCRIPTION: registrasi langsung aktif + trial Pro 14 hari,
+-- bukan pending + plan-picker manual.
+--
+-- 1) "Public registration" tadinya WITH CHECK status='pending' -- klien
+--    sekarang mengirim status='active' sejak awal (verifyRegOTP di
+--    auth.js), jadi policy-nya harus disamakan atau INSERT registrasi
+--    baru akan gagal RLS persis seperti bug D1 dulu.
+--
+-- 2) login_check/get_user_by_username/get_user_by_id ditambah
+--    pengecekan trial lazy: kalau trial_ends_at sudah lewat DAN user
+--    masih di plan 'pro', turunkan ke 'free' saat itu juga (tidak
+--    pernah mengunci akun -- cuma AI Chat/Scan/bot WA yang hilang).
+--    Sengaja hanya menurunkan saat plan masih persis 'pro', BUKAN
+--    setiap kali trial_ends_at lewat begitu saja -- supaya admin yang
+--    sudah meng-upgrade user itu ke paket berbayar asli (lewat
+--    admin.html) tidak ketiban turun lagi di login berikutnya.
+--    Prasyarat: admin.html WAJIB ikut mengosongkan trial_ends_at
+--    setiap kali plan diubah manual (lihat updateUserPlan/aktivasiUser
+--    di admin.html) -- tanpa itu, trial_ends_at yang basi tetap ada di
+--    baris user itu dan bisa memicu turun-plan yang salah di masa depan.
+-- ============================================================
+DROP POLICY IF EXISTS "Public registration" ON public.users;
+CREATE POLICY "Public registration" ON public.users FOR INSERT TO anon
+  WITH CHECK (status = 'active' AND role = 'user');
+
+DROP FUNCTION IF EXISTS public.login_check(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.password_hash = p_password_hash AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object(
+      'role','authenticated',
+      'sub', v_user.id::text,
+      'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),
+      'exp', extract(epoch from (now() + interval '30 days'))::integer
+    ),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+
+DROP FUNCTION IF EXISTS public.get_user_by_username(TEXT);
+CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon;
+
+DROP FUNCTION IF EXISTS public.get_user_by_id(UUID);
+CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.id = p_user_id AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
+
+
+-- ============================================================
+-- [25] REGISTRASI: check_registration_available() dulu cuma cek
+-- username/email -- wa_number (yang juga UNIQUE di tabel users, block [1])
+-- tidak pernah ikut dicek. Akibatnya nomor WA yang sudah dipakai lolos
+-- pre-check di doRegister(), OTP terkirim & diverifikasi seolah semua
+-- baik-baik saja, dan baru gagal di langkah paling akhir (INSERT di
+-- verifyRegOTP()) dengan pesan generik "Username/email sudah terdaftar!"
+-- yang salah -- constraint yang sebenarnya kena adalah users_wa_number_key,
+-- bukan username atau email. Ditemukan oleh product owner saat mendaftar
+-- ulang pakai nomor WA akun admin yang sudah ada.
+--
+-- Fix: tambah parameter p_wa_number, sertakan wa_number di pengecekan,
+-- supaya duplikat nomor WA ketahuan di doRegister() (sebelum OTP dikirim
+-- sama sekali), bukan menunggu sampai langkah terakhir. Pesan error di
+-- js/auth.js juga disamakan untuk menyebut ketiga kemungkinan field --
+-- tetap tidak menyebut yang MANA persis yang bentrok (RPC ini sengaja
+-- cuma mengembalikan boolean, bukan baris aslinya -- lihat catatan di
+-- blok [22] soal risiko enumerasi data pending-registration).
+-- ============================================================
+DROP FUNCTION IF EXISTS public.check_registration_available(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.check_registration_available(p_username TEXT, p_email TEXT, p_wa_number TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT NOT EXISTS(
+    SELECT 1 FROM public.users u WHERE u.username = p_username OR u.email = p_email OR u.wa_number = p_wa_number
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.check_registration_available(TEXT, TEXT, TEXT) TO anon;
+
+
+-- ============================================================
+-- [26] SECURITY FIX (CRITICAL): mitigate leaked JWT signing secret --
+-- token_version binds every issued token to a live, per-user random
+-- nonce checked against the real users row, so a forged token (signed
+-- with the leaked secret, but without the correct nonce) is rejected.
+--
+-- Context: the HS256 secret passed to wangku_sign_jwt() below is
+-- committed in this file, which lives in a PUBLIC GitHub repo --
+-- confirmed fetchable by anyone via a plain unauthenticated
+-- raw.githubusercontent.com request. Since Postgres/PostgREST's JWT
+-- verification only proves "signed by someone who knows the secret,"
+-- anyone who reads this file can construct a validly-signed token
+-- claiming ANY user_id and app_role:'admin', bypassing every RLS
+-- policy in this schema (is_owner_or_admin() previously trusted the
+-- JWT's self-asserted user_id/app_role claims at face value, with no
+-- way to distinguish a genuine token minted by login_check() after a
+-- real password check from a forged one -- both are just "correctly
+-- signed with a known secret," which is exactly what JWT verification
+-- checks and nothing more).
+--
+-- Rotating the underlying Supabase-managed secret was investigated
+-- first and hits a real platform limitation: Supabase's newer JWT
+-- Signing Keys system does not expose the raw secret value for
+-- auto-generated/rotated keys (by design, since it's meant for
+-- Supabase Auth's own SDK to use internally) -- but wangku_sign_jwt()
+-- hand-signs tokens itself and must know the exact secret string, so
+-- there was no way to get a fresh, known, Supabase-verified secret
+-- through the dashboard. This fix closes the practical exploit a
+-- different way, entirely within our own SQL, independent of whatever
+-- Supabase's key management does or doesn't expose.
+--
+-- Mechanism: a random token_version UUID is generated per user
+-- (unguessable without already having legitimate access). Every token
+-- minted by login_check/get_user_by_username/get_user_by_id embeds
+-- the user's current token_version as a claim. is_owner_or_admin() no
+-- longer trusts auth.jwt()->>'user_id'/'app_role' directly -- it looks
+-- up the real row by the claimed user_id, requires the token's
+-- token_version to match what's CURRENTLY stored for that exact row,
+-- and checks the real role column instead of the self-asserted
+-- app_role claim. An attacker with the leaked secret can still
+-- construct a validly-signed token, but can't satisfy the
+-- token_version match without already knowing a specific user's
+-- private random nonce -- closing both the "impersonate any user" and
+-- "self-escalate to fake admin" paths.
+--
+-- Verified directly against the live production REST API (not just
+-- locally): reproduced wangku_sign_jwt()'s exact signing procedure
+-- byte-for-byte (cross-checked against a real call to the function --
+-- identical output confirms the reproduction is correct, not an
+-- artifact of a scripting mistake), forged a token with a real user's
+-- id + app_role:'admin' + a wrong/guessed token_version, and confirmed
+-- it returns HTTP 200 with zero rows (correctly blocked by RLS) against
+-- both `users` and `transactions`. A genuine token from a real
+-- login_check() call (correct token_version) was confirmed to still
+-- work normally over the same REST API.
+--
+-- Side effect (expected, unavoidable): every currently-active session
+-- is invalidated the moment this deploys, since existing tokens don't
+-- carry a token_version claim at all -- same disruption a real secret
+-- rotation would have caused. Everyone needs to log in again.
+--
+-- This does NOT make the leaked secret itself safe to leave public --
+-- it only closes the practical exploit path it enabled. Getting a
+-- genuinely fresh, non-public secret in place (or moving off hand-
+-- rolled JWT signing entirely) remains worth pursuing separately; see
+-- roadmap.md.
+-- ============================================================
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS token_version UUID DEFAULT gen_random_uuid() NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.is_owner_or_admin(p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS(
+    SELECT 1 FROM public.users u
+    WHERE u.id = (auth.jwt()->>'user_id')::uuid
+      AND u.token_version::text = auth.jwt()->>'token_version'
+      AND (u.id = p_user_id OR u.role = 'admin')
+  );
+$$;
+
+DROP FUNCTION IF EXISTS public.login_check(TEXT, TEXT);
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.password_hash = p_password_hash AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object(
+      'role','authenticated',
+      'sub', v_user.id::text,
+      'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),
+      'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer
+    ),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+
+DROP FUNCTION IF EXISTS public.get_user_by_username(TEXT);
+CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon;
+
+DROP FUNCTION IF EXISTS public.get_user_by_id(UUID);
+CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.id = p_user_id AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object('user', to_jsonb(v_user) - 'password_hash', 'token', v_token);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
+
+
+-- ============================================================
+-- [27] ADMIN: statistik infrastruktur ringan (ukuran database + user
+-- aktif) untuk tab "Status Infrastruktur" di admin.html -- bandwidth/
+-- egress Supabase dan invocation count Vercel sengaja tidak dibangun,
+-- lihat roadmap.md untuk alasannya (tidak ada API publik yang stabil/
+-- terdokumentasi untuk plan tier project ini).
+--
+-- DEPENDENSI: fungsi ini memakai users.token_version untuk verifikasi
+-- admin, jadi HARUS dijalankan setelah block [26] (JWT forgery
+-- mitigation, PR keamanan terpisah) -- token_version belum ada di
+-- database kalau block itu belum jalan. Sengaja memakai pola verifikasi
+-- yang sama dengan is_owner_or_admin() yang sudah diperbaiki (cek role
+-- asli dari tabel + token_version, bukan cuma percaya klaim app_role
+-- dari JWT begitu saja) -- fungsi admin baru tidak boleh mengulang
+-- kesalahan lama yang baru saja diperbaiki di tempat lain.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.admin_get_infra_stats()
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_is_admin BOOLEAN;
+BEGIN
+  SELECT EXISTS(
+    SELECT 1 FROM public.users u
+    WHERE u.id = (auth.jwt()->>'user_id')::uuid
+      AND u.token_version::text = auth.jwt()->>'token_version'
+      AND u.role = 'admin'
+  ) INTO v_is_admin;
+  IF NOT v_is_admin THEN
+    RAISE EXCEPTION 'Forbidden';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'db_size_bytes', pg_database_size(current_database()),
+    'db_size_pretty', pg_size_pretty(pg_database_size(current_database())),
+    'total_users', (SELECT COUNT(*) FROM public.users WHERE role != 'admin'),
+    'active_users_30d', (SELECT COUNT(*) FROM public.users WHERE role != 'admin' AND last_login >= now() - interval '30 days')
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.admin_get_infra_stats() TO anon, authenticated;
+
+
+-- ============================================================
+-- [28] XENDIT TOKEN TOP-UP: tabel pelacakan pembelian token via Xendit
+-- (test mode) -- lihat wangku-spec-xendit-topup-testmode.md.
+--
+-- CATATAN NOMOR BLOK: ditulis di branch terpisah dari block [28] PIN
+-- lock (fix/server-side-pin-lock, belum merge saat ini ditulis) --
+-- keduanya sama-sama [28] di branch masing-masing karena tidak saling
+-- bergantung. Siapa pun yang merge belakangan WAJIB menomori ulang jadi
+-- [29] mengikuti urutan merge, sama seperti block [26]/[27] yang pernah
+-- ditulis ulang urutannya saat PR-nya digabung (lihat commit merge
+-- "fix/admin-panel-table-laporan" untuk contoh penomoran ulang serupa).
+--
+-- token_purchases TIDAK dibaca/ditulis langsung oleh client sama sekali
+-- (kunci total, sama seperti password_reset_tokens block [17]) -- baris
+-- 'pending' dibuat oleh /api/create-payment.js (pakai id barisnya sendiri
+-- sebagai external_id yang dikirim ke Xendit), lalu di-flip ke 'paid'
+-- oleh /api/xendit-webhook.js SETELAH memverifikasi header
+-- x-callback-token. Idempotensi webhook (Xendit bisa mengirim callback
+-- yang sama lebih dari sekali) diwujudkan lewat
+-- "UPDATE ... WHERE status='pending'" itu sendiri -- kalau baris sudah
+-- 'paid' dari delivery sebelumnya, UPDATE itu mengenai nol baris dan
+-- token TIDAK digrant dua kali, tanpa butuh locking terpisah.
+--
+-- Sengaja tabel BARU, bukan perluasan `orders` (yang punya bentuk data
+-- berbeda -- bukti_url/approval manual untuk pembelian PLAN Basic/Pro,
+-- bukan token top-up otomatis via payment gateway) -- dua alur pembelian
+-- ini sengaja tetap terpisah, per scope spec ini.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.token_purchases (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id            UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  tokens             INTEGER NOT NULL,
+  amount             NUMERIC NOT NULL,
+  status             TEXT NOT NULL DEFAULT 'pending',
+  xendit_invoice_id  TEXT,
+  created_at         TIMESTAMPTZ DEFAULT now(),
+  paid_at            TIMESTAMPTZ
+);
+ALTER TABLE public.token_purchases ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "No direct access to token purchases" ON public.token_purchases;
+CREATE POLICY "No direct access to token purchases" ON public.token_purchases
+  FOR ALL USING (false) WITH CHECK (false);
+
+
+-- ============================================================
+-- [29] PIN LOCK: pindah dari localStorage (per-device, tidak per-user) ke
+-- server-side, per-user, opt-in -- lihat wangku-spec-pin-redesign.md.
+--
+-- Bug yang diperbaiki: PIN lama disimpan cuma di localStorage dengan key
+-- generik ('wangku_pin'), tidak terikat ke akun manapun. Di device yang
+-- sama, user KEDUA yang login/daftar otomatis mewarisi PIN user PERTAMA,
+-- karena tidak ada apapun yang membedakan PIN itu milik siapa. PIN juga
+-- device-bound -- tidak pernah keluar dari localStorage, jadi tidak bisa
+-- dipakai lagi di device kedua.
+--
+-- pin_hash NULL = PIN lock nonaktif (default -- opt-in lewat toggle di
+-- Settings, bukan dipaksa saat pertama login seperti sebelumnya). Dihash
+-- di client pakai hp() yang sama dengan password (skema salt yang sama,
+-- demi konsistensi -- bukan klaim setara keamanan password_hash: PIN 6
+-- digit cuma py 1 juta kombinasi, jauh lebih gampang di-brute-force
+-- offline kalau hash-nya bocor dibanding password_hash, makanya nilai
+-- pin_hash sendiri TIDAK PERNAH dikembalikan ke client sama sekali --
+-- hanya boolean pin_enabled turunannya, lihat perubahan di login_check
+-- dkk. di bawah).
+--
+-- Identitas kedua fungsi baru diambil dari JWT (auth.jwt()->>'user_id' +
+-- token_version), BUKAN dari parameter yang dikirim client -- pola yang
+-- sama dengan is_owner_or_admin()/admin_get_infra_stats() (block [26]/
+-- [27]), bukan pola change_password() yang lebih lama (yang percaya
+-- p_user_id mentah dari client, cuma aman karena syarat p_old_hash yang
+-- harus cocok). Fungsi baru sengaja tidak mengulang pola lama yang
+-- kurang ketat itu.
+--
+-- BUG TAK TERKAIT YANG KETEMU SAMBIL LEWAT: nulis set_pin_hash() dengan
+-- pola "DECLARE v_ok BOOLEAN; ... GET DIAGNOSTICS v_ok = ROW_COUNT;
+-- RETURN v_ok > 0;" -- pola yang sama persis dengan change_password() di
+-- block [17] -- ternyata error di production: GET DIAGNOSTICS
+-- mengembalikan INTEGER (jumlah baris), bukan BOOLEAN, dan Postgres tidak
+-- punya operator "boolean > integer" sama sekali. Dikonfirmasi lewat
+-- curl langsung ke change_password RPC: 42883 "operator does not exist:
+-- boolean > integer" -- artinya setiap percobaan "Ganti Password" di
+-- Settings sudah gagal total sejak block [17] ditulis. v_ok di kedua
+-- fungsi diganti INTEGER (v_rows) supaya perbandingannya integer-vs-
+-- integer yang valid -- lihat change_password yang ditulis ulang di
+-- bawah verify_pin.
+-- ============================================================
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS pin_hash TEXT;
+
+CREATE OR REPLACE FUNCTION public.set_pin_hash(p_pin_hash TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_rows INTEGER;
+BEGIN
+  UPDATE public.users SET pin_hash = p_pin_hash, updated_at = now()
+    WHERE id = (auth.jwt()->>'user_id')::uuid
+      AND token_version::text = auth.jwt()->>'token_version';
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RETURN v_rows > 0;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.set_pin_hash(TEXT) TO anon;
+
+CREATE OR REPLACE FUNCTION public.verify_pin(p_pin_hash TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS(
+    SELECT 1 FROM public.users u
+    WHERE u.id = (auth.jwt()->>'user_id')::uuid
+      AND u.token_version::text = auth.jwt()->>'token_version'
+      AND u.pin_hash IS NOT NULL
+      AND u.pin_hash = p_pin_hash
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.verify_pin(TEXT) TO anon;
+
+-- --- Ganti password: sama seperti block [17], cuma v_ok BOOLEAN diganti
+-- v_rows INTEGER -- lihat catatan panjang di awal block [29] soal
+-- "operator does not exist: boolean > integer" yang bikin fungsi ini
+-- gagal total sejak awal. Tidak ada perubahan logika/keamanan lain. ---
+CREATE OR REPLACE FUNCTION public.change_password(p_user_id UUID, p_old_hash TEXT, p_new_hash TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_rows INTEGER;
+BEGIN
+  UPDATE public.users SET password_hash = p_new_hash, updated_at = NOW()
+    WHERE id = p_user_id AND password_hash = p_old_hash;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RETURN v_rows > 0;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.change_password(UUID, TEXT, TEXT) TO anon;
+
+-- pin_hash tidak boleh terbaca langsung -- sama alasannya dengan
+-- password_hash (lihat block [17]), plus alasan tambahan di atas soal
+-- keypace PIN yang kecil. login_check/get_user_by_username/get_user_by_id
+-- juga WAJIB diperbarui di bawah -- to_jsonb(u) otomatis menyertakan
+-- kolom baru manapun kalau tidak dikecualikan satu per satu, jadi tanpa
+-- ini pin_hash mentah akan langsung ikut kebawa balik ke client persis
+-- seperti password_hash dulu sebelum block [17].
+REVOKE SELECT (pin_hash) ON public.users FROM anon;
+
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.password_hash = p_password_hash AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object(
+      'role','authenticated',
+      'sub', v_user.id::text,
+      'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),
+      'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer
+    ),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password_hash' - 'pin_hash') || jsonb_build_object('pin_enabled', v_user.pin_hash IS NOT NULL),
+    'token', v_token
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+
+CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password_hash' - 'pin_hash') || jsonb_build_object('pin_enabled', v_user.pin_hash IS NOT NULL),
+    'token', v_token
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon;
+
+CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.id = p_user_id AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password_hash' - 'pin_hash') || jsonb_build_object('pin_enabled', v_user.pin_hash IS NOT NULL),
+    'token', v_token
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
+
+
+-- ============================================================
+-- [30] XENDIT PAYMENT HISTORY: izinkan user baca baris token_purchases
+-- miliknya sendiri -- lihat wangku-spec-xendit-payment-history.md.
+--
+-- token_purchases block [28] sengaja FOR ALL USING(false) (kunci total,
+-- tidak ada yang bisa baca ATAU tulis langsung dari client). Sekarang
+-- fitur "Riwayat Pembayaran" butuh user bisa MELIHAT baris miliknya
+-- sendiri -- policy SELECT baru ini ditambahkan TERPISAH dari policy
+-- FOR ALL yang sudah ada, bukan menggantikannya. Di Postgres RLS,
+-- beberapa policy permissive untuk command yang sama digabung dengan OR,
+-- jadi untuk SELECT hasilnya jadi "false OR is_owner_or_admin(user_id)"
+-- = is_owner_or_admin(user_id) -- sementara INSERT/UPDATE/DELETE tetap
+-- hanya diatur oleh policy FOR ALL lama itu (USING(false)/WITH CHECK(false)
+-- tidak disentuh, tidak ada policy INSERT/UPDATE/DELETE baru yang
+-- menambah izin) -- jadi client tetap sama sekali tidak bisa menulis ke
+-- tabel ini, cuma bisa baca baris miliknya sendiri sekarang. Webhook
+-- (service_role) tidak terpengaruh RLS sama sekali seperti biasa.
+-- ============================================================
+DROP POLICY IF EXISTS "Users can view own token purchases" ON public.token_purchases;
+CREATE POLICY "Users can view own token purchases" ON public.token_purchases
+  FOR SELECT USING (public.is_owner_or_admin(user_id));
+
+
+-- ============================================================
+-- [31] SUBSCRIPTION RENEWAL: plan_expires_at (paid-period tracking,
+-- paralel dengan trial_ends_at) + perluasan token_purchases untuk
+-- pembelian PERPANJANGAN PLAN (bukan cuma token top-up) -- lihat
+-- wangku-spec-subscription-renewal.md.
+--
+-- Kolom baru di token_purchases, bukan menebak dari nominal/jumlah
+-- token: item_type membedakan baris 'tokens' (top-up, sudah ada sejak
+-- block [28]) vs 'plan' (perpanjangan Basic/Pro) secara eksplisit --
+-- kolom `plan` cuma terisi untuk baris item_type='plan'.
+--
+-- Lazy-downgrade plan_expires_at MENGIKUTI POLA trial_ends_at PERSIS
+-- (lihat IF block trial_ends_at di bawah, yang tidak diubah) -- dicek
+-- di login_check/get_user_by_username/get_user_by_id setiap kali user
+-- itu login atau sesinya di-restore, BUKAN lewat cron/scheduled job
+-- terpisah. Prinsip "tidak pernah lockout" yang sama: user cuma turun
+-- ke plan='free', datanya tidak disentuh sama sekali. plan_expires_at
+-- SENGAJA tidak di-null-kan saat downgrade (persis trial_ends_at yang
+-- juga dibiarkan apa adanya) -- tetap ada jejak riwayat kapan periode
+-- berbayar terakhir berakhir, dan aman karena setiap pembaca kolom ini
+-- juga selalu ngecek plan yang masih aktif dulu, bukan cuma tanggalnya
+-- sendirian.
+--
+-- "Extend dari plan_expires_at yang ada, bukan dari hari ini" (spec
+-- §1, kalau user perpanjang beberapa hari sebelum periode lamanya
+-- habis) dihitung di JS pemanggil (api/xendit-webhook.js, admin.html
+-- konfirmasiOrder) sebelum PATCH, sama seperti additive token grant di
+-- block [28] yang juga GET dulu baru hitung nilai barunya -- bukan di
+-- fungsi SQL ini, supaya tetap satu pola across kedua jalur pembayaran
+-- (Xendit + approval manual) tanpa RPC baru.
+-- ============================================================
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMPTZ;
+ALTER TABLE public.token_purchases ADD COLUMN IF NOT EXISTS item_type TEXT NOT NULL DEFAULT 'tokens';
+ALTER TABLE public.token_purchases ADD COLUMN IF NOT EXISTS plan TEXT;
+
+CREATE OR REPLACE FUNCTION public.login_check(p_username TEXT, p_password_hash TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.password_hash = p_password_hash AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  IF v_user.plan_expires_at IS NOT NULL AND v_user.plan_expires_at < now() AND v_user.plan IN ('basic','pro','unlimited') THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object(
+      'role','authenticated',
+      'sub', v_user.id::text,
+      'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),
+      'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer
+    ),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password_hash' - 'pin_hash') || jsonb_build_object('pin_enabled', v_user.pin_hash IS NOT NULL),
+    'token', v_token
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.login_check(TEXT, TEXT) TO anon;
+
+CREATE OR REPLACE FUNCTION public.get_user_by_username(p_username TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.username = p_username AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  IF v_user.plan_expires_at IS NOT NULL AND v_user.plan_expires_at < now() AND v_user.plan IN ('basic','pro','unlimited') THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password_hash' - 'pin_hash') || jsonb_build_object('pin_enabled', v_user.pin_hash IS NOT NULL),
+    'token', v_token
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_username(TEXT) TO anon;
+
+CREATE OR REPLACE FUNCTION public.get_user_by_id(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_user RECORD;
+  v_token TEXT;
+BEGIN
+  SELECT * INTO v_user FROM public.users u
+    WHERE u.id = p_user_id AND u.status = 'active' LIMIT 1;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  IF v_user.trial_ends_at IS NOT NULL AND v_user.trial_ends_at < now() AND v_user.plan = 'pro' THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  IF v_user.plan_expires_at IS NOT NULL AND v_user.plan_expires_at < now() AND v_user.plan IN ('basic','pro','unlimited') THEN
+    UPDATE public.users SET plan = 'free' WHERE id = v_user.id;
+    v_user.plan := 'free';
+  END IF;
+  v_token := public.wangku_sign_jwt(
+    json_build_object('role','authenticated','sub', v_user.id::text,'user_id', v_user.id::text,
+      'app_role', COALESCE(v_user.role,'user'),'token_version', v_user.token_version::text,
+      'exp', extract(epoch from (now() + interval '30 days'))::integer),
+    'OSQwxt5/y6oM9vZKo7IMU5uvikX3sZt9T2OUGfkgH85oSM+askL2e+W6f0z3uIerHuPhRj4OIeEkKbg4Atu/AA=='
+  );
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password_hash' - 'pin_hash') || jsonb_build_object('pin_enabled', v_user.pin_hash IS NOT NULL),
+    'token', v_token
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_user_by_id(UUID) TO anon;
+
+
+-- ============================================================
+-- [32] Simpan metode/channel pembayaran Xendit -- feedback dari
+-- pengetesan PR Riwayat Pembayaran: user tidak bisa lihat DENGAN APA dia
+-- bayar (GoPay/BCA VA/QRIS/dst). Diisi webhook dari field
+-- payment_channel (lebih spesifik, mis. "BCA"/"GOPAY") atau
+-- payment_method (kategori lebih umum, mis. "BANK_TRANSFER"/"EWALLET")
+-- sebagai fallback kalau payment_channel tidak ada di payload -- lihat
+-- api/xendit-webhook.js.
+--
+-- CATATAN NOMOR BLOK: ditulis [31] di branch terpisah dari block [31]
+-- subscription-renewal (plan_expires_at) -- keduanya independen, tidak
+-- saling bergantung. Dinomori ulang jadi [32] di sini saat kedua branch
+-- digabung, mengikuti urutan gabung -- pola yang sama seperti collision
+-- [28]/[29] dan [26]/[27] sebelumnya di file ini.
+-- ============================================================
+ALTER TABLE public.token_purchases ADD COLUMN IF NOT EXISTS payment_channel TEXT;
+
+
+-- ============================================================
+-- [33] TOKEN SLIDER + GANTI PAKET: plan_started_at (kapan periode
+-- berbayar SEKARANG dimulai, paralel dengan plan_expires_at) +
+-- token_purchases.restart_period -- lihat
+-- wangku-spec-token-slider-ganti-paket.md.
+--
+-- restart_period membedakan DUA cara sebuah 'plan' purchase bisa lahir:
+--   - false (default) -- perpanjangan plan yang SAMA (buyPlanRenewal()):
+--     extend dari plan_expires_at yang ada kalau masih aktif, plan_started_at
+--     TIDAK disentuh (periode berjalan terus, cuma diperpanjang).
+--   - true -- ganti ke tier LAIN lewat "Ganti Paket" (requestPlanChange()
+--     untuk target Basic/Pro): SELALU restart fresh (base=sekarang,
+--     bukan plan_expires_at lama) terlepas dari berapa hari tersisa di
+--     tier sebelumnya -- ganti yang dibayar itu beda produk, tidak
+--     mewarisi sisa hari tier lama. plan_started_at di-set ke sekarang.
+-- Kedua kasus di atas SAMA-SAMA restart fresh + set plan_started_at kalau
+-- user memang belum punya plan_expires_at aktif sama sekali (pelanggan
+-- baru/sudah lapse) -- logika ini ada di api/xendit-webhook.js, bukan di
+-- kolom ini sendiri, kolom ini cuma penanda niat dari sisi pembelian.
+--
+-- admin.html konfirmasiOrder() (approval manual) ikut mengisi
+-- plan_started_at dengan aturan sederhana yang sama (fresh -> set,
+-- extend -> biarkan) -- tidak butuh restart_period di jalur itu karena
+-- approval manual tidak membedakan "perpanjang tier sama" vs "ganti
+-- tier", setiap approval memang selalu menetapkan plan apa adanya.
+-- ============================================================
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS plan_started_at TIMESTAMPTZ;
+ALTER TABLE public.token_purchases ADD COLUMN IF NOT EXISTS restart_period BOOLEAN NOT NULL DEFAULT false;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables

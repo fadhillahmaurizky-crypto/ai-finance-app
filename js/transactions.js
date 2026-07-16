@@ -27,7 +27,8 @@ function renderTxn(txns,cid){
     const ico=isT?'arrows-left-right':(IM[k]||'coin');
     const bg=isT?'var(--blue-bg)':(BG[k]||(isI?'var(--green-bg)':'var(--red-bg)'));
     const cl=isT?'var(--blue)':(CL[k]||(isI?'var(--green)':'var(--red)'));
-    return`<div class="txn-card" onclick="openTrxDetailById('${t.id}')"><div class="txn-ico" style="background:${bg};color:${cl}"><i class="ti ti-${ico}"></i></div><div class="txn-info"><div class="txn-name">${t.keterangan||t.kategori||'Transaksi'}</div><div class="txn-sub">${jenisLabel(t.jenis)} • ${t.kategori||''}</div></div><div class="txn-right"><div class="txn-amt ${isI?'inc':isT?'':'exp'}">${isI?'+':isT?'⇄ ':'-'}${rpF(t.nominal)}</div><div class="txn-time">${t.tanggal||''}</div></div></div>`;
+    const sub=isT?accountFlowLabel(t):(jenisLabel(t.jenis)+' • '+(t.kategori||''));
+    return`<div class="txn-card" onclick="openTrxDetailById('${t.id}')"><div class="txn-ico" style="background:${bg};color:${cl}"><i class="ti ti-${ico}"></i></div><div class="txn-info"><div class="txn-name">${t.keterangan||t.kategori||'Transaksi'}</div><div class="txn-sub">${sub}</div></div><div class="txn-right"><div class="txn-amt ${isI?'inc':isT?'':'exp'}">${isI?'+':isT?'⇄ ':'-'}${rpF(t.nominal)}</div><div class="txn-time">${t.tanggal||''}</div></div></div>`;
   }).join('');
 }
 
@@ -63,6 +64,17 @@ function accountNameById(id){
   if(!id)return'';
   const a=(typeof accountsList!=='undefined'?accountsList:[]).find(x=>x.id===id);
   return a?a.nama:'';
+}
+// "Akun terhapus" hanya kalau accountsList sudah termuat tapi id-nya
+// genuinely tidak ketemu (akun sudah dihapus) -- kalau accountsList masih
+// kosong karena belum sempat termuat (race saat cold boot Home), fallback
+// ke jenisLabel biasa dulu supaya tidak salah nampilin "terhapus" untuk
+// akun yang sebenarnya ada, cuma belum sempat di-fetch.
+function accountFlowLabel(t){
+  if(!accountsList||!accountsList.length)return jenisLabel(t.jenis);
+  const from=t.account_id?(accountNameById(t.account_id)||'Akun terhapus'):'Akun terhapus';
+  const to=t.to_account_id?(accountNameById(t.to_account_id)||'Akun terhapus'):'Akun terhapus';
+  return from+' → '+to;
 }
 function exportToExcel(){
   if(typeof XLSX==='undefined'){showToast('Modul Excel belum termuat, coba lagi sebentar','err');return;}
@@ -304,6 +316,14 @@ function openTrxDetailById(id){
   const isI=t.jenis==='pemasukan',isT=t.jenis==='transfer';
   amtEl.textContent=(isI?'+':isT?'⇄ ':'-')+rpF(t.nominal);
   amtEl.className='txn-amt '+(isI?'inc':isT?'':'exp');
+  const flowEl=document.getElementById('trx-detail-flow');
+  if(isT){
+    document.getElementById('trx-detail-from').textContent=t.account_id?(accountNameById(t.account_id)||'Akun terhapus'):'Akun terhapus';
+    document.getElementById('trx-detail-to').textContent=t.to_account_id?(accountNameById(t.to_account_id)||'Akun terhapus'):'Akun terhapus';
+    flowEl.style.display='flex';
+  }else{
+    flowEl.style.display='none';
+  }
   document.getElementById('trx-edit-btn').onclick=()=>editTrx(id);
   document.getElementById('trx-del-btn').onclick=()=>deleteTrx(id);
   document.getElementById('trx-detail-modal').classList.add('open');

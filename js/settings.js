@@ -9,9 +9,219 @@ function renderSettingsExtras(){
   syncNotifToggleUI();
   syncAutoDetectUI();
   syncCountTargetUI();
-  if(typeof renderAccountManageSection==='function')renderAccountManageSection();
+  syncPinToggleUI();
   const track=document.getElementById('autosync-track');
   if(track)track.className='toggle-track'+(autosyncEnabled()?' on':'');
+}
+
+// ========================
+// TOKEN TOP-UP (Xendit, test mode) — lihat backend.md
+// ========================
+// Slider 100rb-20jt token, kelipatan 100rb -- menggantikan dua tombol
+// tetap (+2 Juta/+5 Juta) lama. Harga interpolasi linear, dihitung ulang
+// di SINI cuma untuk tampilan langsung -- server (create-payment.js)
+// menghitung ulang sendiri dari `tokens` sebelum bikin invoice, angka di
+// sini tidak pernah dipercaya/dikirim sebagai harga final. Lihat
+// wangku-spec-token-slider-ganti-paket.md Part 1.
+let tokenSliderValue=2000000;
+function computeTokenPriceClient(tokens){
+  const raw=3000+((tokens-100000)/(20000000-100000))*(150000-3000);
+  return Math.round(raw/100)*100;
+}
+function formatTokenCountClient(tokens){
+  if(tokens%1000000===0)return(tokens/1000000)+' Juta Token';
+  if(tokens>=1000000)return(tokens/1000000).toFixed(1)+' Juta Token';
+  return(tokens/1000)+' Ribu Token';
+}
+function updateTokenSliderPrice(){
+  const el=document.getElementById('token-slider');if(!el)return;
+  tokenSliderValue=Number(el.value);
+  document.getElementById('token-slider-count').textContent=formatTokenCountClient(tokenSliderValue);
+  document.getElementById('token-slider-price').textContent=rpF(computeTokenPriceClient(tokenSliderValue));
+}
+function confirmTokenSliderPurchase(){
+  const tokens=tokenSliderValue;
+  const price=computeTokenPriceClient(tokens);
+  document.getElementById('token-confirm-text').innerHTML=`Beli <b>${formatTokenCountClient(tokens)}</b> seharga <b>${rpF(price)}</b>?`;
+  document.getElementById('token-confirm-modal').classList.add('open');
+}
+async function buyTokenSlider(){
+  document.getElementById('token-confirm-modal').classList.remove('open');
+  try{
+    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,item_type:'tokens',tokens:tokenSliderValue})});
+    const d=await resp.json();
+    if(!resp.ok||d.error)throw new Error(d.error||'Gagal membuat pembayaran');
+    window.location.href=d.checkout_url;
+  }catch(e){showToast('Gagal: '+e.message,'err');}
+}
+// Perpanjangan plan yang SEDANG aktif (Basic/Pro), bukan ganti tier --
+// lihat wangku-spec-subscription-renewal.md §4. Ganti tier tetap lewat
+// requestPlanChange()/Ganti Paket, tidak disentuh di sini -- dua hal
+// yang sengaja dipisah (restart:false vs restart:true di confirmGantiPaket()).
+// Dulu langsung redirect ke Xendit tanpa konfirmasi apapun -- sekarang
+// buka modal konfirmasi yang SAMA dengan Ganti Paket (ganti-paket-confirm-modal),
+// dibedakan lewat gantiPaketIsRenewal supaya teksnya bilang "Perpanjang",
+// bukan "Ganti ke", dan supaya confirmGantiPaket() tahu harus kirim
+// restart:false (extend), bukan restart:true (reset fresh).
+function buyPlanRenewal(planId){
+  if(!user)return;
+  gantiPaketTarget=planId;gantiPaketIsRenewal=true;
+  const info=PLANS[planId];
+  document.getElementById('ganti-paket-confirm-title').textContent='Konfirmasi Perpanjangan';
+  document.getElementById('ganti-paket-confirm-text').innerHTML=`Perpanjang <b>${info.label}</b> 30 hari lagi — ${info.price}, lanjutkan?`;
+  document.getElementById('ganti-paket-confirm-modal').classList.add('open');
+}
+// Dipanggil sekali tiap showApp() -- cek apakah kita baru kembali dari
+// redirect Xendit (?xendit_return=success|failed di URL). Webhook Xendit
+// (sumber kebenaran sebenarnya, lihat api/xendit-webhook.js) bisa baru
+// sampai beberapa detik SETELAH redirect balik ini terjadi -- jangan
+// anggap token sudah ter-update cuma karena user sudah kembali ke app,
+// makanya di-poll beberapa kali alih-alih langsung dipercaya.
+async function checkXenditReturn(){
+  const params=new URLSearchParams(window.location.search);
+  const xr=params.get('xendit_return');
+  if(!xr)return;
+  const isResume=params.get('resume')==='1';
+  history.replaceState(null,'',window.location.pathname);
+  if(xr==='failed'){showToast('Pembayaran dibatalkan atau gagal','warn');if(isResume&&typeof showPaymentHistory==='function')showPaymentHistory();return;}
+  showToast('Memproses pembayaran...','ok');
+  const beforeLimit=user?.tokens_limit||0;
+  // Perpanjangan plan tidak selalu menaikkan tokens_limit (mis. Basic
+  // selalu 0, atau Pro yang di-reset ke angka bulanan yang KEBETULAN sama
+  // dengan sebelumnya) -- jadi "berhasil" juga dideteksi dari
+  // plan_expires_at maju, bukan cuma tokens_limit naik. Lihat
+  // wangku-spec-subscription-renewal.md §4.
+  const beforeExpiry=user?.plan_expires_at?new Date(user.plan_expires_at).getTime():0;
+  for(let i=0;i<6;i++){
+    await new Promise(r=>setTimeout(r,3000));
+    try{
+      const result=await rpc('get_user_by_id',{p_user_id:user.id});
+      if(result?.user){
+        user=result.user;localStorage.setItem('sdk_token',result.token);localStorage.setItem('sdk_session',JSON.stringify(user));
+        const afterExpiry=user.plan_expires_at?new Date(user.plan_expires_at).getTime():0;
+        if(user.tokens_limit>beforeLimit||afterExpiry>beforeExpiry){
+          renderPlanCard();renderPlanOptions();
+          // "diperbarui" (bukan "diperpanjang") sengaja generik -- sinyal
+          // plan_expires_at maju ini sama untuk perpanjangan tier SAMA
+          // (buyPlanRenewal()) maupun Ganti Paket tier LAIN
+          // (confirmGantiPaket()), dan "diperpanjang" salah kalau yang
+          // terjadi sebenarnya ganti tier, bukan extend.
+          showToast(afterExpiry>beforeExpiry?'Plan berhasil diperbarui ✓':'Token berhasil ditambahkan ✓','ok');
+          // "resume" berasal dari Riwayat Pembayaran (lanjutkan pembelian
+          // pending), bukan dari tombol Beli Token biasa -- kembalikan ke
+          // situ, bukan cuma diam di Settings, per wangku-fixes-pr25-26-27.md #2b.
+          if(isResume&&typeof showPaymentHistory==='function')showPaymentHistory();
+          return;
+        }
+      }
+    }catch(e){}
+  }
+  showToast('Pembayaran masih diproses, cek lagi sebentar lagi ya','warn');
+  if(isResume&&typeof showPaymentHistory==='function')showPaymentHistory();
+}
+
+// Label paket diturunkan dari jumlah token / item_type+plan, bukan
+// kolom label terpisah -- tier cuma ada segelintir (lihat
+// TOKEN_PACKAGES/PLAN_PACKAGES di create-payment.js), jadi tidak perlu
+// simpan label mentah per baris di DB. item_type/plan ditambahkan block
+// [31] khusus buat membedakan baris top-up token vs perpanjangan plan
+// (wangku-spec-subscription-renewal.md §4). restart_period (block [33])
+// dipakai lagi di sini buat membedakan baris ganti-tier/reaktivasi
+// (restart_period=true, dari Ganti Paket) vs perpanjangan tier yang sama
+// (restart_period=false, dari tombol Perpanjang) -- lihat
+// wangku-spec-downgrade-payment-akun.md §2, dua kasus ini butuh label
+// beda supaya tidak menyesatkan (mis. upgrade Free->Basic ditampilkan
+// sebagai "Perpanjangan" padahal sebelumnya belum pernah bayar Basic).
+function tokenPurchaseLabel(r){
+  if(r.item_type==='plan'){
+    const planNames={basic:'Basic',pro:'Pro',unlimited:'Ultimate'};
+    const nama=planNames[r.plan]||r.plan;
+    return r.restart_period?('Upgrade ke Paket '+nama):('Perpanjangan Paket '+nama+' (30 Hari)');
+  }
+  // Kuantitas token sekarang bebas (slider 100rb-20jt), bukan cuma dua
+  // tier tetap lama -- pakai formatter yang sama dengan slider-nya sendiri
+  // (formatTokenCountClient()) supaya label baris lama (dari tier tetap)
+  // dan baru (dari slider) konsisten.
+  return formatTokenCountClient(r.tokens)+' AI';
+}
+// Channel Xendit (mis. "BCA", "GOPAY") disimpan mentah dari webhook --
+// tidak ada kamus lengkap semua channel Xendit di sini, jadi ditampilkan
+// title-cased apa adanya alih-alih daftar terjemahan yang gampang basi.
+function paymentChannelLabel(channel){
+  if(!channel)return null;
+  return channel.split('_').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
+}
+const PURCHASE_STATUS_UI={
+  pending:{label:'Menunggu Pembayaran',color:'var(--amber)',bg:'var(--amber-bg)'},
+  paid:{label:'Berhasil',color:'var(--green)',bg:'var(--green-bg)'},
+  expired:{label:'Kedaluwarsa',color:'var(--text3)',bg:'var(--border2)'},
+  failed:{label:'Gagal',color:'var(--red)',bg:'var(--red-bg)'},
+};
+let paymentHistoryRows=[];
+async function showPaymentHistory(){
+  if(!user)return;
+  const modal=document.getElementById('payment-history-modal');
+  const body=document.getElementById('payment-history-body');
+  modal.classList.add('open');
+  body.innerHTML='<div class="skeleton" style="height:60px;margin-bottom:8px"></div><div class="skeleton" style="height:60px"></div>';
+  try{
+    const rows=await sb(`token_purchases?user_id=eq.${user.id}&order=created_at.desc&select=id,tokens,amount,status,created_at,item_type,plan,payment_channel,restart_period`);
+    paymentHistoryRows=rows||[];
+    if(!rows||!rows.length){body.innerHTML='<div style="text-align:center;padding:20px;font-size:12px;color:var(--text3)">Belum ada riwayat pembelian</div>';return;}
+    body.innerHTML=rows.map(r=>{
+      const st=PURCHASE_STATUS_UI[r.status]||{label:r.status,color:'var(--text3)',bg:'var(--border2)'};
+      const tgl=new Date(r.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      return`<div style="background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer" onclick="openPaymentHistoryRow('${r.id}')">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${tokenPurchaseLabel(r)}</div>
+          <div style="font-size:9px;font-weight:600;color:${st.color};background:${st.bg};padding:2px 8px;border-radius:6px;white-space:nowrap">${st.label}</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">
+          <span>${tgl}</span>
+          <span style="font-weight:600;color:var(--text)">${rpF(r.amount)}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Gagal memuat riwayat pembayaran</div>';}
+}
+// Tap sebuah baris Riwayat Pembayaran -- lihat wangku-fixes-pr25-26-27.md #2b.
+// 'pending' langsung lanjutkan pembayaran yang sama (tidak ada layar
+// konfirmasi terpisah lagi) -- baris ini kan sudah lahir dari intent yang
+// SUDAH dikonfirmasi user sebelumnya (lewat modal Ganti Paket/Perpanjang
+// atau slider token), jadi resume tidak perlu minta konfirmasi ulang.
+// Status lain (paid/expired/failed) cuma
+// tampilan info read-only -- tidak ada aksi "beli lagi" di sini, sengaja
+// (spec awal payment-history sudah bilang mulai pembelian baru cukup
+// lewat tombol Beli Token biasa, tidak perlu resume flow untuk itu).
+function openPaymentHistoryRow(purchaseId){
+  const r=paymentHistoryRows.find(x=>x.id===purchaseId);if(!r)return;
+  if(r.status==='pending'){resumePayment(purchaseId);return;}
+  const body=document.getElementById('payment-history-body');
+  const st=PURCHASE_STATUS_UI[r.status]||{label:r.status,color:'var(--text3)',bg:'var(--border2)'};
+  const tgl=new Date(r.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const channel=paymentChannelLabel(r.payment_channel);
+  body.innerHTML=`<div style="cursor:pointer;font-size:12px;color:var(--text3);margin-bottom:12px;display:flex;align-items:center;gap:4px" onclick="showPaymentHistory()"><i class="ti ti-chevron-left"></i> Kembali</div>
+    <div style="background:var(--bg3);border-radius:12px;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:12px">
+        <div style="font-size:14px;font-weight:700;color:var(--text)">${tokenPurchaseLabel(r)}</div>
+        <div style="font-size:9px;font-weight:600;color:${st.color};background:${st.bg};padding:2px 8px;border-radius:6px;white-space:nowrap">${st.label}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-top:1px solid var(--border)"><span style="color:var(--text3)">Tanggal</span><span style="color:var(--text)">${tgl}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-top:1px solid var(--border)"><span style="color:var(--text3)">Jumlah</span><span style="color:var(--text);font-weight:600">${rpF(r.amount)}</span></div>
+      ${channel?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-top:1px solid var(--border)"><span style="color:var(--text3)">Metode Pembayaran</span><span style="color:var(--text)">${channel}</span></div>`:''}
+    </div>`;
+}
+// Lanjutkan pembelian 'pending' -- panggil /api/create-payment dengan
+// resume_purchase_id alih-alih package baru. Server yang memutuskan reuse
+// invoice lama atau buat baru (lihat api/create-payment.js handleResume()).
+async function resumePayment(purchaseId){
+  try{
+    showToast('Menyiapkan pembayaran...','ok');
+    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,resume_purchase_id:purchaseId})});
+    const d=await resp.json();
+    if(!resp.ok||d.error)throw new Error(d.error||'Gagal melanjutkan pembayaran');
+    window.location.href=d.checkout_url;
+  }catch(e){showToast('Gagal: '+e.message,'err');}
 }
 
 // ========================
@@ -38,28 +248,71 @@ function openPlanOptions(){
   renderPlanOptions();
   document.getElementById('plan-options-modal').classList.add('open');
 }
+// Cuma tawarkan tier yang lebih tinggi dari yang sekarang -- lihat
+// wangku-spec-downgrade-payment-akun.md #1. Downgrade sukarela (termasuk
+// ke Free) SENGAJA tidak lagi ditawarkan lewat picker ini sama sekali --
+// beda dari mekanisme lapse-ke-Free OTOMATIS saat plan_expires_at lewat
+// (login_check/get_user_by_id), yang TIDAK disentuh sama sekali di sini,
+// tetap jalan seperti biasa. User Pro tidak dapat opsi apa-apa (sudah
+// tier tertinggi yang bisa di-self-service) -- entry point "Upgrade"
+// tetap ditampilkan (tidak disembunyikan), cuma isi modalnya jadi pesan
+// info tanpa aksi, supaya tombolnya tidak terkesan hilang/rusak.
 function renderPlanOptions(){
   const el=document.getElementById('plan-options');if(!el)return;
   const isMaster=user&&(user.role==='admin'||user.username===MASTER);
   if(isMaster)return;
   const current=user?.plan||'free';
-  const order=['free','basic','pro','unlimited'];
   const rank={free:0,basic:1,pro:2,unlimited:3};
-  el.innerHTML=order.map(p=>{
-    const info=PLANS[p];const isCurrent=p===current;let btn;
-    if(isCurrent)btn=`<button class="plan-opt-btn current-tag" disabled>Aktif</button>`;
-    else if(rank[p]>rank[current])btn=`<button class="plan-opt-btn" onclick="requestPlanChange('${p}')">Upgrade</button>`;
-    else btn=`<button class="plan-opt-btn down" onclick="requestPlanChange('${p}')">Downgrade</button>`;
-    return `<div class="plan-opt-row${isCurrent?' current':''}"><div class="plan-opt-info"><div class="plan-opt-name">${info.label}</div><div class="plan-opt-price">${info.price}</div></div>${btn}</div>`;
+  const upgradeTargets=['free','basic','pro'].filter(p=>rank[p]>rank[current]);
+  if(!upgradeTargets.length){
+    el.innerHTML=`<div style="text-align:center;padding:20px 8px;font-size:13px;color:var(--text3)">Kamu sudah di paket tertinggi 🎉</div>`;
+    return;
+  }
+  el.innerHTML=upgradeTargets.map(p=>{
+    const info=PLANS[p];
+    return `<div class="plan-opt-row"><div class="plan-opt-info"><div class="plan-opt-name">${info.label}</div><div class="plan-opt-price">${info.price}</div></div><button class="plan-opt-btn" onclick="requestPlanChange('${p}')">Upgrade</button></div>`;
   }).join('');
 }
+// Ganti Paket (Upgrade dari plan-options-modal) -- lihat
+// wangku-spec-token-slider-ganti-paket.md Part 2 dan
+// wangku-spec-downgrade-payment-akun.md #1. Dulu SELALU cuma buka
+// WhatsApp ke admin, terlepas dari tier tujuannya. Sekarang popup
+// konfirmasi, lalu bayar lewat Xendit (restart:true -- SELALU restart
+// fresh, beda dari buyPlanRenewal() yang extend dari plan_expires_at
+// yang ada, karena ganti tier adalah produk berbeda, tidak mewarisi
+// sisa hari tier lama). Target selalu Basic/Pro sekarang --
+// renderPlanOptions() di atas tidak pernah lagi menawarkan 'free' lewat
+// picker ini (downgrade sukarela dihapus), jadi versi lama fungsi ini
+// yang menangani 'free' (applyFreeDowngrade()) sudah dihapus, genuinely
+// tidak terpakai lagi. Ultimate tidak muncul di sini sama sekali --
+// konsisten dengan keputusan sebelumnya untuk menyembunyikan Ultimate
+// dari UI user-facing.
+let gantiPaketTarget=null;
+// true kalau modal konfirmasi ini dibuka dari buyPlanRenewal() (tier
+// SAMA, restart:false, extend dari plan_expires_at yang ada) -- false
+// kalau dari requestPlanChange()/Ganti Paket (tier LAIN, restart:true,
+// selalu reset fresh). Satu modal dipakai bareng buat dua flow ini
+// karena bentuknya identik (teks konfirmasi -> bayar lewat Xendit),
+// cuma beda kalimat & restart flag.
+let gantiPaketIsRenewal=false;
 function requestPlanChange(plan){
   if(!user)return;
-  const info=PLANS[plan];const current=user.plan||'free';
-  const rank={free:0,basic:1,pro:2,unlimited:3};
-  const action=rank[plan]>rank[current]?'upgrade':'downgrade';
-  const msg='Halo Admin Wangku, saya '+(user.full_name||user.username)+' (@'+user.username+') ingin '+action+' paket dari '+(PLANS[current]?.label||current)+' ke '+info.label+' ('+info.price+'). Mohon dibantu ya 🙏';
-  window.open('https://wa.me/'+CS+'?text='+encodeURIComponent(msg),'_blank');
+  gantiPaketTarget=plan;gantiPaketIsRenewal=false;
+  const info=PLANS[plan];
+  document.getElementById('ganti-paket-confirm-title').textContent='Konfirmasi Ganti Paket';
+  document.getElementById('ganti-paket-confirm-text').innerHTML=`Ganti ke <b>${info.label}</b> — ${info.price}, lanjutkan?`;
+  document.getElementById('ganti-paket-confirm-modal').classList.add('open');
+}
+async function confirmGantiPaket(){
+  document.getElementById('ganti-paket-confirm-modal').classList.remove('open');
+  const plan=gantiPaketTarget;if(!plan)return;
+  const restart=!gantiPaketIsRenewal;
+  try{
+    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,package:plan,item_type:'plan',restart})});
+    const d=await resp.json();
+    if(!resp.ok||d.error)throw new Error(d.error||'Gagal membuat pembayaran');
+    window.location.href=d.checkout_url;
+  }catch(e){showToast('Gagal: '+e.message,'err');}
 }
 
 // ========================
@@ -166,6 +419,34 @@ function toggleAutosync(){
   if(enabled)pingSheetSync();
 }
 function pingSheetSync(){try{fetch(GAS+'?action=ping').catch(()=>{});}catch(e){}}
+// ========================
+// PIN LOCK TOGGLE (Settings) — nyalakan/matikan lewat set_pin_hash RPC,
+// bukan localStorage langsung. Lihat ui-helpers.js untuk showPinScreen/
+// pinSubmit yang benar-benar mengurus alur input+verifikasi PIN-nya.
+// ========================
+function syncPinToggleUI(){
+  const track=document.getElementById('pin-lock-track');
+  if(track)track.className='toggle-track'+(user?.pin_enabled?' on':'');
+}
+function togglePinLock(){
+  if(user?.pin_enabled){
+    disablePinLock();
+  }else{
+    // Minta bikin PIN baru dulu -- toggle-nya baru ikut menyala setelah
+    // set_pin_hash sukses (lihat finishPinSet() di ui-helpers.js), bukan
+    // optimistic, supaya tidak salah tampil "aktif" kalau gagal simpan.
+    showPinScreen('set','settings');
+  }
+}
+async function disablePinLock(){
+  try{
+    await rpc('set_pin_hash',{p_pin_hash:null});
+    user.pin_enabled=false;
+    localStorage.setItem('sdk_session',JSON.stringify(user));
+    syncPinToggleUI();
+    showToast('Kunci PIN dimatikan','ok');
+  }catch(e){showToast('Gagal: '+e.message,'err');}
+}
 async function runAutosync(){
   await loadSummary();await loadTrx('semua','txn-home',5);
   if(typeof loadAccounts==='function')await loadAccounts();

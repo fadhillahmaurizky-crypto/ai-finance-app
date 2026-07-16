@@ -35,7 +35,7 @@ This project is split between two roles, deliberately:
 | Backend | Supabase (Postgres + PostgREST), custom RPC-based auth (not Supabase Auth) |
 | Auth model | Custom JWT signed inside Postgres (`pgcrypto` + hand-rolled HS256), enforced via real per-user RLS on every table |
 | AI | Groq API, proxied through Vercel serverless functions (`/api/ai-chat`, `/api/ai-scan`) — **the API key never reaches the browser** |
-| Hosting | Vercel (`ai-finance-app-gamma.vercel.app`) |
+| Hosting | Vercel (`ai-finance-app-murex.vercel.app`) — root `/` serves `landing.html`, the app itself is at `/app` (both via `vercel.json` rewrites, not physical file moves — see `architecture.md`) |
 | Android | TWA via Bubblewrap, signed with `android.keystore` |
 | Admin panel | `admin.html`, separate app, real login against `role='admin'` accounts (no longer a shared static password) |
 | Repo | `github.com/ariftafachrizal/ai-finance-app` (Arif's fork) |
@@ -51,7 +51,7 @@ This project is split between two roles, deliberately:
 - **Admin panel**: real authentication, admin/App-user segregation, transactions view with account column.
 
 ## What's explicitly on hold / deferred
-- **Fonnte WhatsApp bot** — on hold, pending a Fonnte-vs-Evolution-API decision. A Google Apps Script backend for it was drafted during planning conversations but **never actually committed to this repo** — `gas/wangku-backend.gs` does not exist here, despite older docs describing it as if it did. See `backend.md`.
+- **Fonnte WhatsApp bot** — `gs/fonnte.gs` is real, committed, and fixed as of this session (service-role auth, per-account attribution, all-time balance model, real-category matching, account-name extraction). Deployment to the live Apps Script editor is still a manual step the product owner does themselves. See `backend.md`.
 - **Token refresh** — sessions expire after 30 days and force a full re-login; no refresh flow yet.
 - **Registration email verification** is still checked client-side only (unlike the forgot-password OTP, which was moved server-side) — a real but lower-severity gap.
 

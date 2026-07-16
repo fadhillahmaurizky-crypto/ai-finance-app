@@ -4,10 +4,11 @@
 
 ```
 ai-finance-app/
-├── index.html              # The entire consumer app — every "page" is a <div class="page"> toggled by JS
-├── admin.html               # Separate standalone admin panel (real login, user/plan management, transactions view)
-├── landing.html              # Marketing/landing page (pre-login)
-├── manifest.json              # PWA manifest
+├── vercel.json               # Routing: "/" → landing.html, "/app" → webapp.html (rewrites, not physical moves — see §2a)
+├── webapp.html              # The entire consumer app — every "page" is a <div class="page"> toggled by JS. Served at /app
+├── admin.html               # Separate standalone admin panel (real login, user/plan management, transactions view). Stays at /admin.html, not part of the /app split
+├── landing.html              # Marketing/landing page (pre-login). Served at root /
+├── manifest.json              # PWA manifest — start_url is /app, not /
 ├── sw.js                       # Service worker (registered in boot.js, minimal)
 ├── twa-manifest.json             # Bubblewrap TWA config (package id, signing key, colors)
 ├── android.keystore               # Android signing key (Bubblewrap)
@@ -23,7 +24,7 @@ ai-finance-app/
 │   ├── app-core.js        # goPage() router + back-button history handling, showApp() bootstrap, session refresh, logout/auth-expiry
 │   ├── dashboard.js        # loadSummary() (balance engine), renderPie(), renderLaporan(), sparkline, insight card, health score
 │   ├── transactions.js      # Transaction CRUD, filters, Excel export, target CRUD + contributions, receipt-scan trigger
-│   ├── accounts.js           # Account CRUD, balance breakdown popup
+│   ├── accounts.js           # Account CRUD (full-page management), balance breakdown popup
 │   ├── categories.js          # Category CRUD (default + custom, unified, full-page management)
 │   ├── priorities.js           # Priority CRUD (default + custom, unified, full-page management)
 │   ├── chat-ai.js                # AI chat assistant — calls /api/ai-chat, never touches Groq directly
@@ -34,11 +35,23 @@ ai-finance-app/
 │   ├── ai-chat.js                     # Vercel serverless function — proxies chat completions to Groq
 │   └── ai-scan.js                      # Vercel serverless function — proxies receipt-scan (vision) to Groq
 ├── database/
-│   └── wangku-supabase-setup.sql        # Full schema, additive migration blocks [1]…[21] (see database.md)
+│   └── wangku-supabase-setup.sql        # Full schema, additive migration blocks [1]…[23] (see database.md)
+├── gs/
+│   └── fonnte.gs                          # Google Apps Script — Fonnte WhatsApp webhook backend. Deployed manually by pasting into an Apps Script project (this file is just the source of truth in-repo); not built/deployed via Vercel or any CI
 └── docs/                                  # You are here
 ```
 
-**No `gas/` folder exists in this repo** (not even in git history). A Google Apps Script backend (`wangku-backend.gs` — Fonnte webhook + Drive backup) was drafted during planning conversations but never actually committed here, pending a decision between building on Fonnte vs. switching to an Evolution API-based WhatsApp integration. Don't assume this file exists or try to reference it as if it were real code sitting in the repo — see `backend.md`/`ai.md` for what the *planned* design was.
+**`gs/fonnte.gs` is real, committed code** — not a planned/draft design. It previously had several known, tracked bugs (anon key instead of service role, transactions never attributed to an `account_id`, month-scoped rather than all-time balance calculations, a stale category vocabulary that didn't match the app's real `user_categories`) — all fixed in the same pass that added account-name extraction (matching a mentioned account by name, whole-word, falling back to the user's default) and clean `keterangan` generation. See `backend.md`/`ai.md` for the full before/after. Deployment to the live Apps Script editor is still a manual copy-paste step done by the product owner — committing fixes here doesn't push them live by itself.
+
+## 2a. Root (`/`) vs. app (`/app`) routing — read before touching any hardcoded app URL
+
+Root domain serves `landing.html` (marketing); the actual app lives at `/app`, serving `webapp.html`'s content. Both are `vercel.json` **rewrites**, not physical file moves — `webapp.html` and `landing.html` still physically sit at the repo root exactly as the folder structure above shows. This matters for one specific reason: **every asset reference inside `webapp.html` (and `boot.js`'s service worker registration) must use an absolute path (leading `/`), never a relative one.** A relative path like `js/config.js` resolves against the *document's URL*, not the file's on-disk location — since the browser sees the document at `/app`, a relative reference would resolve to `/app/js/config.js`, which doesn't exist (the real file is at `/js/config.js`). This is already fixed throughout `webapp.html`/`boot.js`/`sw.js` — if you add a new asset reference, use a leading `/` or it will 404 silently in production while looking fine if you happen to test by opening `webapp.html` directly.
+
+Anywhere the app's own URL needs to be referenced (admin.html's "App URL" link, `landing.html`'s CTA, the Fonnte bot's `APP_URL`, EmailJS templates) must point at `/app`, not `/` or a bare `webapp.html`.
+
+**Why the app shell isn't named `index.html`**: it was, originally — but Vercel resolves a literal `index.html` sitting at the project root for any request to `/` *before* `rewrites` get a chance to run, regardless of what the `/` rewrite says. With the app shell named `index.html`, the root domain silently served the full app+login shell instead of `landing.html`, with no build error or warning — confirmed live via `curl` (both `/` and `/app` returned byte-identical responses). Renaming the file to `webapp.html` removes the collision: nothing physically sits at `/` anymore, so the `/` → `landing.html` rewrite is the only match and fires correctly. If you ever rename it back to `index.html`, this bug comes back.
+
+**Android TWA note**: `twa-manifest.json`'s `startUrl` is baked into the native app at Bubblewrap build time — it is *not* fetched live from the deployed site. Changing this file alone has zero effect on already-installed Android users; a new APK/AAB build (`bubblewrap update && bubblewrap build`), re-signed with `android.keystore`, is required for existing installs to actually launch into `/app` instead of the landing page. See `deployment.md`.
 
 ## 2. Technology stack
 
@@ -46,8 +59,8 @@ ai-finance-app/
 - **Backend-as-a-service**: Supabase (Postgres via PostgREST). No custom application server.
 - **Auth**: Custom — not Supabase Auth. Login verifies a password hash inside a Postgres function and mints a hand-signed JWT (HS256, using the project's real Supabase JWT secret) that the client then uses as its Bearer token for everything else. See §4 and `database.md`'s RLS section.
 - **AI**: Groq API (`meta-llama/llama-4-scout-17b-16e-instruct` for receipt vision, a Llama 3.x chat model for the assistant) — called only from Vercel serverless functions, never from the browser.
-- **WhatsApp bot**: Fonnte + Google Apps Script — **planning-stage draft only, no code committed to this repo** (see `backend.md`).
-- **Hosting**: Vercel, both the static site and the `/api` serverless functions.
+- **WhatsApp bot**: Fonnte + Google Apps Script (`gs/fonnte.gs`) — real, committed, fixed as of this session (see `backend.md`). Deployment to the live Apps Script editor is still a manual step, not tied to a commit here.
+- **Hosting**: Vercel, both the static site and the `/api` serverless functions. Root `/` and `/app` are split via `vercel.json` rewrites (landing page vs. the actual app) — see §2a.
 - **Android packaging**: Bubblewrap CLI → Trusted Web Activity (TWA), signed APK/AAB.
 - **Email**: EmailJS (OTP delivery for registration and password reset).
 
@@ -59,9 +72,9 @@ flowchart LR
     JS -->|fetch REST + Bearer JWT| SB[(Supabase Postgres, RLS-enforced)]
     JS -->|fetch| API[Vercel /api/ai-chat, /api/ai-scan]
     API -->|server-side key| GROQ[Groq API]
-    JS -->|fire-and-forget| GAS[Google Apps Script draft]
-    GAS --> DRIVE[(Google Drive)]
-    WA[WhatsApp / Fonnte] -.->|not yet wired| GAS
+    JS -->|fire-and-forget: ping, notifyAdmin| GAS[gs/fonnte.gs]
+    WA[WhatsApp / Fonnte] -->|webhook| GAS
+    GAS -->|service role key| SB
     SB -->|REST response, RLS-filtered| JS
     JS -->|re-render| U
 ```
@@ -124,7 +137,7 @@ Plus module-level `let` in `accounts.js` (`accountsList`), `categories.js` (`kat
 **All of these are explicitly cleared by `resetSessionState()`** (`app-core.js`), called from `logout()`, `handleAuthExpired()`, and at the start of a successful `doLogin()`/`doBiometric()` (`auth.js`). This exists because these globals used to persist across a login→logout→login transition within the same tab (no page reload) — logging in as a second user on a device previously used by someone else would render that previous user's balance/targets/health-score/AI-chat-context momentarily or persistently, purely from stale in-memory state, even though every server response was correctly scoped per-user the whole time. **If you add a new module-level cache of per-user data, add it to `resetSessionState()` too** — it's the single place this needs to happen, not something each new feature can assume is handled elsewhere.
 
 ## 10. Component hierarchy
-No framework components. `index.html` holds every "page" and every modal as sibling `<div>`s; JS toggles `.active`/`.open` classes. Full inventory in `frontend.md`.
+No framework components. `webapp.html` holds every "page" and every modal as sibling `<div>`s; JS toggles `.active`/`.open` classes. Full inventory in `frontend.md`.
 
 ## 11. Page routing
 
@@ -147,7 +160,7 @@ flowchart TD
 ```
 
 ## 12. External services
-Supabase, Groq (via Vercel proxy), Fonnte (draft/unverified), Google Apps Script/Drive (draft), EmailJS, Vercel. Full breakdown in `api.md`.
+Supabase, Groq (via Vercel proxy), Fonnte + Google Apps Script (`gs/fonnte.gs`, real and fixed as of this session — deployment to the live Apps Script editor is still manual), EmailJS, Vercel. Full breakdown in `api.md`.
 
 ## 13. Environment variables
 No `.env` for the static site (all client-visible constants in `js/config.js`, which is fine for a Supabase-anon-key architecture). The Vercel serverless functions **do** use real environment variables (`GROQ_API_KEY`) that never reach the client. Full list in `environment.md`.

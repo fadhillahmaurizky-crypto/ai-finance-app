@@ -48,22 +48,48 @@ function getMonth(){return new Date().toISOString().substring(0,7);}
 function getNextMonth(){const d=new Date();d.setMonth(d.getMonth()+1);return d.toISOString().substring(0,7);}
 
 // ========================
-// SPLASH SCREEN
+// PIN LOCK — server-side, per-user (bukan localStorage lagi, lihat
+// database.md block [28]). PIN_KEY masih dipakai, tapi cuma untuk migrasi
+// satu kali dari skema lama: kalau kolomnya null di server TAPI key lama
+// ini masih ada, berarti user ini dulu pernah aktifkan PIN lokal sebelum
+// migrasi ini — bukan berarti PIN lock harus otomatis nyala lagi begitu
+// saja (nilai lama tidak pernah ada di database), tapi mereka diminta
+// bikin PIN baru sekali, bukan diam-diam dianggap opt-out. Lihat
+// checkSession() di app-core.js untuk logika pemilihan mode ini.
 // ========================
 let pinInput='',pinMode='verify',pinFirst='';
 const PIN_KEY='wangku_pin';
+// 'boot' = dipanggil dari checkSession() sebelum showApp() -- submit yang
+// berhasil harus lanjut ke showApp(). 'settings' = dipanggil dari toggle
+// PIN di Settings saat app sudah terbuka -- submit yang berhasil cuma
+// perlu menutup layar PIN dan sinkron ulang toggle-nya, TIDAK boleh
+// panggil showApp() lagi (itu akan mengulang seluruh boot sequence).
+let pinScreenContext='boot';
 
-function showPinScreen(mode='verify'){
-  pinMode=mode;pinInput='';pinFirst='';
+function showPinScreen(mode='verify',context='boot'){
+  pinMode=mode;pinInput='';pinFirst='';pinScreenContext=context;
   updatePinDots();
   const title=document.getElementById('pin-title');
   const sub=document.getElementById('pin-sub');
+  const forgotBtn=document.getElementById('pin-forgot-btn');
   if(mode==='set'){title.textContent='Buat PIN Baru';sub.textContent='Masukkan 6 digit PIN baru kamu';}
   else if(mode==='confirm'){title.textContent='Konfirmasi PIN';sub.textContent='Masukkan ulang PIN kamu';}
   else{title.textContent='Masukkan PIN';sub.textContent='Selamat datang kembali 👋';}
+  // "Lupa" cuma masuk akal kalau memang sedang verifikasi PIN yang sudah
+  // ada -- di mode set/confirm belum ada apa-apa untuk dilupakan, jadi
+  // tombol yang sama berfungsi sebagai "Batal" (lihat pinForgot()).
+  if(forgotBtn)forgotBtn.textContent=mode==='verify'?'Lupa':'Batal';
   document.getElementById('pin-screen').style.display='flex';
 }
 function hidePinScreen(){document.getElementById('pin-screen').style.display='none';}
+// Dipanggil setelah login/session-restore berhasil (checkSession() di
+// app-core.js, doLogin() di auth.js) -- satu pintu keputusan biar
+// logikanya tidak dobel di dua tempat dan gampang mencong.
+function checkPinGate(){
+  if(user.pin_enabled){showPinScreen('verify');}
+  else if(localStorage.getItem(PIN_KEY)){showPinScreen('set');}
+  else{showApp();}
+}
 
 function pinPress(n){
   if(pinInput.length>=6)return;
@@ -81,11 +107,21 @@ function pinError(){
   for(let i=1;i<=6;i++)document.getElementById('pd'+i).className='pin-dot error';
   setTimeout(()=>{pinInput='';updatePinDots();},600);
 }
-function pinSubmit(){
+function finishPinSet(){
+  hidePinScreen();
+  localStorage.removeItem(PIN_KEY); // bersihkan sisa skema lama, kalau ada
+  if(typeof syncPinToggleUI==='function')syncPinToggleUI();
+  if(pinScreenContext==='boot'){showApp();}
+  showToast('PIN berhasil dibuat ✓','ok');
+}
+async function pinSubmit(){
   if(pinMode==='verify'){
-    const saved=localStorage.getItem(PIN_KEY);
-    if(pinInput===saved){hidePinScreen();showApp();}
-    else{showToast('PIN salah!','err');pinError();}
+    try{
+      const hash=await hp(pinInput);
+      const ok=await rpc('verify_pin',{p_pin_hash:hash});
+      if(ok){hidePinScreen();showApp();}
+      else{showToast('PIN salah!','err');pinError();}
+    }catch(e){showToast('Gagal verifikasi PIN, coba lagi','err');pinError();}
   } else if(pinMode==='set'){
     pinFirst=pinInput;pinInput='';updatePinDots();
     pinMode='confirm';
@@ -93,19 +129,46 @@ function pinSubmit(){
     document.getElementById('pin-sub').textContent='Masukkan ulang PIN kamu';
   } else if(pinMode==='confirm'){
     if(pinInput===pinFirst){
-      localStorage.setItem(PIN_KEY,pinInput);
-      hidePinScreen();showApp();showToast('PIN berhasil dibuat ✓','ok');
+      try{
+        const hash=await hp(pinInput);
+        const ok=await rpc('set_pin_hash',{p_pin_hash:hash});
+        if(!ok)throw new Error('RPC menolak');
+        if(user){user.pin_enabled=true;localStorage.setItem('sdk_session',JSON.stringify(user));}
+        finishPinSet();
+      }catch(e){showToast('Gagal menyimpan PIN, coba lagi','err');pinError();}
     } else {
       showToast('PIN tidak cocok!','err');pinError();
       setTimeout(()=>{pinMode='set';pinFirst='';document.getElementById('pin-title').textContent='Buat PIN Baru';document.getElementById('pin-sub').textContent='Masukkan 6 digit PIN baru kamu';},700);
     }
   }
 }
-function pinForgot(){
+// Tombol yang sama ("Lupa"/"Batal") punya dua arti tergantung pinMode:
+// - mode 'verify' (PIN yang sudah ada, sungguhan lupa): matikan PIN lock
+//   di server (konsisten dengan set_pin_hash yang otorisasinya dari JWT
+//   yang masih valid saat ini, bukan dari membuktikan tahu PIN lama),
+//   lalu paksa login ulang. Mau PIN lock lagi, nyalakan ulang lewat
+//   toggle di Settings setelah login, yang akan minta PIN baru.
+// - mode 'set'/'confirm' (belum ada PIN yang tersimpan sama sekali --
+//   migrasi user lama saat boot, atau lagi nyalakan toggle di Settings):
+//   tidak ada apapun untuk dimatikan, jadi ini murni batal. Konteks
+//   'boot' lanjut ke showApp() dengan PIN lock tetap mati (opt-out);
+//   konteks 'settings' cuma menutup layarnya, sesi yang sedang berjalan
+//   tidak disentuh sama sekali. PIN_KEY lama (kalau ada, dari migrasi)
+//   tetap dibersihkan di sini juga -- kalau tidak, prompt migrasi akan
+//   terus muncul lagi setiap login berikutnya meski user sudah jelas
+//   memilih batal, bukan cuma sekali seperti seharusnya.
+async function pinForgot(){
   hidePinScreen();
+  if(pinMode!=='verify'){
+    localStorage.removeItem(PIN_KEY);
+    if(pinScreenContext==='boot')showApp();
+    return;
+  }
+  try{await rpc('set_pin_hash',{p_pin_hash:null});}catch(e){}
   localStorage.removeItem(PIN_KEY);
+  if(user){user.pin_enabled=false;}
   showLoginPage();
-  showToast('Silakan login ulang untuk reset PIN','warn');
+  showToast('Kunci PIN dimatikan. Login ulang untuk lanjut','warn');
 }
 
 function initTheme(){applyTheme(localStorage.getItem('theme')||'light');}

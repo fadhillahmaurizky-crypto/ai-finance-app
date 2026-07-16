@@ -6,11 +6,11 @@
 <meta name="theme-color" content="#00B26A"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <title>Wangku — AI Finance</title>
-<link rel="manifest" href="manifest.json"/>
+<link rel="manifest" href="/manifest.json"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
 
@@ -18,7 +18,7 @@
 <!-- SPLASH SCREEN -->
 <div id="splash-screen" style="position:fixed;inset:0;z-index:2000;background:linear-gradient(160deg,#00B26A,#007A48);display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;max-width:430px;left:50%;transform:translateX(-50%)">
   <div style="animation:splashPop .5s ease-out;text-align:center">
-    <img src="logo.png" style="width:90px;height:90px;object-fit:contain;border-radius:22px;margin-bottom:16px;display:block;margin-left:auto;margin-right:auto"/>
+    <img src="/logo.png" style="width:90px;height:90px;object-fit:contain;border-radius:22px;margin-bottom:16px;display:block;margin-left:auto;margin-right:auto"/>
     <div style="font-size:48px;font-weight:800;color:#fff;letter-spacing:-2px;margin-bottom:6px">Wang<span style="color:rgba(255,255,255,.55)">ku</span></div>
     <div style="font-size:14px;color:rgba(255,255,255,.75)">Catat keuanganmu lewat WhatsApp</div>
   </div>
@@ -31,7 +31,7 @@
 
 <!-- PIN SCREEN -->
 <div id="pin-screen" style="position:fixed;inset:0;z-index:1999;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;width:100%;max-width:430px;left:50%;transform:translateX(-50%)">
-  <img src="logo.png" style="width:64px;height:64px;object-fit:contain;border-radius:16px;margin-bottom:16px"/>
+  <img src="/logo.png" style="width:64px;height:64px;object-fit:contain;border-radius:16px;margin-bottom:16px"/>
   <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px" id="pin-title">Masukkan PIN</div>
   <div style="font-size:13px;color:var(--text3);margin-bottom:32px" id="pin-sub">Masukkan 6 digit PIN kamu</div>
   <div style="display:flex;gap:14px;margin-bottom:32px" id="pin-dots">
@@ -52,7 +52,7 @@
     <button class="pin-btn" onclick="pinPress('7')">7<div class="pin-sub-lbl">PQRS</div></button>
     <button class="pin-btn" onclick="pinPress('8')">8<div class="pin-sub-lbl">TUV</div></button>
     <button class="pin-btn" onclick="pinPress('9')">9<div class="pin-sub-lbl">WXYZ</div></button>
-    <button class="pin-btn" onclick="pinForgot()" style="font-size:11px;color:var(--text3);background:transparent;border-color:transparent">Lupa</button>
+    <button class="pin-btn" id="pin-forgot-btn" onclick="pinForgot()" style="font-size:11px;color:var(--text3);background:transparent;border-color:transparent">Lupa</button>
     <button class="pin-btn" onclick="pinPress('0')">0</button>
     <button class="pin-btn" onclick="pinDelete()"><i class="ti ti-backspace"></i></button>
   </div>
@@ -87,7 +87,7 @@
 <!-- LOGIN -->
 <div class="login-wrap" id="login-wrap">
   <div class="login-hero">
-    <div class="login-logo" style="background:transparent"><img src="logo.png" style="width:72px;height:72px;object-fit:contain;border-radius:16px"/></div>
+    <div class="login-logo" style="background:transparent"><img src="/logo.png" style="width:72px;height:72px;object-fit:contain;border-radius:16px"/></div>
     <div class="login-brand">Wang<span>ku</span></div>
     <div class="login-tagline">Catat keuanganmu lewat WhatsApp.<br>Ditenagai AI, mulai gratis.</div>
   </div>
@@ -234,6 +234,7 @@
           </div>
           <div class="insight-dots" id="insight-dots"></div>
         </div>
+        <div id="trial-nudge-wrap" style="margin-top:14px"></div>
         <div id="alert-section" style="margin-top:14px"></div>
         <div class="sec-title" style="display:flex;justify-content:space-between;align-items:center">Aksi Cepat<span onclick="openAksiCepatEdit()" style="font-size:11px;font-weight:600;color:var(--green);cursor:pointer">Edit</span></div>
         <div class="qa-row" id="qa-row" style="margin-bottom:20px"></div>
@@ -294,24 +295,17 @@
               <div style="font-size:11px;color:var(--text3);line-height:1.4">Kirim ke bot → otomatis tercatat</div>
               <div style="margin-top:10px;padding:5px 10px;background:#E8F8EF;border-radius:8px;font-size:11px;color:#25D366;font-weight:600;text-align:center">Cara pakai →</div>
             </div>
-            <div style="background:var(--bg2);border-radius:14px;padding:14px;border:1px solid var(--border);box-shadow:var(--shadow);cursor:pointer" onclick="document.getElementById('page-catat').scrollTo({top:300,behavior:'smooth'})">
-              <div style="width:38px;height:38px;background:var(--green-bg);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:10px;color:var(--green)"><i class="ti ti-device-mobile"></i></div>
-              <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Via App</div>
-              <div style="font-size:11px;color:var(--text3);line-height:1.4">Input manual atau foto struk</div>
-              <div style="margin-top:10px;padding:5px 10px;background:var(--green-bg);border-radius:8px;font-size:11px;color:var(--green);font-weight:600;text-align:center">Catat sekarang →</div>
+            <div style="background:var(--bg2);border-radius:14px;padding:14px;border:1px solid var(--border);box-shadow:var(--shadow);cursor:pointer" onclick="triggerCam()">
+              <div style="width:38px;height:38px;background:var(--amber-bg);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:10px;color:var(--amber)"><i class="ti ti-camera-spark"></i></div>
+              <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Scan Struk/Foto</div>
+              <div style="font-size:11px;color:var(--text3);line-height:1.4">Foto struk → AI baca & isi otomatis</div>
+              <div style="margin-top:10px;padding:5px 10px;background:var(--amber-bg);border-radius:8px;font-size:11px;color:var(--amber);font-weight:600;text-align:center">Scan sekarang →</div>
+              <input type="file" id="nav-cam" accept="image/*" style="display:none" onchange="scanStrukNav(this)"/>
             </div>
           </div>
         </div>
-        <div class="struk-wrap">
-          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:8px"><i class="ti ti-camera-spark" style="color:var(--amber)"></i> Scan Struk / Foto</div>
-          <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Foto struk → AI baca & isi form otomatis ✨</div>
-          <div id="struk-prev-wrap" style="display:none"><img id="struk-prev" style="width:100%;border-radius:10px;border:1px solid var(--border);max-height:180px;object-fit:cover;margin-bottom:10px"/><div id="struk-result" style="display:none;background:var(--green-bg);border-radius:10px;padding:10px 12px;font-size:11px;color:var(--green-dk);line-height:1.7"></div></div>
-          <div id="struk-loading" style="display:none;text-align:center;padding:10px;font-size:13px;color:var(--green)"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> AI membaca struk...</div>
-          <div class="struk-btns">
-            <label style="flex:1;cursor:pointer"><input type="file" id="struk-cam" accept="image/*" capture="environment" style="display:none" onchange="scanStruk(this)"/><div class="struk-btn" onclick="document.getElementById('struk-cam').click()"><i class="ti ti-camera"></i> Kamera</div></label>
-            <label style="flex:1;cursor:pointer"><input type="file" id="struk-gal" accept="image/*" style="display:none" onchange="scanStruk(this)"/><div class="struk-btn blue" onclick="document.getElementById('struk-gal').click()"><i class="ti ti-photo"></i> Galeri</div></label>
-          </div>
-        </div>
+        <div class="struk-wrap" id="struk-prev-wrap" style="display:none"><img id="struk-prev" style="width:100%;border-radius:10px;border:1px solid var(--border);max-height:180px;object-fit:cover;margin-bottom:10px"/><div id="struk-result" style="display:none;background:var(--green-bg);border-radius:10px;padding:10px 12px;font-size:11px;color:var(--green-dk);line-height:1.7"></div></div>
+        <div class="struk-wrap" id="struk-loading" style="display:none;text-align:center;padding:18px;font-size:13px;color:var(--green)"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> AI membaca struk...</div>
         <div class="form-card">
           <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px"><i class="ti ti-edit" style="color:var(--green)"></i> <span id="form-title">Transaksi Baru</span></div>
           <div class="f-group"><label class="f-label">Jenis</label><div class="jenis-row"><button class="jenis-btn in" id="btn-in" onclick="setJenis('pemasukan')">✅ Pemasukan</button><button class="jenis-btn" id="btn-out" onclick="setJenis('pengeluaran')">💸 Pengeluaran</button><button class="jenis-btn" id="btn-transfer" onclick="setJenis('transfer')">🔁 Pindah Saldo</button></div></div>
@@ -429,6 +423,12 @@
         <div id="plan-card"></div>
 
         <div class="set-section">
+          <div class="set-card">
+            <div class="set-row" onclick="showPaymentHistory()"><div class="set-ico" style="background:var(--blue-bg);color:var(--blue)"><i class="ti ti-receipt"></i></div><div><div class="set-lbl">Riwayat Pembayaran</div><div class="set-sub">Lihat semua riwayat pembayaran</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
+          </div>
+        </div>
+
+        <div class="set-section">
           <div class="set-sec-title">Profil</div>
           <div class="set-card">
             <div class="set-row" onclick="openProfileEdit()">
@@ -441,18 +441,11 @@
         </div>
 
         <div class="set-section">
-          <div class="set-sec-title" style="display:flex;justify-content:space-between;align-items:center;padding-right:16px">
-            <span>Akun</span>
-            <button class="inline-add-btn" onclick="openAccountAdd()"><i class="ti ti-plus"></i> Tambah Akun</button>
-          </div>
-          <div class="set-card" id="account-list"></div>
-        </div>
-
-        <div class="set-section">
-          <div class="set-sec-title">Kategori & Prioritas</div>
+          <div class="set-sec-title">Kategori, Prioritas & Akun</div>
           <div class="set-card">
             <div class="set-row" onclick="goPage('kategori')"><div class="set-ico" style="background:#F3EEFF;color:#7C3AED"><i class="ti ti-tags"></i></div><div><div class="set-lbl">Kelola Kategori</div><div class="set-sub">Ubah atau hapus semua kategori (termasuk bawaan)</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
             <div class="set-row" onclick="goPage('prioritas')"><div class="set-ico" style="background:var(--amber-bg);color:var(--amber)"><i class="ti ti-flag"></i></div><div><div class="set-lbl">Kelola Prioritas</div><div class="set-sub">Ubah atau hapus semua prioritas (termasuk bawaan)</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
+            <div class="set-row" onclick="goPage('akun')"><div class="set-ico" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-wallet"></i></div><div><div class="set-lbl">Kelola Akun</div><div class="set-sub">Tambah, ubah, atau hapus akun (Cash, BCA, GoPay, dst.)</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
           </div>
         </div>
 
@@ -550,6 +543,17 @@
         </div>
 
         <div class="set-section">
+          <div class="set-sec-title">Keamanan</div>
+          <div class="set-card">
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer" onclick="togglePinLock()">
+              <div class="set-ico" style="background:var(--red-bg);color:var(--red)"><i class="ti ti-shield-lock"></i></div>
+              <div style="flex:1"><div class="set-lbl">Kunci dengan PIN</div><div class="set-sub">Minta PIN 6 digit tiap buka app</div></div>
+              <div class="toggle-track" id="pin-lock-track"><div class="toggle-thumb"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="set-section">
           <div class="set-sec-title">Bantuan & Akun</div>
           <div class="set-card">
             <div class="set-row" onclick="hubungiCS()"><div class="set-ico" style="background:var(--green-bg);color:var(--green)"><i class="ti ti-brand-whatsapp"></i></div><div><div class="set-lbl">Hubungi CS Wangku</div><div class="set-sub">Chat dengan CS Wangku via WhatsApp</div></div><i class="ti ti-chevron-right" style="color:var(--text3)"></i></div>
@@ -591,19 +595,39 @@
         <div style="padding:0 16px" id="prioritas-full-list"></div>
       </div>
     </div>
+
+    <!-- KELOLA AKUN (full page) -->
+    <div class="page" id="page-akun">
+      <div class="page-back-hdr">
+        <div class="page-back-btn" onclick="goPage('settings')"><i class="ti ti-arrow-left"></i></div>
+        <div class="page-back-title">Kelola Akun</div>
+      </div>
+      <div class="sp" style="padding-top:2px">
+        <div class="form-card" style="margin:0 16px 16px">
+          <div class="f-group"><label class="f-label">Nama Akun Baru</label><input class="f-input" id="akun-full-nama" placeholder="Contoh: BCA, GoPay, OVO..."/></div>
+          <div class="f-group"><label class="f-label">Saldo Awal (Rp)</label><input class="f-input" id="akun-full-saldo" type="number" placeholder="0"/></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:4px 2px 14px">
+            <input type="checkbox" id="akun-full-default" style="width:18px;height:18px;accent-color:var(--green)"/>
+            <label for="akun-full-default" style="font-size:12px;color:var(--text2)">Jadikan akun default</label>
+          </div>
+          <button class="f-submit" onclick="saveAkunFull()"><i class="ti ti-plus"></i> Tambah Akun</button>
+        </div>
+        <div style="padding:0 16px" id="akun-full-list"></div>
+      </div>
+    </div>
   </div>
 
   <!-- BOTTOM NAV -->
   <div class="bottom-nav">
     <div class="nav-item" onclick="goPage('home')"><i class="ti ti-home nav-ico act" id="ni-home"></i><div class="nav-lbl act" id="nl-home">Beranda</div><div class="nav-dot show" id="nd-home"></div></div>
     <div class="nav-item" onclick="goPage('transaksi')"><i class="ti ti-list nav-ico" id="ni-transaksi"></i><div class="nav-lbl" id="nl-transaksi">Transaksi</div><div class="nav-dot" id="nd-transaksi"></div></div>
-    <div class="nav-item" onclick="triggerCam()">
-      <div style="position:relative;width:52px;height:52px;background:linear-gradient(135deg,#00B26A,#007A48);border-radius:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,178,106,.4);margin-top:-20px;border:3px solid var(--bg2)"><i class="ti ti-camera" style="font-size:24px;color:#fff"></i><span class="nav-badge-dot" id="foto-badge"></span></div>
-      <div class="nav-lbl" style="color:var(--green);margin-top:2px">Foto</div>
-      <input type="file" id="nav-cam" accept="image/*" capture="environment" style="display:none" onchange="scanStrukNav(this)"/>
+    <div class="nav-item" onclick="resetTrxForm();goPage('catat')">
+      <div style="position:relative;width:52px;height:52px;background:linear-gradient(135deg,#00B26A,#007A48);border-radius:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,178,106,.4);margin-top:-20px;border:3px solid var(--bg2)"><i class="ti ti-plus nav-ico" id="ni-catat" style="font-size:24px;color:#fff"></i><span class="nav-badge-dot" id="foto-badge"></span></div>
+      <div class="nav-lbl" id="nl-catat" style="color:var(--green);margin-top:2px">Catat</div>
+      <div class="nav-dot" id="nd-catat"></div>
     </div>
     <div class="nav-item" onclick="goPage('target')"><i class="ti ti-target nav-ico" id="ni-target"></i><div class="nav-lbl" id="nl-target">Target</div><div class="nav-dot" id="nd-target"></div></div>
-    <div class="nav-item" onclick="goPage('laporan')"><i class="ti ti-chart-bar nav-ico" id="ni-laporan"></i><div class="nav-lbl" id="nl-laporan">Laporan</div><div class="nav-dot" id="nd-laporan"></div></div>
+    <div class="nav-item" onclick="openChat()"><i class="ti ti-robot nav-ico"></i><div class="nav-lbl">Tanya AI</div><div class="nav-dot"></div></div>
   </div>
 </div>
 
@@ -720,34 +744,41 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="account-modal">
-  <div class="modal-sheet">
-    <div class="modal-drag"></div>
-    <div id="acc-form-view">
-      <div class="modal-title"><i class="ti ti-wallet" style="color:var(--green)"></i> <span id="acc-modal-title">Tambah Akun</span></div>
-      <div class="f-group"><label class="f-label">Nama Akun</label><input class="f-input" id="acc-nama" placeholder="Contoh: Cash, BCA, GoPay..."/></div>
-      <div class="f-group"><label class="f-label">Saldo Awal (Rp)</label><input class="f-input" id="acc-saldo" type="number" placeholder="0"/></div>
-      <div style="display:flex;align-items:center;gap:10px;padding:4px 2px 14px">
-        <input type="checkbox" id="acc-default" style="width:18px;height:18px;accent-color:var(--green)"/>
-        <label for="acc-default" style="font-size:12px;color:var(--text2)">Jadikan akun default</label>
-      </div>
-      <button class="f-submit" onclick="saveAccount()"><i class="ti ti-device-floppy"></i> Simpan Akun</button>
-      <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:8px;cursor:pointer" onclick="document.getElementById('account-modal').classList.remove('open')">Batal</button>
-    </div>
-    <div id="acc-success-view" style="display:none;text-align:center;padding:16px 0">
-      <i class="ti ti-circle-check" style="font-size:48px;color:var(--green)"></i>
-      <div style="margin-top:10px;font-weight:700;color:var(--text)" id="acc-success-msg">Akun berhasil disimpan!</div>
-      <button class="f-submit" style="margin-top:16px" onclick="document.getElementById('account-modal').classList.remove('open')">Selesai</button>
-    </div>
-  </div>
-</div>
-
 <div class="modal-overlay" id="balance-breakdown-modal">
   <div class="modal-sheet">
     <div class="modal-drag"></div>
     <div class="modal-title"><i class="ti ti-chart-pie" style="color:var(--green)"></i> Rincian Saldo per Akun</div>
     <div id="breakdown-body"></div>
     <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:4px;cursor:pointer" onclick="document.getElementById('balance-breakdown-modal').classList.remove('open')">Tutup</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="payment-history-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title"><i class="ti ti-receipt" style="color:var(--blue)"></i> Riwayat Pembayaran</div>
+    <div id="payment-history-body"></div>
+    <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;margin-top:4px;cursor:pointer" onclick="document.getElementById('payment-history-modal').classList.remove('open')">Tutup</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="token-confirm-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title"><i class="ti ti-coin" style="color:var(--blue)"></i> Konfirmasi Pembelian</div>
+    <div id="token-confirm-text" style="text-align:center;padding:10px 0 18px;font-size:14px;color:var(--text)"></div>
+    <button class="f-submit" style="margin-bottom:8px" onclick="buyTokenSlider()">Lanjutkan ke Pembayaran</button>
+    <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;cursor:pointer" onclick="document.getElementById('token-confirm-modal').classList.remove('open')">Batal</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ganti-paket-confirm-modal">
+  <div class="modal-sheet">
+    <div class="modal-drag"></div>
+    <div class="modal-title"><i class="ti ti-replace" style="color:var(--blue)"></i> <span id="ganti-paket-confirm-title">Konfirmasi Ganti Paket</span></div>
+    <div id="ganti-paket-confirm-text" style="text-align:center;padding:10px 0 18px;font-size:14px;color:var(--text)"></div>
+    <button class="f-submit" style="margin-bottom:8px" onclick="confirmGantiPaket()">Lanjutkan ke Pembayaran</button>
+    <button style="width:100%;padding:11px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--text3);font-size:13px;cursor:pointer" onclick="document.getElementById('ganti-paket-confirm-modal').classList.remove('open')">Batal</button>
   </div>
 </div>
 
@@ -758,6 +789,17 @@
       <div style="font-size:13px;font-weight:700;color:var(--text)" id="trx-detail-title">—</div>
       <div style="font-size:11px;color:var(--text3);margin-top:2px" id="trx-detail-sub">—</div>
       <div class="txn-amt" id="trx-detail-amt" style="font-size:22px;margin-top:10px;display:block">—</div>
+      <div id="trx-detail-flow" style="display:none;align-items:center;justify-content:center;gap:10px;margin:12px 0 0;padding:10px 14px;background:var(--blue-bg);border-radius:12px">
+        <div style="flex:1;text-align:center">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em">Dari</div>
+          <div id="trx-detail-from" style="font-size:13px;font-weight:700;color:var(--text);margin-top:2px">—</div>
+        </div>
+        <i class="ti ti-arrow-right" style="color:var(--blue);font-size:16px"></i>
+        <div style="flex:1;text-align:center">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em">Ke</div>
+          <div id="trx-detail-to" style="font-size:13px;font-weight:700;color:var(--text);margin-top:2px">—</div>
+        </div>
+      </div>
     </div>
     <button class="f-submit" id="trx-edit-btn" style="background:var(--blue);margin-bottom:8px"><i class="ti ti-pencil"></i> Edit Transaksi</button>
     <button class="f-submit" id="trx-del-btn" style="background:var(--red)"><i class="ti ti-trash"></i> Hapus Transaksi</button>
@@ -867,7 +909,7 @@
   <!-- STEP 1: PILIH PAKET -->
   <div id="pay-step1">
     <div style="background:linear-gradient(160deg,#00B26A,#007A48);padding:48px 24px 28px;text-align:center">
-      <img src="logo.png" style="width:72px;height:72px;object-fit:contain;border-radius:20px;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto"/>
+      <img src="/logo.png" style="width:72px;height:72px;object-fit:contain;border-radius:20px;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto"/>
       <div style="font-size:22px;font-weight:700;color:#fff">Akun berhasil dibuat! 🎉</div>
       <div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:6px">Pilih paket untuk mulai menggunakan Wangku</div>
     </div>
@@ -978,19 +1020,19 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/config.js"></script>
-<script src="js/state.js"></script>
-<script src="js/ui-helpers.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/app-core.js"></script>
-<script src="js/dashboard.js"></script>
-<script src="js/transactions.js"></script>
-<script src="js/chat-ai.js"></script>
-<script src="js/payment.js"></script>
-<script src="js/categories.js"></script>
-<script src="js/priorities.js"></script>
-<script src="js/accounts.js"></script>
-<script src="js/settings.js"></script>
-<script src="js/boot.js"></script>
+<script src="/js/config.js"></script>
+<script src="/js/state.js"></script>
+<script src="/js/ui-helpers.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/app-core.js"></script>
+<script src="/js/dashboard.js"></script>
+<script src="/js/transactions.js"></script>
+<script src="/js/chat-ai.js"></script>
+<script src="/js/payment.js"></script>
+<script src="/js/categories.js"></script>
+<script src="/js/priorities.js"></script>
+<script src="/js/accounts.js"></script>
+<script src="/js/settings.js"></script>
+<script src="/js/boot.js"></script>
 </body>
 </html>
