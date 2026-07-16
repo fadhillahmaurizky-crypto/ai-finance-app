@@ -1413,6 +1413,24 @@ CREATE POLICY "Users can view own token purchases" ON public.token_purchases
 
 
 -- ============================================================
+-- [31] Simpan metode/channel pembayaran Xendit -- feedback dari
+-- pengetesan PR Riwayat Pembayaran: user tidak bisa lihat DENGAN APA dia
+-- bayar (GoPay/BCA VA/QRIS/dst). Diisi webhook dari field
+-- payment_channel (lebih spesifik, mis. "BCA"/"GOPAY") atau
+-- payment_method (kategori lebih umum, mis. "BANK_TRANSFER"/"EWALLET")
+-- sebagai fallback kalau payment_channel tidak ada di payload -- lihat
+-- api/xendit-webhook.js.
+--
+-- CATATAN NOMOR BLOK: kalau branch ini dan feat/subscription-renewal
+-- (yang independen menulis block [31]-nya sendiri untuk plan_expires_at)
+-- sama-sama ke-merge, salah satunya WAJIB dinomori ulang jadi [32]
+-- mengikuti urutan merge -- pola yang sama seperti collision [28]/[29]
+-- dan [26]/[27] sebelumnya di file ini.
+-- ============================================================
+ALTER TABLE public.token_purchases ADD COLUMN IF NOT EXISTS payment_channel TEXT;
+
+
+-- ============================================================
 -- SELESAI — Cek hasil
 -- ============================================================
 SELECT table_name FROM information_schema.tables

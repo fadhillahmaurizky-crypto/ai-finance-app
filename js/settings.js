@@ -36,8 +36,9 @@ async function checkXenditReturn(){
   const params=new URLSearchParams(window.location.search);
   const xr=params.get('xendit_return');
   if(!xr)return;
+  const isResume=params.get('resume')==='1';
   history.replaceState(null,'',window.location.pathname);
-  if(xr==='failed'){showToast('Pembayaran dibatalkan atau gagal','warn');return;}
+  if(xr==='failed'){showToast('Pembayaran dibatalkan atau gagal','warn');if(isResume&&typeof showPaymentHistory==='function')showPaymentHistory();return;}
   showToast('Memproses pembayaran...','ok');
   const beforeLimit=user?.tokens_limit||0;
   for(let i=0;i<6;i++){
@@ -49,21 +50,40 @@ async function checkXenditReturn(){
         if(user.tokens_limit>beforeLimit){
           renderPlanCard();
           showToast('Token berhasil ditambahkan ✓','ok');
+          // "resume" berasal dari Riwayat Pembayaran (lanjutkan pembelian
+          // pending), bukan dari tombol Beli Token biasa -- kembalikan ke
+          // situ, bukan cuma diam di Settings, per wangku-fixes-pr25-26-27.md #2b.
+          if(isResume&&typeof showPaymentHistory==='function')showPaymentHistory();
           return;
         }
       }
     }catch(e){}
   }
   showToast('Pembayaran masih diproses, cek lagi sebentar lagi ya','warn');
+  if(isResume&&typeof showPaymentHistory==='function')showPaymentHistory();
 }
 
-// Label paket diturunkan dari jumlah token, bukan kolom terpisah -- tier
-// cuma ada dua (lihat PACKAGES di create-payment.js), jadi tidak perlu
-// simpan label mentah per baris di DB.
-function tokenPurchaseLabel(tokens){
-  if(tokens===2000000)return'2 Juta Token AI';
-  if(tokens===5000000)return'5 Juta Token AI';
-  return(tokens/1000000).toFixed(1)+' Juta Token AI';
+// Label paket diturunkan dari jumlah token (atau item_type/plan kalau ada
+// -- kolom itu ditambahkan terpisah di wangku-spec-subscription-renewal.md,
+// baris dari create-payment.js versi lama di branch ini defaultnya
+// item_type='tokens'), bukan kolom label terpisah -- tier cuma segelintir
+// (lihat PACKAGES di create-payment.js), tidak perlu simpan label mentah
+// per baris di DB.
+function tokenPurchaseLabel(r){
+  if(r.item_type==='plan'){
+    const planNames={basic:'Basic',pro:'Pro',unlimited:'Ultimate'};
+    return'Perpanjangan Paket '+(planNames[r.plan]||r.plan)+' (30 Hari)';
+  }
+  if(r.tokens===2000000)return'2 Juta Token AI';
+  if(r.tokens===5000000)return'5 Juta Token AI';
+  return(r.tokens/1000000).toFixed(1)+' Juta Token AI';
+}
+// Channel Xendit (mis. "BCA", "GOPAY") disimpan mentah dari webhook --
+// tidak ada kamus lengkap semua channel Xendit di sini, jadi ditampilkan
+// title-cased apa adanya alih-alih daftar terjemahan yang gampang basi.
+function paymentChannelLabel(channel){
+  if(!channel)return null;
+  return channel.split('_').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ');
 }
 const PURCHASE_STATUS_UI={
   pending:{label:'Menunggu Pembayaran',color:'var(--amber)',bg:'var(--amber-bg)'},
@@ -71,6 +91,7 @@ const PURCHASE_STATUS_UI={
   expired:{label:'Kedaluwarsa',color:'var(--text3)',bg:'var(--border2)'},
   failed:{label:'Gagal',color:'var(--red)',bg:'var(--red-bg)'},
 };
+let paymentHistoryRows=[];
 async function showPaymentHistory(){
   if(!user)return;
   const modal=document.getElementById('payment-history-modal');
@@ -78,14 +99,15 @@ async function showPaymentHistory(){
   modal.classList.add('open');
   body.innerHTML='<div class="skeleton" style="height:60px;margin-bottom:8px"></div><div class="skeleton" style="height:60px"></div>';
   try{
-    const rows=await sb(`token_purchases?user_id=eq.${user.id}&order=created_at.desc&select=id,tokens,amount,status,created_at`);
+    const rows=await sb(`token_purchases?user_id=eq.${user.id}&order=created_at.desc&select=id,tokens,amount,status,created_at,item_type,plan,payment_channel`);
+    paymentHistoryRows=rows||[];
     if(!rows||!rows.length){body.innerHTML='<div style="text-align:center;padding:20px;font-size:12px;color:var(--text3)">Belum ada riwayat pembelian</div>';return;}
     body.innerHTML=rows.map(r=>{
       const st=PURCHASE_STATUS_UI[r.status]||{label:r.status,color:'var(--text3)',bg:'var(--border2)'};
       const tgl=new Date(r.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-      return`<div style="background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:8px">
+      return`<div style="background:var(--bg3);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer" onclick="openPaymentHistoryRow('${r.id}')">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
-          <div style="font-size:13px;font-weight:700;color:var(--text)">${tokenPurchaseLabel(r.tokens)}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${tokenPurchaseLabel(r)}</div>
           <div style="font-size:9px;font-weight:600;color:${st.color};background:${st.bg};padding:2px 8px;border-radius:6px;white-space:nowrap">${st.label}</div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">
@@ -95,6 +117,43 @@ async function showPaymentHistory(){
       </div>`;
     }).join('');
   }catch(e){body.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Gagal memuat riwayat pembayaran</div>';}
+}
+// Tap sebuah baris Riwayat Pembayaran -- lihat wangku-fixes-pr25-26-27.md #2b.
+// 'pending' langsung lanjutkan pembayaran yang sama (tidak ada layar
+// konfirmasi terpisah, sama seperti buyTokenPackage()/buyPlanRenewal()
+// yang juga langsung redirect). Status lain (paid/expired/failed) cuma
+// tampilan info read-only -- tidak ada aksi "beli lagi" di sini, sengaja
+// (spec awal payment-history sudah bilang mulai pembelian baru cukup
+// lewat tombol Beli Token biasa, tidak perlu resume flow untuk itu).
+function openPaymentHistoryRow(purchaseId){
+  const r=paymentHistoryRows.find(x=>x.id===purchaseId);if(!r)return;
+  if(r.status==='pending'){resumePayment(purchaseId);return;}
+  const body=document.getElementById('payment-history-body');
+  const st=PURCHASE_STATUS_UI[r.status]||{label:r.status,color:'var(--text3)',bg:'var(--border2)'};
+  const tgl=new Date(r.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const channel=paymentChannelLabel(r.payment_channel);
+  body.innerHTML=`<div style="cursor:pointer;font-size:12px;color:var(--text3);margin-bottom:12px;display:flex;align-items:center;gap:4px" onclick="showPaymentHistory()"><i class="ti ti-chevron-left"></i> Kembali</div>
+    <div style="background:var(--bg3);border-radius:12px;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:12px">
+        <div style="font-size:14px;font-weight:700;color:var(--text)">${tokenPurchaseLabel(r)}</div>
+        <div style="font-size:9px;font-weight:600;color:${st.color};background:${st.bg};padding:2px 8px;border-radius:6px;white-space:nowrap">${st.label}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-top:1px solid var(--border)"><span style="color:var(--text3)">Tanggal</span><span style="color:var(--text)">${tgl}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-top:1px solid var(--border)"><span style="color:var(--text3)">Jumlah</span><span style="color:var(--text);font-weight:600">${rpF(r.amount)}</span></div>
+      ${channel?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-top:1px solid var(--border)"><span style="color:var(--text3)">Metode Pembayaran</span><span style="color:var(--text)">${channel}</span></div>`:''}
+    </div>`;
+}
+// Lanjutkan pembelian 'pending' -- panggil /api/create-payment dengan
+// resume_purchase_id alih-alih package baru. Server yang memutuskan reuse
+// invoice lama atau buat baru (lihat api/create-payment.js handleResume()).
+async function resumePayment(purchaseId){
+  try{
+    showToast('Menyiapkan pembayaran...','ok');
+    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,resume_purchase_id:purchaseId})});
+    const d=await resp.json();
+    if(!resp.ok||d.error)throw new Error(d.error||'Gagal melanjutkan pembayaran');
+    window.location.href=d.checkout_url;
+  }catch(e){showToast('Gagal: '+e.message,'err');}
 }
 
 // ========================

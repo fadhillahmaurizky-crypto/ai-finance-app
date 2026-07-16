@@ -129,6 +129,7 @@ erDiagram
         numeric amount "Rp, e.g. 35000"
         text status "pending | paid | expired | failed — the UPDATE...WHERE status='pending' IS the webhook idempotency check"
         text xendit_invoice_id "Xendit's own id, for dashboard cross-reference only — not the idempotency key"
+        text payment_channel "e.g. 'GOPAY', 'BCA' — from the webhook's payment_channel/payment_method field, block [31]"
         timestamptz paid_at
     }
 
