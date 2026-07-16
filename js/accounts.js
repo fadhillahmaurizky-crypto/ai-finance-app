@@ -114,12 +114,8 @@ async function showBalanceBreakdown(){
           <div style="font-size:14px;font-weight:800;color:var(--text)">${rpF(r.saldo)}</div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:11px">
-          <span style="color:var(--green)">↓ Masuk: ${rpF(r.masuk)}</span>
-          <span style="color:var(--red)">↑ Keluar: ${rpF(r.keluar)}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px;padding-top:4px;border-top:1px dashed var(--border)">
-          <span style="color:var(--blue)">↓ Transfer Masuk: ${rpF(r.transferIn)}</span>
-          <span style="color:var(--blue)">↑ Transfer Keluar: ${rpF(r.transferOut)}</span>
+          <span style="color:var(--green)">↓ Masuk: ${rpF(r.masuk+r.transferIn)}</span>
+          <span style="color:var(--red)">↑ Keluar: ${rpF(r.keluar+r.transferOut)}</span>
         </div>
       </div>`).join(''):'<div style="text-align:center;padding:16px;font-size:12px;color:var(--text3)">Belum ada akun</div>')+
       `<div style="font-size:10px;color:var(--text3);text-align:center;margin-top:4px">Dihitung dari saldo awal akun + transaksi bulan ini</div>`;
