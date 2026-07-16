@@ -666,6 +666,23 @@ function trialInfo(u) {
   if(daysLeft<=0) return null;
   return {daysLeft,end};
 }
+// Sama persis pola trialInfo() di atas, buat plan_expires_at (paid
+// period) alih-alih trial_ends_at -- lihat
+// wangku-spec-subscription-renewal.md §7. Cuma dianggap "periode
+// berbayar aktif" kalau plan-nya masih basic/pro/unlimited DAN
+// plan_expires_at masih di masa depan, dengan alasan staleness-cache
+// yang sama seperti trialInfo(): kalau tanggalnya sudah lewat tapi baris
+// user ini belum sempat di-refresh sejak lazy-downgrade jalan di
+// login_check/get_user_by_id, jangan tampilkan periode yang sudah basi
+// sebagai aktif.
+function planExpiryInfo(u) {
+  if(!u||!u.plan_expires_at||!['basic','pro','unlimited'].includes(u.plan||'free')) return null;
+  const end=new Date(u.plan_expires_at);
+  if(isNaN(end.getTime())) return null;
+  const daysLeft=Math.ceil((end-new Date())/86400000);
+  if(daysLeft<=0) return null;
+  return {daysLeft,end};
+}
 
 // ========================
 // TOAST
@@ -723,7 +740,7 @@ async function loadAllData() {
   if(ico) ico.classList.add('spinning');
   try {
     // Load dari Supabase
-    supaUsers = await sbFetch('users?select=id,username,full_name,wa_number,email,role,status,plan,trial_ends_at,avatar_color,gas_user_id,ai_chat_count,ai_scan_count,usage_month,tokens_limit,tokens_used,token_reset_month,created_at,updated_at,last_login,last_active&order=created_at.desc') || [];
+    supaUsers = await sbFetch('users?select=id,username,full_name,wa_number,email,role,status,plan,trial_ends_at,plan_expires_at,avatar_color,gas_user_id,ai_chat_count,ai_scan_count,usage_month,tokens_limit,tokens_used,token_reset_month,created_at,updated_at,last_login,last_active&order=created_at.desc') || [];
     // Load dari GAS
     try {
       const res = await fetch(GAS_URL+'?action=adminData');
@@ -869,6 +886,8 @@ function showDetailUser(userId) {
   const gas = gasUsers.find(g=>g.userId===u.wa_number)||{};
   const color = AVATAR_COLORS[supaUsers.indexOf(u)%AVATAR_COLORS.length];
   const trial = trialInfo(u);
+  const planExp = trial ? null : planExpiryInfo(u);
+  const planLabel = ({free:'Free',basic:'Basic',pro:'Pro',unlimited:'Ultimate'})[u.plan||'free']||u.plan;
 
   document.getElementById('detail-modal-body').innerHTML = `
     <!-- Header User -->
@@ -908,7 +927,7 @@ function showDetailUser(userId) {
     <div class="detail-section">
       <div class="detail-section-title">💳 Plan & Token AI</div>
       <div class="detail-grid">
-        <div class="detail-item ${trial?'full':''}"><div class="detail-label">Plan Sekarang</div><div class="detail-value" style="font-weight:700;color:var(--green)">${trial?`Trial (Pro) — berakhir ${fmtDateShort(u.trial_ends_at)}, ${trial.daysLeft} hari lagi`:(({free:'Free',basic:'Basic',pro:'Pro',unlimited:'Ultimate'})[u.plan||'free']||u.plan)}</div></div>
+        <div class="detail-item ${(trial||planExp)?'full':''}"><div class="detail-label">Plan Sekarang</div><div class="detail-value" style="font-weight:700;color:var(--green)">${trial?`Trial (Pro) — berakhir ${fmtDateShort(u.trial_ends_at)}, ${trial.daysLeft} hari lagi`:planExp?`${planLabel} — berakhir ${fmtDateShort(u.plan_expires_at)}, ${planExp.daysLeft} hari lagi`:planLabel}</div></div>
         <div class="detail-item"><div class="detail-label">Token Dipakai</div><div class="detail-value">${((u.tokens_used||0)/1000).toFixed(0)}K / ${((u.tokens_limit||0)/1000).toFixed(0)}K</div></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
@@ -1015,8 +1034,20 @@ async function konfirmasiOrder(orderId, userId, plan){
   try{
     const month=new Date().toISOString().substring(0,7);
     const tokens=plan==='unlimited'?5000000:plan==='pro'?2000000:0;
+    // Approval manual = jalur pembayaran alternatif dari Xendit, harus
+    // konvergen ke hasil yang sama (plan + plan_expires_at yang benar) --
+    // lihat wangku-spec-subscription-renewal.md §1/§6. "Extend dari
+    // plan_expires_at yang ada" kalau user masih dalam periode aktif,
+    // sama seperti api/xendit-webhook.js -- supaya approval manual
+    // beberapa hari lebih awal tidak memotong sisa hari yang sudah
+    // dibayar. trial_ends_at ikut dibersihkan (§5: bayar plan sungguhan
+    // selagi masih trial = konversi ke pelanggan berbayar beneran).
+    const u=supaUsers.find(x=>x.id===userId);
+    const currentExpiry=u?.plan_expires_at?new Date(u.plan_expires_at):null;
+    const base=(currentExpiry&&currentExpiry.getTime()>Date.now())?currentExpiry:new Date();
+    const planExpiresAt=new Date(base.getTime()+30*24*60*60*1000).toISOString();
     await sbFetch(`orders?id=eq.${orderId}`,'PATCH',{status:'paid'});
-    await sbFetch(`users?id=eq.${userId}`,'PATCH',{status:'active',plan,tokens_limit:tokens,tokens_used:0,token_reset_month:month});
+    await sbFetch(`users?id=eq.${userId}`,'PATCH',{status:'active',plan,tokens_limit:tokens,tokens_used:0,token_reset_month:month,plan_expires_at:planExpiresAt,trial_ends_at:null});
     showToast('Order dikonfirmasi & akun diaktifkan ✓','ok');
     await loadOrders();
     await loadUsers();

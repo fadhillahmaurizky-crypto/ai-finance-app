@@ -20,7 +20,19 @@ function renderSettingsExtras(){
 // ========================
 async function buyTokenPackage(packageId){
   try{
-    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,package:packageId})});
+    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,package:packageId,item_type:'tokens'})});
+    const d=await resp.json();
+    if(!resp.ok||d.error)throw new Error(d.error||'Gagal membuat pembayaran');
+    window.location.href=d.checkout_url;
+  }catch(e){showToast('Gagal: '+e.message,'err');}
+}
+// Perpanjangan plan yang SEDANG aktif (Basic/Pro), bukan ganti tier --
+// lihat wangku-spec-subscription-renewal.md §4. Ganti/downgrade tier
+// tetap lewat requestPlanChange() (WhatsApp+approval manual), tidak
+// disentuh di sini -- dua hal yang sengaja dipisah.
+async function buyPlanRenewal(planId){
+  try{
+    const resp=await fetch('/api/create-payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:user.id,package:planId,item_type:'plan'})});
     const d=await resp.json();
     if(!resp.ok||d.error)throw new Error(d.error||'Gagal membuat pembayaran');
     window.location.href=d.checkout_url;
@@ -41,15 +53,22 @@ async function checkXenditReturn(){
   if(xr==='failed'){showToast('Pembayaran dibatalkan atau gagal','warn');if(isResume&&typeof showPaymentHistory==='function')showPaymentHistory();return;}
   showToast('Memproses pembayaran...','ok');
   const beforeLimit=user?.tokens_limit||0;
+  // Perpanjangan plan tidak selalu menaikkan tokens_limit (mis. Basic
+  // selalu 0, atau Pro yang di-reset ke angka bulanan yang KEBETULAN sama
+  // dengan sebelumnya) -- jadi "berhasil" juga dideteksi dari
+  // plan_expires_at maju, bukan cuma tokens_limit naik. Lihat
+  // wangku-spec-subscription-renewal.md §4.
+  const beforeExpiry=user?.plan_expires_at?new Date(user.plan_expires_at).getTime():0;
   for(let i=0;i<6;i++){
     await new Promise(r=>setTimeout(r,3000));
     try{
       const result=await rpc('get_user_by_id',{p_user_id:user.id});
       if(result?.user){
         user=result.user;localStorage.setItem('sdk_token',result.token);localStorage.setItem('sdk_session',JSON.stringify(user));
-        if(user.tokens_limit>beforeLimit){
+        const afterExpiry=user.plan_expires_at?new Date(user.plan_expires_at).getTime():0;
+        if(user.tokens_limit>beforeLimit||afterExpiry>beforeExpiry){
           renderPlanCard();
-          showToast('Token berhasil ditambahkan ✓','ok');
+          showToast(afterExpiry>beforeExpiry?'Langganan berhasil diperpanjang ✓':'Token berhasil ditambahkan ✓','ok');
           // "resume" berasal dari Riwayat Pembayaran (lanjutkan pembelian
           // pending), bukan dari tombol Beli Token biasa -- kembalikan ke
           // situ, bukan cuma diam di Settings, per wangku-fixes-pr25-26-27.md #2b.
@@ -63,12 +82,12 @@ async function checkXenditReturn(){
   if(isResume&&typeof showPaymentHistory==='function')showPaymentHistory();
 }
 
-// Label paket diturunkan dari jumlah token (atau item_type/plan kalau ada
-// -- kolom itu ditambahkan terpisah di wangku-spec-subscription-renewal.md,
-// baris dari create-payment.js versi lama di branch ini defaultnya
-// item_type='tokens'), bukan kolom label terpisah -- tier cuma segelintir
-// (lihat PACKAGES di create-payment.js), tidak perlu simpan label mentah
-// per baris di DB.
+// Label paket diturunkan dari jumlah token / item_type+plan, bukan
+// kolom label terpisah -- tier cuma ada segelintir (lihat
+// TOKEN_PACKAGES/PLAN_PACKAGES di create-payment.js), jadi tidak perlu
+// simpan label mentah per baris di DB. item_type/plan ditambahkan block
+// [31] khusus buat membedakan baris top-up token vs perpanjangan plan
+// (wangku-spec-subscription-renewal.md §4).
 function tokenPurchaseLabel(r){
   if(r.item_type==='plan'){
     const planNames={basic:'Basic',pro:'Pro',unlimited:'Ultimate'};

@@ -39,6 +39,7 @@ erDiagram
         text usage_month "month key ai_chat_count/ai_scan_count were last reset for, checked in showApp()"
         text avatar_url "base64 image"
         timestamptz trial_ends_at
+        timestamptz plan_expires_at "paid-period tracking, parallel to trial_ends_at — block [31], see below"
         timestamptz last_login "set on every successful doLogin()"
         timestamptz last_active "column exists, currently unused by app code"
         uuid token_version "random nonce embedded in every JWT, checked by is_owner_or_admin() — block [26]"
@@ -125,11 +126,13 @@ erDiagram
     token_purchases {
         uuid id PK "also sent to Xendit as external_id"
         uuid user_id FK
-        int tokens "tier size, e.g. 2000000"
+        int tokens "tier size (2000000/5000000), or the plan's bundled monthly allotment when item_type='plan'"
         numeric amount "Rp, e.g. 35000"
         text status "pending | paid | expired | failed — the UPDATE...WHERE status='pending' IS the webhook idempotency check"
         text xendit_invoice_id "Xendit's own id, for dashboard cross-reference only — not the idempotency key"
-        text payment_channel "e.g. 'GOPAY', 'BCA' — from the webhook's payment_channel/payment_method field, block [31]"
+        text item_type "'tokens' (default, top-up) | 'plan' (renewal) — block [31]"
+        text plan "target plan id ('basic'/'pro'), only set when item_type='plan'"
+        text payment_channel "e.g. 'GOPAY', 'BCA' — from the webhook's payment_channel/payment_method field, block [32]"
         timestamptz paid_at
     }
 
@@ -250,6 +253,18 @@ Registration (`verifyRegOTP()` in `auth.js`) sets `plan='pro'`, `trial_ends_at =
 **Lazy downgrade, checked in `login_check`/`get_user_by_username`/`get_user_by_id`** (all three — login, biometric, session-restore): if `trial_ends_at IS NOT NULL AND trial_ends_at < now() AND plan = 'pro'`, the function `UPDATE`s the row to `plan='free'` before returning the user object. No cron/scheduled job. **Never locks the account out** — `status` stays `'active'`, the user keeps using everything Free includes, only AI Chat/Scan/WhatsApp-bot access goes away.
 
 **Critical invariant admin.html must preserve**: the downgrade only fires when `plan` is *still* exactly `'pro'` — deliberately, so that if an admin manually upgrades a user to a real paid plan via `admin.html` (`updateUserPlan()`/`aktivasiUser()`) *after* their trial's `trial_ends_at` has already passed, the next login doesn't immediately clobber that back down to `'free'`. Both of those functions now also set `trial_ends_at = null` whenever they PATCH `plan` — nulling it is what permanently takes a user out of reach of the lazy-downgrade check. **If a future admin-side flow sets `plan` directly without also clearing `trial_ends_at`, a user who paid for a real upgrade after their trial lapsed can silently get auto-downgraded on their very next login** — any new plan-assignment path must clear `trial_ends_at` too, or reintroduce a different way to distinguish "still trialing" from "really on this plan."
+
+## Subscription renewal mechanics (block `[31]`)
+
+`plan_expires_at` tracks when a **paid** period (Basic/Pro/Ultimate) ends — the same gap `trial_ends_at` closes for trials, extended to cover paid subscriptions too, since before this a user set to a paid plan (via either payment path below) had nothing tracking when that period should end; it was effectively permanent until an admin manually changed it.
+
+**Two payment paths write this field, both landing on the same result:**
+- **Xendit** (`/api/xendit-webhook.js`, `item_type='plan'` purchases) — the self-service path, per `wangku-spec-subscription-renewal.md`.
+- **Manual approval** (`admin.html`'s `konfirmasiOrder()`) — the existing transfer-proof + admin-approval flow, kept working as an alternative, not replaced. Both compute the new expiry identically: fetch the user's current `plan_expires_at`; if it's set **and still in the future**, add 30 days to *that* date (not to "now") — a user renewing a few days early doesn't lose those days; otherwise (new subscriber, or already lapsed) add 30 days to now. Both also reset `tokens_limit`/`tokens_used`/`token_reset_month` fresh for the new plan tier (**not** additive — a renewal is a new billing period starting, unlike the token top-up in block `[28]`) and unconditionally clear `trial_ends_at` (paying for a real plan while still on trial is a conversion, not a coincidence — see the trial section above).
+
+**Deliberately NOT touched: `admin.html`'s `updateUserPlan()`** (the raw plan-change dropdown in the Detail User modal, `setUserTokens()`'s sibling). This is a permanent override/correction tool, same category as `setUserTokens()` — an admin forcing a plan via this path gets no expiry at all (`plan_expires_at` untouched, so `NULL` for a never-before-paid user), staying in effect until changed again by hand. Only the two genuine *payment-confirming* paths above set a real expiry.
+
+**Lazy downgrade — same mechanism as trial, in the same three functions**: if `plan_expires_at IS NOT NULL AND plan_expires_at < now() AND plan IN ('basic','pro','unlimited')`, downgrade to `plan='free'`. Not cleared on downgrade (mirrors `trial_ends_at`'s own behavior) — every reader of this column already checks `plan` is still one of the paid tiers first, so a stale past date next to `plan='free'` is unambiguous, and keeping it preserves a record of when the last paid period actually ended.
 
 ## PIN lock mechanics (block `[29]`)
 
